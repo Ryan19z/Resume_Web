@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+  <defs>
+    <linearGradient id="w2" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#134e5e" />
+      <stop offset="100%" stop-color="#71b280" />
+    </linearGradient>
+  </defs>
+  <rect width="960" height="540" fill="url(#w2)" />
+  <text
+    x="480"
+    y="280"
+    text-anchor="middle"
+    fill="rgba(255,255,255,0.95)"
+    font-size="26"
+    font-family="system-ui,Segoe UI,sans-serif"
+  >示例横幅 B（SVG）</text>
+</svg>

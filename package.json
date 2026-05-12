@@ -1,0 +1,37 @@
+{
+  "name": "my-vide-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:lan": "next dev -H 0.0.0.0",
+    "dev:share": "node scripts/dev-public-tunnel.mjs",
+    "dev:fresh": "node -e \"const fs=require('fs'),p=require('path');['.next',p.join('node_modules','.cache')].forEach(d=>{try{fs.rmSync(d,{recursive:true,force:true});}catch(e){}})\" && next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "share:tunnel": "lt --port 3000",
+    "share:cf": "cloudflared tunnel --url http://127.0.0.1:3000 --protocol http2",
+    "share:cf:quic": "cloudflared tunnel --url http://127.0.0.1:3000"
+  },
+  "dependencies": {
+    "driver.js": "^1.4.0",
+    "framer-motion": "^11.11.17",
+    "next": "^15.1.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.16.0",
+    "eslint-config-next": "^15.1.0",
+    "localtunnel": "^2.0.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.0"
+  }
+}

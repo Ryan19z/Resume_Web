@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * 主题仅挂在 `html[data-theme]` 上（勿与 `:root` 并写，否则 `:root` 恒匹配
+ * `<html>`，其它主题变量在部分层叠顺序下无法覆盖）。
+ */
+html[data-theme="paper"] {
+  --color-paper: 250 250 250;
+  --color-ink: 29 29 31;
+  --color-ink-muted: 110 110 115;
+  --color-line: 232 232 237;
+  --color-surface: 255 255 255;
+  --selection: 0 0 0;
+}
+
+html[data-theme="ink"] {
+  --color-paper: 15 15 18;
+  --color-ink: 245 245 247;
+  --color-ink-muted: 152 152 162;
+  --color-line: 48 48 56;
+  --color-surface: 28 28 34;
+  --selection: 255 255 255;
+}
+
+html[data-theme="warm"] {
+  --color-paper: 252 248 242;
+  --color-ink: 42 35 30;
+  --color-ink-muted: 120 105 94;
+  --color-line: 235 225 214;
+  --color-surface: 255 255 255;
+  --selection: 120 80 40;
+}
+
+html[data-theme="editorial"] {
+  --color-paper: 245 243 238;
+  --color-ink: 26 24 22;
+  --color-ink-muted: 95 90 84;
+  --color-line: 228 224 216;
+  --color-surface: 252 251 248;
+  --selection: 40 36 30;
+}
+
+html[data-theme="ocean"] {
+  --color-paper: 242 248 252;
+  --color-ink: 22 40 52;
+  --color-ink-muted: 82 104 118;
+  --color-line: 214 226 235;
+  --color-surface: 255 255 255;
+  --selection: 30 80 120;
+}
+
+@layer base {
+  /**
+   * 单页纵向滚动：勿对 html/body 使用 h-full 锁死视口高度，
+   * 否则子级 main 与内部滚动/高度链易错乱，表现为排版与样式异常。
+   */
+  html {
+    @apply m-0 scroll-smooth bg-paper text-ink antialiased;
+    min-height: 100%;
+  }
+  body {
+    @apply m-0 min-h-full bg-paper text-ink antialiased;
+  }
+
+  /** 锚点跳转时留出固定顶栏高度（与 SectionAnchorNav 占位一致） */
+  #intro,
+  #resume,
+  #portfolio {
+    scroll-margin-top: calc(2.875rem + env(safe-area-inset-top, 0px));
+  }
+}
+
+::selection {
+  background: rgb(var(--selection) / 0.12);
+}
+
+/* 导出 PDF（window.print）时的版式：页边距、尽量不拆卡片 */
+@page {
+  margin: 14mm;
+}
+
+@media print {
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 主滚动区铺满纸面，避免出现多余分页空白 */
+  main {
+    display: block;
+    overflow: visible !important;
+    min-height: unset !important;
+    height: auto !important;
+  }
+}
