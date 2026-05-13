@@ -33,6 +33,16 @@ const nextConfig: NextConfig = {
   },
 };
 
+/**
+ * 小内存 VPS 上 `next build` 可能在「Linting and checking validity of types」阶段极慢或假死。
+ * 仅在**服务器构建**时使用：`SKIP_BUILD_CHECKS=1 npm run build`
+ * 本地开发请勿设置，以便继续享受类型与 ESLint 校验。
+ */
+if (process.env.SKIP_BUILD_CHECKS === "1") {
+  nextConfig.typescript = { ignoreBuildErrors: true };
+  nextConfig.eslint = { ignoreDuringBuilds: true };
+}
+
 if (process.env.NODE_ENV === "development") {
   /**
    * 首页与 dev 静态资源禁用强缓存，降低经隧道访问时「HTML 与 CSS 指纹不一致」
