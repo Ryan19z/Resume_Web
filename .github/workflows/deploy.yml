@@ -1,0 +1,38 @@
+# 推送到 main/master 后，自动 SSH 到阿里云轻量服务器执行 scripts/server-deploy.sh
+# 一次性配置见：docs/DEPLOY-AUTO.md
+
+name: Deploy to server
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          command_timeout: 25m
+          script_stop: true
+          script: |
+            set -e
+            cd "${{ secrets.DEPLOY_PATH }}"
+            chmod +x scripts/server-deploy.sh
+            export DEPLOY_BRANCH="${{ github.ref_name }}"
+            if [ "${{ secrets.SKIP_BUILD_CHECKS }}" = "1" ]; then
+              export SKIP_BUILD_CHECKS=1
+            fi
+            ./scripts/server-deploy.sh

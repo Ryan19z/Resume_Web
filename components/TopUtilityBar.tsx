@@ -7,6 +7,7 @@ import {
 } from "@/components/SiteTourDriver";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { HELP_GUIDE_TEXT } from "@/lib/help-guide-content";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useState } from "react";
 
@@ -20,18 +21,15 @@ export function TopUtilityBar() {
   const [helpOpen, setHelpOpen] = useState(false);
   const titleId = useId();
 
+  useBodyScrollLock(helpOpen);
+
   useEffect(() => {
     if (!helpOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setHelpOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [helpOpen]);
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { randomId } from "@/lib/random-id";
 import { useEffect, useRef } from "react";
 
 const STORAGE_KEY = "resume-visitor-session-id-v1";
@@ -10,10 +11,7 @@ function getOrCreateSessionId(): string {
   try {
     let id = window.sessionStorage.getItem(STORAGE_KEY);
     if (!id) {
-      id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      id = randomId("");
       window.sessionStorage.setItem(STORAGE_KEY, id);
     }
     return id;

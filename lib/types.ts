@@ -138,4 +138,6 @@ export type PersistedSiteBundle = {
   version: 2;
   profile: PersistedProfile;
   site: SiteContent;
+  /** 本机或服务器最后一次保存的毫秒时间戳，用于与本机草稿比对 */
+  savedAt?: number;
 };

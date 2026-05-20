@@ -1,6 +1,7 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import type { PortfolioCopy } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useState } from "react";
@@ -53,18 +54,15 @@ export function PortfolioPageCopyModal() {
     if (editPermissionLoaded && !canEdit) closePortfolioPageCopyModal();
   }, [canEdit, editPermissionLoaded, closePortfolioPageCopyModal]);
 
+  useBodyScrollLock(portfolioPageCopyModalOpen);
+
   useEffect(() => {
     if (!portfolioPageCopyModalOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closePortfolioPageCopyModal();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [portfolioPageCopyModalOpen, closePortfolioPageCopyModal]);
 
   if (!canEdit) return null;

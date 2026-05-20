@@ -31,5 +31,8 @@ yarn-error.log*
 # env files
 .env*.local
 
+# 服务器上发布的简历快照（勿提交个人数据）
+/data/published-site.json
+
 # typescript
 *.tsbuildinfo

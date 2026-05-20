@@ -199,6 +199,7 @@ export function ResumePage() {
   const siteSnap = JSON.stringify(rc);
   const saveRef = useRef(updateResumeCopy);
   saveRef.current = updateResumeCopy;
+  const skipAutoSaveRef = useRef(true);
 
   useEffect(() => {
     const next = site.resumeCopy ?? defaultSiteContent.resumeCopy;
@@ -212,7 +213,14 @@ export function ResumePage() {
   }, [siteSnap]);
 
   useEffect(() => {
-    if (!canInline) return;
+    if (!canInline) {
+      skipAutoSaveRef.current = true;
+      return;
+    }
+    if (skipAutoSaveRef.current) {
+      skipAutoSaveRef.current = false;
+      return;
+    }
     const t = window.setTimeout(() => {
       saveRef.current({
         pageEyebrow,

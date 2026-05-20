@@ -21,6 +21,8 @@ fi
 
 export HOSTNAME=0.0.0.0
 export PORT="${PORT:-3000}"
+# 确保项目根目录下 data/ 可写（发布快照 data/published-site.json）
+mkdir -p "${ROOT}/data"
 
 pm2 delete resume-web 2>/dev/null || true
 pm2 start npm --name resume-web -- start

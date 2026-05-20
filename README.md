@@ -73,6 +73,8 @@ npm run start
 
 默认监听 **http://localhost:3000**。部署到云平台时，请按平台文档配置 `ALLOWED_EDIT_IPS` 等环境变量（见下文）。
 
+**GitHub → 阿里云轻量自动部署**：推送 `main`/`master` 后由 GitHub Actions 自动构建并重启，配置步骤见 **[docs/DEPLOY-AUTO.md](docs/DEPLOY-AUTO.md)**。
+
 ---
 
 ## 浏览与导航
@@ -121,9 +123,9 @@ npm run start
 
 ## 数据保存在哪里
 
-- 站点内容（姓名、履历、作品、文案快照等）保存在浏览器 **`localStorage`** 中，键名为 **`resume-site-bundle-v2`**（见 `lib/persist-site.ts`）。
-- **换浏览器、清缓存、无痕模式** 都会看到「另一份」数据或恢复默认示例内容。
-- **备份建议**：重要修改可在各弹窗中自行复制文本到本地文档；或自行导出 `localStorage` 中该键的 JSON（开发者工具 → Application → Local Storage）。
+- **访客看到的正式版**：服务器项目根目录 **`data/published-site.json`**（通过 `GET/PUT /api/site`）。站长在白名单 IP 下编辑并保存时会自动发布到此文件。
+- **站长本机草稿**：浏览器 **`localStorage`** 键名 **`resume-site-bundle-v2`**（见 `lib/persist-site.ts`），含 `savedAt` 时间戳；若本机比服务器新，刷新后会优先恢复本机并自动重试发布。
+- **备份建议**：定期备份 `data/published-site.json`；亦可导出本机 localStorage 中的 JSON。
 
 ---
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import type { ResumeCopy } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useState } from "react";
@@ -53,18 +54,15 @@ export function ResumePageCopyModal() {
     if (editPermissionLoaded && !canEdit) closeResumePageCopyModal();
   }, [canEdit, editPermissionLoaded, closeResumePageCopyModal]);
 
+  useBodyScrollLock(resumePageCopyModalOpen);
+
   useEffect(() => {
     if (!resumePageCopyModalOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeResumePageCopyModal();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [resumePageCopyModalOpen, closeResumePageCopyModal]);
 
   if (!canEdit) return null;

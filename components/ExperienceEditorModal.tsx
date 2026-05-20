@@ -2,6 +2,7 @@
 
 import { RepresentativeProjectsFields } from "@/components/RepresentativeProjectsFields";
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import type { ExperienceItem } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -47,18 +48,15 @@ export function ExperienceEditorModal({
     setDraft(cloneExp(source));
   }, [open, source]);
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
   if (!canEdit) return null;
@@ -150,7 +148,7 @@ export function ExperienceEditorModal({
               <div>
                 <p className="mb-2 text-sm font-medium">关键成果（每行一条）</p>
                 <textarea
-                  value={draft.keyResults.join("\n")}
+                  value={(Array.isArray(draft.keyResults) ? draft.keyResults : []).join("\n")}
                   onChange={(e) =>
                     setDraft({
                       ...draft,

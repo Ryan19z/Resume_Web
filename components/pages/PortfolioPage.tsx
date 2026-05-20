@@ -7,6 +7,8 @@ import {
   PORTFOLIO_LINK_PLACEHOLDER,
 } from "@/lib/media-defaults";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
+import { isReasonableHttpUrl } from "@/lib/is-reasonable-http-url";
+import { randomId } from "@/lib/random-id";
 import type { PortfolioCopy, PortfolioProject } from "@/lib/types";
 import { motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
@@ -117,15 +119,23 @@ function AddProjectForm({
   const [coverSrc, setCoverSrc] = useState<string>(PLACEHOLDER_IMAGES.wide1);
   const [posterSrc, setPosterSrc] = useState("");
   const [href, setHref] = useState("https://");
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const submit = () => {
     const t = title.trim();
     if (!t) return;
-    const link = href.trim() || PORTFOLIO_LINK_PLACEHOLDER;
+    const link = href.trim();
+    if (!isReasonableHttpUrl(link)) {
+      setLinkError(
+        "请填写有效的 http(s) 作品链接（需包含完整域名，不能仅为 https://）",
+      );
+      return;
+    }
+    setLinkError(null);
     const cover = coverSrc.trim() || PLACEHOLDER_IMAGES.wide2;
     const post = posterSrc.trim();
     onAdd({
-      id: `proj-${crypto.randomUUID()}`,
+      id: randomId("proj-"),
       title: t,
       description: description.trim() || undefined,
       coverSrc: cover,
@@ -179,9 +189,18 @@ function AddProjectForm({
           <span className="font-medium text-ink">作品外链（Behance / 视频页等）</span>
           <input
             value={href}
-            onChange={(e) => setHref(e.target.value)}
+            onChange={(e) => {
+              setHref(e.target.value);
+              if (linkError) setLinkError(null);
+            }}
             className="rounded-xl border border-line bg-paper px-3 py-2 font-mono text-[11px] outline-none focus:border-ink/20"
+            placeholder={PORTFOLIO_LINK_PLACEHOLDER}
           />
+          {linkError ? (
+            <span className="text-[11px] leading-relaxed text-red-600/90">
+              {linkError}
+            </span>
+          ) : null}
         </label>
       </div>
       <div className="mt-5 flex flex-wrap gap-2">
@@ -238,6 +257,7 @@ export function PortfolioPage() {
   const siteSnap = JSON.stringify(pc);
   const saveRef = useRef(updatePortfolioCopy);
   saveRef.current = updatePortfolioCopy;
+  const skipAutoSaveRef = useRef(true);
 
   useEffect(() => {
     const next = site.portfolioCopy ?? defaultSiteContent.portfolioCopy;
@@ -250,7 +270,14 @@ export function PortfolioPage() {
   }, [siteSnap]);
 
   useEffect(() => {
-    if (!canInline) return;
+    if (!canInline) {
+      skipAutoSaveRef.current = true;
+      return;
+    }
+    if (skipAutoSaveRef.current) {
+      skipAutoSaveRef.current = false;
+      return;
+    }
     const t = window.setTimeout(() => {
       saveRef.current({
         pageEyebrow,

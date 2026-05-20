@@ -2,21 +2,22 @@
 
 import { useSiteContent } from "@/context/SiteContentProvider";
 import type { AchievementBlock, RepresentativeProject } from "@/lib/types";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 function Blocks({ blocks }: { blocks: AchievementBlock[] }) {
   return (
     <div className="flex flex-col gap-10">
-      {blocks.map((b) => (
-        <section key={b.heading}>
+      {blocks.map((b, bi) => (
+        <section key={`${b.heading}-${bi}`}>
           <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
             {b.heading}
           </h3>
           <ul className="flex flex-col gap-3">
-            {b.bullets.map((line) => (
+            {b.bullets.map((line, li) => (
               <li
-                key={line}
+                key={`${bi}-${li}`}
                 className="rounded-2xl border border-line bg-surface/80 px-5 py-4 text-[15px] leading-relaxed text-ink/90"
               >
                 {line}
@@ -129,6 +130,10 @@ export function ResumeDetailOverlay() {
   repRef.current = rep;
 
   useEffect(() => {
+    setRep(null);
+  }, [resumeDetail?.kind, resumeDetail?.id]);
+
+  useEffect(() => {
     if (!resumeDetail) return;
     const exists =
       resumeDetail.kind === "experience"
@@ -136,6 +141,8 @@ export function ResumeDetailOverlay() {
         : site.education.some((e) => e.id === resumeDetail.id);
     if (!exists) closeResumeDetail();
   }, [resumeDetail, site.experience, site.education, closeResumeDetail]);
+
+  useBodyScrollLock(Boolean(resumeDetail));
 
   const payload = useMemo(() => {
     if (!resumeDetail) return null;
@@ -165,15 +172,6 @@ export function ResumeDetailOverlay() {
       representativeProjects: item.representativeProjects,
     };
   }, [resumeDetail, site.education, site.experience, site.resumeCopy]);
-
-  useEffect(() => {
-    if (!resumeDetail) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [resumeDetail]);
 
   useEffect(() => {
     if (!resumeDetail) return;
@@ -232,9 +230,12 @@ export function ResumeDetailOverlay() {
                       {site.resumeCopy.keyResultsHeading}
                     </h3>
                     <ul className="flex flex-col gap-3">
-                      {payload.keyResults.map((line) => (
+                      {(Array.isArray(payload.keyResults)
+                        ? payload.keyResults
+                        : []
+                      ).map((line, i) => (
                         <li
-                          key={line}
+                          key={i}
                           className="rounded-2xl border border-line bg-surface/80 px-5 py-4 text-[15px] leading-relaxed text-ink/90"
                         >
                           {line}

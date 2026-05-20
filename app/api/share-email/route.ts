@@ -1,3 +1,4 @@
+import { isReasonableHttpUrl } from "@/lib/is-reasonable-http-url";
 import { type NextRequest, NextResponse } from "next/server";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -6,17 +7,6 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function GET() {
   const configured = Boolean(process.env.RESEND_API_KEY?.trim());
   return NextResponse.json({ configured });
-}
-
-function isReasonableHttpUrl(link: string): boolean {
-  try {
-    const u = new URL(link);
-    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
-    if (link.length > 2048) return false;
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**

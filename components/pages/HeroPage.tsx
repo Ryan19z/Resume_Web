@@ -58,9 +58,17 @@ export function HeroPage() {
 
   const saveRef = useRef(updateQuickHeroFields);
   saveRef.current = updateQuickHeroFields;
+  const skipAutoSaveRef = useRef(true);
 
   useEffect(() => {
-    if (!canInline) return;
+    if (!canInline) {
+      skipAutoSaveRef.current = true;
+      return;
+    }
+    if (skipAutoSaveRef.current) {
+      skipAutoSaveRef.current = false;
+      return;
+    }
     const t = window.setTimeout(() => {
       saveRef.current({
         name,

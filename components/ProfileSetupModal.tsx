@@ -1,6 +1,7 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import type { HeroCopy } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ChangeEvent } from "react";
@@ -71,18 +72,15 @@ export function ProfileSetupModal() {
     site.pageBackgroundImageOpacity,
   ]);
 
+  useBodyScrollLock(setupModalOpen);
+
   useEffect(() => {
     if (!setupModalOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") dismissSetupModal();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [setupModalOpen, dismissSetupModal]);
 
   const onPickFile = (e: ChangeEvent<HTMLInputElement>) => {
@@ -98,11 +96,16 @@ export function ProfileSetupModal() {
       return;
     }
     const reader = new FileReader();
+    reader.onerror = () => {
+      setFileHint("读取图片失败，请换一张图片或改用图床链接");
+    };
     reader.onload = () => {
       const r = reader.result;
       if (typeof r === "string") {
         setPortraitUrl(r);
         setFileHint("已读入本地预览（将存入浏览器，勿用超大图）");
+      } else {
+        setFileHint("读取图片失败，请重试");
       }
     };
     reader.readAsDataURL(f);
@@ -121,11 +124,16 @@ export function ProfileSetupModal() {
       return;
     }
     const reader = new FileReader();
+    reader.onerror = () => {
+      setPageBgFileHint("读取背景图失败，请换一张图片或改用图床链接");
+    };
     reader.onload = () => {
       const r = reader.result;
       if (typeof r === "string") {
         setPageBgUrl(r);
         setPageBgFileHint("已读入本地预览（将存入浏览器）");
+      } else {
+        setPageBgFileHint("读取背景图失败，请重试");
       }
     };
     reader.readAsDataURL(f);

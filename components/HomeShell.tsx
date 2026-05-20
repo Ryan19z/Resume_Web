@@ -1,6 +1,9 @@
 "use client";
 
 import { EditNetworkBanner } from "@/components/EditNetworkBanner";
+import { PersistErrorBanner } from "@/components/PersistErrorBanner";
+import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
+import { useSiteContent } from "@/context/SiteContentProvider";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
 import { HrPresenceHud } from "@/components/HrPresenceHud";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
@@ -50,6 +53,24 @@ const ResumeDetailOverlay = dynamic(
 );
 
 export function HomeShell() {
+  const { contentReady } = useSiteContent();
+
+  if (!contentReady) {
+    return (
+      <div
+        className="flex min-h-[100dvh] w-full flex-col items-center justify-center gap-3 bg-paper text-ink-muted"
+        aria-busy="true"
+        aria-live="polite"
+      >
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-ink/70"
+          aria-hidden
+        />
+        <p className="text-sm font-medium">正在加载简历…</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <HashScrollRestorer />
@@ -61,6 +82,8 @@ export function HomeShell() {
       <TopUtilityBar />
       <HrPresenceHud />
       <EditNetworkBanner />
+      <SiteLoadWarningBanner />
+      <PersistErrorBanner />
       <SectionAnchorNav />
       <VerticalScrollLayout>
         <section

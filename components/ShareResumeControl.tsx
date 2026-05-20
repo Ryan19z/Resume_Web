@@ -1,6 +1,7 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useId, useState } from "react";
@@ -49,18 +50,15 @@ export function ShareResumeControl() {
 
   const shareUrl = pageUrl;
 
+  useBodyScrollLock(open);
+
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
   const copyLink = useCallback(async () => {
@@ -79,7 +77,7 @@ export function ShareResumeControl() {
     const to = emailTo.trim();
     const subject = `${site.name || "在线简历"} · 链接`;
     const body = `你好，\n\n这是我的在线简历页面：\n${shareUrl}\n\n（由网页「分享」生成）`;
-    const href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = href;
   }, [shareUrl, site.name, emailTo]);
 

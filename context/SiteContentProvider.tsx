@@ -5,8 +5,15 @@ import {
   buildBundleFromState,
   loadPersistedBundle,
   mergeInitialSite,
+  PERSIST_SAVE_FAILED_MESSAGE,
   savePersistedBundle,
+  SERVER_PUBLISH_FAILED_MESSAGE,
+  stampBundleForSave,
 } from "@/lib/persist-site";
+import {
+  fetchPublishedSite,
+  publishBundleToServer,
+} from "@/lib/publish-site-client";
 import { newExperienceItem } from "@/lib/experience-factory";
 import {
   hasCompletedSiteTour,
@@ -17,6 +24,7 @@ import type {
   ExperienceItem,
   HeroCopy,
   PersistedProfile,
+  PersistedSiteBundle,
   PortfolioCopy,
   PortfolioProject,
   ProfileSetupMeta,
@@ -86,6 +94,13 @@ type SiteContentContextValue = {
   updateEducationItems: (items: EducationItem[]) => void;
   addPortfolioProject: (project: PortfolioProject) => void;
   removePortfolioProject: (id: string) => void;
+  persistError: string | null;
+  dismissPersistError: () => void;
+  /** 首屏数据（本机 + 服务器）加载完成前为 false，用于避免闪默认示例站 */
+  contentReady: boolean;
+  /** 读取服务器发布文件失败或损坏时的提示（访客可见） */
+  siteLoadWarning: string | null;
+  dismissSiteLoadWarning: () => void;
 };
 
 const defaultProfile: PersistedProfile = {
@@ -119,7 +134,9 @@ function mergePortfolioCopy(
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
 
 export function SiteContentProvider({ children }: { children: ReactNode }) {
-  const [hydrated, setHydrated] = useState(false);
+  const [contentReady, setContentReady] = useState(false);
+  const [siteLoadWarning, setSiteLoadWarning] = useState<string | null>(null);
+  const publishedMetaRef = useRef<{ updatedAt: number } | null>(null);
   const [profile, setProfile] = useState<PersistedProfile>(defaultProfile);
   const [site, setSite] = useState<SiteContent>(() => ({
     ...defaultSiteContent,
@@ -136,6 +153,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [portfolioPageCopyModalOpen, setPortfolioPageCopyModalOpen] =
     useState(false);
   const [previewMode, setPreviewModeState] = useState(false);
+  const [persistError, setPersistError] = useState<string | null>(null);
+  const persistErrorTimerRef = useRef<number | null>(null);
 
   const profileRef = useRef(profile);
   const siteRef = useRef(site);
@@ -146,20 +165,138 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   editPermissionLoadedRef.current = editPermissionLoaded;
   canEditRef.current = canEdit;
 
-  const commitAll = useCallback((p: PersistedProfile, s: SiteContent) => {
-    setProfile(p);
-    setSite(s);
-    savePersistedBundle(buildBundleFromState(p, s));
+  const showPersistError = useCallback((message: string) => {
+    setPersistError(message);
+    if (persistErrorTimerRef.current != null) {
+      window.clearTimeout(persistErrorTimerRef.current);
+    }
+    persistErrorTimerRef.current = window.setTimeout(() => {
+      setPersistError(null);
+      persistErrorTimerRef.current = null;
+    }, 12_000);
   }, []);
 
-  useEffect(() => {
-    const bundle = loadPersistedBundle();
-    if (bundle) {
-      setProfile(bundle.profile);
-      setSite(mergeInitialSite(bundle));
+  const dismissPersistError = useCallback(() => {
+    setPersistError(null);
+    if (persistErrorTimerRef.current != null) {
+      window.clearTimeout(persistErrorTimerRef.current);
+      persistErrorTimerRef.current = null;
     }
-    setHydrated(true);
   }, []);
+
+  const applyBundle = useCallback((bundle: PersistedSiteBundle) => {
+    setProfile(bundle.profile);
+    setSite(mergeInitialSite(bundle));
+  }, []);
+
+  const dismissSiteLoadWarning = useCallback(() => {
+    setSiteLoadWarning(null);
+  }, []);
+
+  const commitAll = useCallback(
+    (p: PersistedProfile, s: SiteContent) => {
+      setProfile(p);
+      setSite(s);
+      const stamped = stampBundleForSave(buildBundleFromState(p, s));
+      const localOk = savePersistedBundle(stamped);
+
+      if (!localOk) {
+        showPersistError(PERSIST_SAVE_FAILED_MESSAGE);
+      }
+
+      if (!canEditRef.current) {
+        if (localOk) dismissPersistError();
+        return;
+      }
+
+      void publishBundleToServer(stamped).then((res) => {
+        if (!res.ok) {
+          showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
+          return;
+        }
+        publishedMetaRef.current = { updatedAt: stamped.savedAt ?? Date.now() };
+        if (localOk) dismissPersistError();
+      });
+    },
+    [dismissPersistError, showPersistError],
+  );
+
+  useEffect(
+    () => () => {
+      if (persistErrorTimerRef.current != null) {
+        window.clearTimeout(persistErrorTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [publishedResult, local] = await Promise.all([
+        fetchPublishedSite(),
+        Promise.resolve(loadPersistedBundle()),
+      ]);
+      if (cancelled) return;
+
+      if (publishedResult.status === "error") {
+        setSiteLoadWarning(publishedResult.message);
+        publishedMetaRef.current = null;
+      } else if (publishedResult.status === "ok") {
+        publishedMetaRef.current = { updatedAt: publishedResult.updatedAt };
+      } else {
+        publishedMetaRef.current = null;
+      }
+
+      if (publishedResult.status === "ok") {
+        applyBundle(publishedResult.bundle);
+        savePersistedBundle(publishedResult.bundle);
+      } else if (local) {
+        applyBundle(local);
+      }
+
+      setContentReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyBundle]);
+
+  /**
+   * 站长：若本机草稿比服务器新，恢复本机并自动重发发布（解决「发布失败 + 刷新丢稿」）。
+   */
+  useEffect(() => {
+    if (!contentReady || !editPermissionLoaded || !canEdit) return;
+
+    const local = loadPersistedBundle();
+    if (!local) return;
+
+    const localAt = local.savedAt ?? 0;
+    const pubAt = publishedMetaRef.current?.updatedAt ?? -1;
+    const serverHadPublish = publishedMetaRef.current !== null;
+
+    if (serverHadPublish && localAt <= pubAt) return;
+
+    applyBundle(local);
+    const stamped = stampBundleForSave(
+      buildBundleFromState(local.profile, mergeInitialSite(local)),
+    );
+    savePersistedBundle(stamped);
+
+    void publishBundleToServer(stamped).then((res) => {
+      if (!res.ok) {
+        showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
+        return;
+      }
+      publishedMetaRef.current = { updatedAt: stamped.savedAt ?? Date.now() };
+    });
+  }, [
+    contentReady,
+    editPermissionLoaded,
+    canEdit,
+    applyBundle,
+    showPersistError,
+  ]);
 
   /**
    * 首屏资料弹窗：仅在「新手引导已结束」后再自动打开。
@@ -167,11 +304,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
    * 避免与 driver.js 遮罩叠在同一时刻（背景被糊住还要点 6 步）。
    */
   useEffect(() => {
-    if (!hydrated || !editPermissionLoaded) return;
+    if (!contentReady || !editPermissionLoaded) return;
     if (!canEdit || profile.setupDismissed) return;
     if (!hasCompletedSiteTour()) return;
     setSetupModalOpen(true);
-  }, [hydrated, editPermissionLoaded, profile.setupDismissed, canEdit]);
+  }, [contentReady, editPermissionLoaded, profile.setupDismissed, canEdit]);
 
   useEffect(() => {
     const onTourFinished = () => {
@@ -208,9 +345,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (cancelled) return;
-        setCanEdit(true);
+        const devFallback = process.env.NODE_ENV === "development";
+        setCanEdit(devFallback);
         setEditPermissionHint(
-          "接口不可用，已默认允许本机编辑（部署到生产环境后请检查 /api/can-edit）。",
+          devFallback
+            ? "接口不可用，开发环境已临时允许编辑（生产环境请检查 /api/can-edit）。"
+            : "无法校验编辑权限，已禁止在线编辑。请检查网络或联系站点管理员。",
         );
         setEditPermissionLoaded(true);
       });
@@ -481,6 +621,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       updateEducationItems,
       addPortfolioProject,
       removePortfolioProject,
+      persistError,
+      dismissPersistError,
+      contentReady,
+      siteLoadWarning,
+      dismissSiteLoadWarning,
     }),
     [
       site,
@@ -512,6 +657,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       updateEducationItems,
       addPortfolioProject,
       removePortfolioProject,
+      persistError,
+      dismissPersistError,
+      contentReady,
+      siteLoadWarning,
+      dismissSiteLoadWarning,
     ],
   );
 

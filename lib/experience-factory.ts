@@ -1,9 +1,10 @@
+import { randomId } from "./random-id";
 import type { ExperienceItem } from "./types";
 import { newRepresentativeProject } from "./rep-project";
 
 export function newExperienceItem(): ExperienceItem {
   return {
-    id: `exp-${crypto.randomUUID()}`,
+    id: randomId("exp-"),
     title: "职位名称",
     subtitle: "公司 / 团队",
     period: "起止时间",
