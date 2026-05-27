@@ -91,40 +91,38 @@ jobs:
           key_path: ${{ env.DEPLOY_KEY_PATH }}
           port: ${{ secrets.SSH_PORT || 22 }}
           timeout: 90s
-          command_timeout: 10m
+          command_timeout: 5m
           script_stop: true
           script: |
             set -e
             DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
-            REPO_URL="https://github.com/Ryan19z/Resume_Web.git"
-            BRANCH="${{ github.ref_name }}"
             mkdir -p "${DEPLOY_PATH}/data"
-            # 仅同步仓库里的 scripts/（不跑 npm），便于使用 server-apply-artifact.sh
-            if [ ! -d "${DEPLOY_PATH}/.git" ]; then
-              git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${DEPLOY_PATH}" || true
-            fi
-            if [ -d "${DEPLOY_PATH}/.git" ]; then
-              cd "${DEPLOY_PATH}"
-              git fetch origin "${BRANCH}" --depth 1 2>/dev/null || git fetch origin "${BRANCH}"
-              git reset --hard "origin/${BRANCH}"
-            fi
             if [ ! -f "${DEPLOY_PATH}/deploy-bundle.tar.gz" ]; then
               echo "❌ 未找到 deploy-bundle.tar.gz"
               exit 1
             fi
-            chmod +x "${DEPLOY_PATH}/scripts/server-apply-artifact.sh" 2>/dev/null || true
-            if [ -x "${DEPLOY_PATH}/scripts/server-apply-artifact.sh" ]; then
-              "${DEPLOY_PATH}/scripts/server-apply-artifact.sh" "${DEPLOY_PATH}"
-            else
-              RELEASE_DIR="${DEPLOY_PATH}/release"
-              mkdir -p "${RELEASE_DIR}"
-              rm -rf "${RELEASE_DIR:?}"/*
-              tar xzf "${DEPLOY_PATH}/deploy-bundle.tar.gz" -C "${RELEASE_DIR}"
-              [ -f "${DEPLOY_PATH}/.env.local" ] && ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local" || true
-              export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
-              cd "${RELEASE_DIR}"
-              pm2 delete resume-web 2>/dev/null || true
-              HOSTNAME=0.0.0.0 PORT=3000 pm2 start server.js --name resume-web
-              pm2 save 2>/dev/null || true
+            echo "[deploy] 解压构建包..."
+            RELEASE_DIR="${DEPLOY_PATH}/release"
+            mkdir -p "${RELEASE_DIR}"
+            rm -rf "${RELEASE_DIR:?}"/*
+            tar xzf "${DEPLOY_PATH}/deploy-bundle.tar.gz" -C "${RELEASE_DIR}"
+            if [ ! -f "${RELEASE_DIR}/server.js" ]; then
+              echo "❌ release 内缺少 server.js"
+              exit 1
             fi
-            curl -s -o /dev/null -w "HTTP %{http_code}\n" "http://127.0.0.1:3000" || true
+            [ -f "${DEPLOY_PATH}/.env.local" ] && ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local" || true
+            export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
+            echo "[deploy] 重启 PM2（standalone server.js，监听 0.0.0.0:3000）..."
+            pm2 delete resume-web 2>/dev/null || true
+            if [ -f "${DEPLOY_PATH}/scripts/ecosystem.production.cjs" ]; then
+              SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json" PM2_CWD="${RELEASE_DIR}" \
+                pm2 start "${DEPLOY_PATH}/scripts/ecosystem.production.cjs"
+            else
+              cd "${RELEASE_DIR}"
+              HOSTNAME=0.0.0.0 PORT=3000 SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json" \
+                pm2 start server.js --name resume-web
+            fi
+            pm2 save 2>/dev/null || true
+            pm2 describe resume-web | head -15
+            echo "[deploy] 健康检查..."
+            curl -fsS --connect-timeout 5 --max-time 15 "http://127.0.0.1:3000" -o /dev/null && echo "HTTP OK" || echo "HTTP 检查未通过（站点可能仍在启动）"

@@ -30,12 +30,17 @@ export HOSTNAME="${HOSTNAME:-0.0.0.0}"
 export PORT="${PORT:-3000}"
 export SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH:-${DEPLOY_PATH}/data/published-site.json}"
 
-cd "$RELEASE_DIR"
-if command -v pm2 >/dev/null 2>&1 && pm2 describe resume-web >/dev/null 2>&1; then
-  echo "[artifact] pm2 restart resume-web"
-  pm2 delete resume-web 2>/dev/null || true
+export PM2_CWD="$RELEASE_DIR"
+pm2 delete resume-web 2>/dev/null || true
+
+if [[ -f "${DEPLOY_PATH}/scripts/ecosystem.production.cjs" ]]; then
+  SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH}" PM2_CWD="${RELEASE_DIR}" \
+    pm2 start "${DEPLOY_PATH}/scripts/ecosystem.production.cjs"
+else
+  cd "$RELEASE_DIR"
+  HOSTNAME=0.0.0.0 PORT=3000 SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH}" \
+    pm2 start server.js --name resume-web
 fi
-pm2 start server.js --name resume-web
 pm2 save 2>/dev/null || true
 pm2 list 2>/dev/null || true
 echo "[artifact] 完成。发布数据: ${SITE_PUBLISH_PATH}"
