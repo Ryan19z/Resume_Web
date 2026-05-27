@@ -58,6 +58,19 @@ chmod 600 ~/.ssh/authorized_keys ~/.ssh/github_deploy
 cat ~/.ssh/github_deploy
 ```
 
+**粘贴到 GitHub 时务必：**
+
+- 从 `-----BEGIN` 到 `-----END` **整段、多行**粘贴（最后一行末尾的 `=` 也要保留）
+- 不要合并成一行；不要首尾加引号或空格
+- 若 Actions 报 `ssh: no key found`，请 **删除** `SSH_PRIVATE_KEY` 后重新粘贴，或改用 PEM 格式：
+
+```bash
+ssh-keygen -p -m PEM -f ~/.ssh/github_deploy -N ""
+cat ~/.ssh/github_deploy
+```
+
+也可使用 Base64（更不易丢换行）：`cat ~/.ssh/github_deploy | base64 -w 0`，整段输出存为 Secret `SSH_PRIVATE_KEY_B64`（需 workflow 支持，默认用多行私钥即可）。
+
 ---
 
 ## 二、GitHub 仓库配置 Secrets

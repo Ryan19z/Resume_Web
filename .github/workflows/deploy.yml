@@ -18,20 +18,79 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: 检查必填 Secrets 是否已配置
+        run: |
+          missing=0
+          check() { if [ -z "$1" ]; then echo "❌ 缺少 Secret: $2"; missing=1; fi; }
+          check "${{ secrets.SSH_HOST }}" "SSH_HOST"
+          check "${{ secrets.SSH_USER }}" "SSH_USER"
+          check "${{ secrets.SSH_PRIVATE_KEY }}" "SSH_PRIVATE_KEY"
+          check "${{ secrets.DEPLOY_PATH }}" "DEPLOY_PATH"
+          if [ "$missing" -eq 1 ]; then
+            echo "请到 Settings → Secrets and variables → Actions 添加以上 4 项。"
+            exit 1
+          fi
+          echo "✅ Secrets 名称已配置"
+
+      - name: 写入 SSH 私钥文件（保留换行）
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          KEY_FILE="${RUNNER_TEMP}/deploy_key"
+          printf '%s' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+          if ! grep -q "BEGIN.*PRIVATE KEY" "$KEY_FILE"; then
+            echo "::error::SSH_PRIVATE_KEY 格式无效：未检测到 BEGIN PRIVATE KEY。"
+            echo "请删除该 Secret 后重新粘贴完整私钥（必须多行，含 BEGIN/END 与末尾的 =）。"
+            exit 1
+          fi
+          echo "DEPLOY_KEY_PATH=$KEY_FILE" >> "$GITHUB_ENV"
+          echo "✅ 私钥格式校验通过"
+
       - name: SSH deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key_path: ${{ env.DEPLOY_KEY_PATH }}
           port: ${{ secrets.SSH_PORT || 22 }}
+          timeout: 90s
           command_timeout: 25m
           script_stop: true
           script: |
             set -e
-            cd "${{ secrets.DEPLOY_PATH }}"
+            DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
+            REPO_URL="https://github.com/Ryan19z/Resume_Web.git"
+            BRANCH="${{ github.ref_name }}"
+
+            echo "[deploy] 连接成功，用户: $(whoami)"
+            echo "[deploy] 目标目录: ${DEPLOY_PATH}"
+
+            if [ ! -d "${DEPLOY_PATH}" ]; then
+              echo "[deploy] 目录不存在，正在 git clone..."
+              mkdir -p "$(dirname "${DEPLOY_PATH}")"
+              git clone --branch "${BRANCH}" "${REPO_URL}" "${DEPLOY_PATH}"
+            fi
+
+            cd "${DEPLOY_PATH}"
+
+            if [ ! -d .git ]; then
+              echo "❌ ${DEPLOY_PATH} 不是 Git 仓库，请检查 DEPLOY_PATH 或清空后重试 clone"
+              exit 1
+            fi
+
+            echo "[deploy] git pull (${BRANCH})..."
+            git fetch origin "${BRANCH}"
+            git pull origin "${BRANCH}" --ff-only
+
+            if [ ! -f scripts/server-deploy.sh ]; then
+              echo "❌ 仍缺少 scripts/server-deploy.sh，请确认仓库为 Ryan19z/Resume_Web 且分支为 ${BRANCH}"
+              ls -la scripts 2>/dev/null || ls -la
+              exit 1
+            fi
+
             chmod +x scripts/server-deploy.sh
-            export DEPLOY_BRANCH="${{ github.ref_name }}"
+            export DEPLOY_BRANCH="${BRANCH}"
             if [ "${{ secrets.SKIP_BUILD_CHECKS }}" = "1" ]; then
               export SKIP_BUILD_CHECKS=1
             fi
