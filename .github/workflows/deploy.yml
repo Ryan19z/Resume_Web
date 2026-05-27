@@ -55,7 +55,7 @@ jobs:
           key_path: ${{ env.DEPLOY_KEY_PATH }}
           port: ${{ secrets.SSH_PORT || 22 }}
           timeout: 90s
-          command_timeout: 25m
+          command_timeout: 45m
           script_stop: true
           script: |
             set -e
