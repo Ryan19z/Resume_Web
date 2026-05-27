@@ -30,9 +30,14 @@ if [[ ! -d .git ]]; then
   exit 1
 fi
 
-echo "[deploy] git pull (${DEPLOY_BRANCH})..."
-git fetch origin "${DEPLOY_BRANCH}"
-git pull origin "${DEPLOY_BRANCH}" --ff-only
+echo "[deploy] 同步代码 (${DEPLOY_BRANCH})..."
+chmod +x scripts/git-sync-repo.sh 2>/dev/null || true
+if [[ -x scripts/git-sync-repo.sh ]]; then
+  ./scripts/git-sync-repo.sh "${DEPLOY_BRANCH}" "$ROOT"
+else
+  git fetch origin "${DEPLOY_BRANCH}"
+  git reset --hard "origin/${DEPLOY_BRANCH}"
+fi
 
 echo "[deploy] node $(node -v 2>/dev/null || echo '?') npm $(npm -v 2>/dev/null || echo '?')"
 echo "[deploy] npm registry: $(npm config get registry)"
