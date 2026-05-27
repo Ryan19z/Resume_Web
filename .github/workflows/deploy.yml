@@ -1,5 +1,5 @@
-# 推送到 main/master 后，自动 SSH 到阿里云轻量服务器执行 scripts/server-deploy.sh
-# 一次性配置见：docs/DEPLOY-AUTO.md
+# 在 GitHub 上构建（快），再 SCP 到阿里云并重启 PM2（服务器不再跑 npm install / next build）
+# 配置见 docs/DEPLOY-AUTO.md
 
 name: Deploy to server
 
@@ -15,10 +15,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: 检查必填 Secrets 是否已配置
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: 安装依赖并构建
+        env:
+          SKIP_BUILD_CHECKS: "1"
+          NODE_ENV: production
+        run: |
+          npm ci
+          npm run build
+          cp -r public .next/standalone/public
+          mkdir -p .next/standalone/.next
+          cp -r .next/static .next/standalone/.next/static
+          tar czf deploy-bundle.tar.gz -C .next/standalone .
+          ls -lh deploy-bundle.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deploy-bundle
+          path: deploy-bundle.tar.gz
+          retention-days: 3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查必填 Secrets
         run: |
           missing=0
           check() { if [ -z "$1" ]; then echo "❌ 缺少 Secret: $2"; missing=1; fi; }
@@ -26,13 +56,9 @@ jobs:
           check "${{ secrets.SSH_USER }}" "SSH_USER"
           check "${{ secrets.SSH_PRIVATE_KEY }}" "SSH_PRIVATE_KEY"
           check "${{ secrets.DEPLOY_PATH }}" "DEPLOY_PATH"
-          if [ "$missing" -eq 1 ]; then
-            echo "请到 Settings → Secrets and variables → Actions 添加以上 4 项。"
-            exit 1
-          fi
-          echo "✅ Secrets 名称已配置"
+          if [ "$missing" -eq 1 ]; then exit 1; fi
 
-      - name: 写入 SSH 私钥文件（保留换行）
+      - name: 写入 SSH 私钥
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -40,14 +66,26 @@ jobs:
           printf '%s' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
           chmod 600 "$KEY_FILE"
           if ! grep -q "BEGIN.*PRIVATE KEY" "$KEY_FILE"; then
-            echo "::error::SSH_PRIVATE_KEY 格式无效：未检测到 BEGIN PRIVATE KEY。"
-            echo "请删除该 Secret 后重新粘贴完整私钥（必须多行，含 BEGIN/END 与末尾的 =）。"
+            echo "::error::SSH_PRIVATE_KEY 格式无效"
             exit 1
           fi
           echo "DEPLOY_KEY_PATH=$KEY_FILE" >> "$GITHUB_ENV"
-          echo "✅ 私钥格式校验通过"
 
-      - name: SSH deploy
+      - uses: actions/download-artifact@v4
+        with:
+          name: deploy-bundle
+
+      - name: 上传构建包到服务器
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key_path: ${{ env.DEPLOY_KEY_PATH }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          source: deploy-bundle.tar.gz
+          target: ${{ secrets.DEPLOY_PATH }}
+
+      - name: 解压并重启 PM2
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -55,47 +93,40 @@ jobs:
           key_path: ${{ env.DEPLOY_KEY_PATH }}
           port: ${{ secrets.SSH_PORT || 22 }}
           timeout: 90s
-          command_timeout: 45m
+          command_timeout: 10m
           script_stop: true
           script: |
             set -e
             DEPLOY_PATH="${{ secrets.DEPLOY_PATH }}"
             REPO_URL="https://github.com/Ryan19z/Resume_Web.git"
             BRANCH="${{ github.ref_name }}"
-
-            echo "[deploy] 连接成功，用户: $(whoami)"
-            echo "[deploy] 目标目录: ${DEPLOY_PATH}"
-
-            if [ ! -d "${DEPLOY_PATH}" ]; then
-              echo "[deploy] 目录不存在，正在 git clone..."
-              mkdir -p "$(dirname "${DEPLOY_PATH}")"
-              git clone --branch "${BRANCH}" "${REPO_URL}" "${DEPLOY_PATH}"
+            mkdir -p "${DEPLOY_PATH}/data"
+            # 仅同步仓库里的 scripts/（不跑 npm），便于使用 server-apply-artifact.sh
+            if [ ! -d "${DEPLOY_PATH}/.git" ]; then
+              git clone --depth 1 --branch "${BRANCH}" "${REPO_URL}" "${DEPLOY_PATH}" || true
             fi
-
-            cd "${DEPLOY_PATH}"
-
-            if [ ! -d .git ]; then
-              echo "❌ ${DEPLOY_PATH} 不是 Git 仓库，请检查 DEPLOY_PATH 或清空后重试 clone"
+            if [ -d "${DEPLOY_PATH}/.git" ]; then
+              cd "${DEPLOY_PATH}"
+              git fetch origin "${BRANCH}" --depth 1 2>/dev/null || git fetch origin "${BRANCH}"
+              git reset --hard "origin/${BRANCH}"
+            fi
+            if [ ! -f "${DEPLOY_PATH}/deploy-bundle.tar.gz" ]; then
+              echo "❌ 未找到 deploy-bundle.tar.gz"
               exit 1
             fi
-
-            echo "[deploy] 同步代码到 origin/${BRANCH}（丢弃服务器上对已跟踪文件的本地修改）..."
-            git fetch origin "${BRANCH}"
-            if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
-              echo "[deploy] 检测到本地修改，执行 git reset --hard"
-              git status -s || true
+            chmod +x "${DEPLOY_PATH}/scripts/server-apply-artifact.sh" 2>/dev/null || true
+            if [ -x "${DEPLOY_PATH}/scripts/server-apply-artifact.sh" ]; then
+              "${DEPLOY_PATH}/scripts/server-apply-artifact.sh" "${DEPLOY_PATH}"
+            else
+              RELEASE_DIR="${DEPLOY_PATH}/release"
+              mkdir -p "${RELEASE_DIR}"
+              rm -rf "${RELEASE_DIR:?}"/*
+              tar xzf "${DEPLOY_PATH}/deploy-bundle.tar.gz" -C "${RELEASE_DIR}"
+              [ -f "${DEPLOY_PATH}/.env.local" ] && ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local" || true
+              export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
+              cd "${RELEASE_DIR}"
+              pm2 delete resume-web 2>/dev/null || true
+              HOSTNAME=0.0.0.0 PORT=3000 pm2 start server.js --name resume-web
+              pm2 save 2>/dev/null || true
             fi
-            git reset --hard "origin/${BRANCH}"
-
-            if [ ! -f scripts/server-deploy.sh ]; then
-              echo "❌ 仍缺少 scripts/server-deploy.sh，请确认仓库为 Ryan19z/Resume_Web 且分支为 ${BRANCH}"
-              ls -la scripts 2>/dev/null || ls -la
-              exit 1
-            fi
-
-            chmod +x scripts/server-deploy.sh scripts/git-sync-repo.sh 2>/dev/null || true
-            export DEPLOY_BRANCH="${BRANCH}"
-            if [ "${{ secrets.SKIP_BUILD_CHECKS }}" = "1" ]; then
-              export SKIP_BUILD_CHECKS=1
-            fi
-            ./scripts/server-deploy.sh
+            curl -s -o /dev/null -w "HTTP %{http_code}\n" "http://127.0.0.1:3000" || true

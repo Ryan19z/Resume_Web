@@ -10,6 +10,10 @@ import type { NextConfig } from "next";
  * no-cors 分支，故已移除；请勿在环境变量中开启该开关。
  */
 const nextConfig: NextConfig = {
+  /**
+   * 在 GitHub Actions 构建 standalone 包，服务器无需 npm install / next build（轻量机易超时）。
+   */
+  output: "standalone",
   /** 减小 framer-motion 打包体，加快非本机首屏 JS 下载与解析 */
   experimental: {
     optimizePackageImports: ["framer-motion"],
