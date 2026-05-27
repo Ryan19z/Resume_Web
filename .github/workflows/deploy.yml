@@ -26,12 +26,10 @@ jobs:
           cache: npm
 
       - name: 安装依赖并构建
-        env:
-          SKIP_BUILD_CHECKS: "1"
-          NODE_ENV: production
         run: |
+          # 勿在 npm ci 时设 NODE_ENV=production，否则会跳过 devDependencies（含 typescript），next.config.ts 无法加载
           npm ci
-          npm run build
+          SKIP_BUILD_CHECKS=1 npm run build
           cp -r public .next/standalone/public
           mkdir -p .next/standalone/.next
           cp -r .next/static .next/standalone/.next/static
