@@ -22,23 +22,24 @@ if [[ ! -f "${RELEASE_DIR}/server.js" ]]; then
   exit 1
 fi
 
-if [[ -f "${DEPLOY_PATH}/.env.local" ]]; then
+if [[ -x "${DEPLOY_PATH}/scripts/pm2-start-release.sh" ]]; then
+  bash "${DEPLOY_PATH}/scripts/pm2-start-release.sh" "${DEPLOY_PATH}"
+elif [[ -f "${DEPLOY_PATH}/.env.local" ]]; then
   ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local"
-fi
-
-export HOSTNAME="${HOSTNAME:-0.0.0.0}"
-export PORT="${PORT:-3000}"
-export SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH:-${DEPLOY_PATH}/data/published-site.json}"
-
-export PM2_CWD="$RELEASE_DIR"
-pm2 delete resume-web 2>/dev/null || true
-
-if [[ -f "${DEPLOY_PATH}/scripts/ecosystem.production.cjs" ]]; then
-  SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH}" PM2_CWD="${RELEASE_DIR}" \
-    pm2 start "${DEPLOY_PATH}/scripts/ecosystem.production.cjs"
+  set -a
+  # shellcheck disable=SC1090
+  source "${DEPLOY_PATH}/.env.local"
+  set +a
+  export HOSTNAME="${HOSTNAME:-0.0.0.0}"
+  export PORT="${PORT:-3000}"
+  export SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH:-${DEPLOY_PATH}/data/published-site.json}"
+  cd "$RELEASE_DIR"
+  pm2 delete resume-web 2>/dev/null || true
+  pm2 start server.js --name resume-web --update-env
 else
   cd "$RELEASE_DIR"
-  HOSTNAME=0.0.0.0 PORT=3000 SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH}" \
+  pm2 delete resume-web 2>/dev/null || true
+  HOSTNAME=0.0.0.0 PORT=3000 SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json" \
     pm2 start server.js --name resume-web
 fi
 pm2 save 2>/dev/null || true
