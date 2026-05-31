@@ -9,6 +9,7 @@ import type {
   AchievementBlock,
   EducationItem,
   ExperienceItem,
+  HeroSpotlight,
   PersistedProfile,
   PersistedSiteBundle,
   PortfolioProject,
@@ -24,6 +25,15 @@ export const SERVER_PUBLISH_FAILED_MESSAGE =
 
 const STORAGE_KEY_V2 = "resume-site-bundle-v2";
 const STORAGE_KEY_V1 = "resume-site-profile-v1";
+type SiteLang = "zh" | "en";
+
+function getStorageKeyV2(lang: SiteLang): string {
+  return lang === "en" ? `${STORAGE_KEY_V2}-en` : STORAGE_KEY_V2;
+}
+
+function getStorageKeyV1(lang: SiteLang): string {
+  return lang === "en" ? `${STORAGE_KEY_V1}-en` : STORAGE_KEY_V1;
+}
 
 function cloneSite(): SiteContent {
   return structuredClone(defaultSiteContent);
@@ -106,6 +116,49 @@ function normalizeRepProjectsArray(
     });
   }
   return out.length > 0 ? out : [...fallback];
+}
+
+function normalizeHeroSpotlight(
+  raw: unknown,
+  fallback: HeroSpotlight,
+): HeroSpotlight {
+  if (!raw || typeof raw !== "object") return fallback;
+  const o = raw as Record<string, unknown>;
+  const title =
+    typeof o.title === "string" && o.title.trim().length > 0
+      ? o.title.trim()
+      : fallback.title;
+  const summary =
+    typeof o.summary === "string" && o.summary.trim().length > 0
+      ? o.summary.trim()
+      : fallback.summary;
+  const mediaRaw = o.media;
+  if (!mediaRaw || typeof mediaRaw !== "object") {
+    return { title, summary, media: fallback.media };
+  }
+  const m = mediaRaw as Record<string, unknown>;
+  const kind = m.kind;
+  if (kind === "image" || kind === "video" || kind === "link") {
+    const url = typeof m.url === "string" ? m.url.trim() : "";
+    if (url.length > 0) {
+      return { title, summary, media: { kind, url } };
+    }
+  }
+  if (kind === "code") {
+    const code = typeof m.code === "string" ? m.code : "";
+    if (code.trim().length > 0) {
+      return {
+        title,
+        summary,
+        media: {
+          kind: "code",
+          code,
+          language: typeof m.language === "string" ? m.language : undefined,
+        },
+      };
+    }
+  }
+  return { title, summary, media: fallback.media };
 }
 
 function migrateExperienceItem(
@@ -226,8 +279,8 @@ function isSiteContent(x: unknown): x is SiteContent {
   );
 }
 
-function loadV2Bundle(): PersistedSiteBundle | null {
-  const raw2 = window.localStorage.getItem(STORAGE_KEY_V2);
+function loadV2Bundle(lang: SiteLang): PersistedSiteBundle | null {
+  const raw2 = window.localStorage.getItem(getStorageKeyV2(lang));
   if (!raw2) return null;
   let parsed: Partial<PersistedSiteBundle>;
   try {
@@ -258,8 +311,8 @@ function loadV2Bundle(): PersistedSiteBundle | null {
   return null;
 }
 
-function loadV1Bundle(): PersistedSiteBundle | null {
-  const raw1 = window.localStorage.getItem(STORAGE_KEY_V1);
+function loadV1Bundle(lang: SiteLang): PersistedSiteBundle | null {
+  const raw1 = window.localStorage.getItem(getStorageKeyV1(lang));
   if (!raw1) return null;
   let p: Partial<PersistedProfile>;
   try {
@@ -278,19 +331,19 @@ function loadV1Bundle(): PersistedSiteBundle | null {
     site.name = profile.name.trim() || site.name;
     site.tagline = profile.tagline.trim() || site.tagline;
     const bundle: PersistedSiteBundle = { version: 2, profile, site };
-    savePersistedBundle(bundle);
-    window.localStorage.removeItem(STORAGE_KEY_V1);
+    savePersistedBundle(bundle, lang);
+    window.localStorage.removeItem(getStorageKeyV1(lang));
     return bundle;
   }
   return null;
 }
 
-export function loadPersistedBundle(): PersistedSiteBundle | null {
+export function loadPersistedBundle(lang: SiteLang = "zh"): PersistedSiteBundle | null {
   if (typeof window === "undefined") return null;
   try {
-    const v2 = loadV2Bundle();
+    const v2 = loadV2Bundle(lang);
     if (v2) return v2;
-    return loadV1Bundle();
+    return loadV1Bundle(lang);
   } catch (e) {
     console.warn("[persist-site] 读取本地快照失败", e);
     return null;
@@ -311,11 +364,14 @@ export function stampBundleForSave(
   };
 }
 
-export function savePersistedBundle(bundle: PersistedSiteBundle): boolean {
+export function savePersistedBundle(
+  bundle: PersistedSiteBundle,
+  lang: SiteLang = "zh",
+): boolean {
   if (typeof window === "undefined") return true;
   try {
     const stored = stampBundleForSave(bundle);
-    window.localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(stored));
+    window.localStorage.setItem(getStorageKeyV2(lang), JSON.stringify(stored));
     return true;
   } catch (e) {
     console.warn("[persist-site] 写入 localStorage 失败", e);
@@ -349,15 +405,27 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
           ...(s.portfolioCopy as SiteContent["portfolioCopy"]),
         }
       : base.portfolioCopy;
+  const heroSpotlight = normalizeHeroSpotlight(
+    (s as SiteContent).heroSpotlight,
+    base.heroSpotlight,
+  );
 
   const rawLines = (s as SiteContent).heroPreviewLines;
-  let heroPreviewLines: string[] = Array.isArray(rawLines)
+  const heroPreviewLines: string[] = Array.isArray(rawLines)
     ? rawLines
-        .slice(0, 3)
         .map((line) => String(line ?? "").trim())
+        .filter(Boolean)
+        .slice(0, 10)
     : [...base.heroPreviewLines];
-  while (heroPreviewLines.length < 3) heroPreviewLines.push("");
-  const heroPreviewLines3 = heroPreviewLines.slice(0, 3);
+  const normalizedHeroPreviewLines =
+    heroPreviewLines.length > 0 ? heroPreviewLines : [...base.heroPreviewLines];
+
+  const rawSkills = (s as SiteContent).transferableSkills;
+  const transferableSkills = Array.isArray(rawSkills)
+    ? rawSkills.map((x) => String(x ?? "").trim()).filter(Boolean).slice(0, 12)
+    : Array.isArray(base.transferableSkills)
+      ? [...base.transferableSkills]
+      : [];
 
   const targetRole =
     typeof (s as SiteContent).targetRole === "string" &&
@@ -400,10 +468,12 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     ...s,
     heroPortraitSrc,
     heroCopy,
+    heroSpotlight,
     resumeCopy,
     portfolioCopy,
     targetRole,
-    heroPreviewLines: heroPreviewLines3,
+    heroPreviewLines: normalizedHeroPreviewLines,
+    transferableSkills,
     contactEmail,
     contactExtra,
     name: s.name?.trim() || base.name,

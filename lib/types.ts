@@ -90,13 +90,29 @@ export type PortfolioProject = {
   href: string;
 };
 
+export type HeroSpotlightMedia =
+  | { kind: "image"; url: string }
+  | { kind: "video"; url: string }
+  | { kind: "code"; code: string; language?: string }
+  | { kind: "link"; url: string };
+
+export type HeroSpotlight = {
+  title: string;
+  summary: string;
+  media: HeroSpotlightMedia;
+};
+
 export type SiteContent = {
   name: string;
   tagline: string;
   /** 求职意向 / 目标岗位（首屏突出展示） */
   targetRole: string;
-  /** 首屏三条以内要点（固定三条槽位，可为空字符串） */
+  /** 首屏亮点（建议 3-6 条，支持动态增减） */
   heroPreviewLines: string[];
+  /** 通用能力标签（首页可增删改） */
+  transferableSkills?: string[];
+  /** 首页核心优势展示窗（支持图片/视频/代码/链接） */
+  heroSpotlight: HeroSpotlight;
   /** 页脚联系邮箱 */
   contactEmail?: string;
   /** 页脚其它联系方式一行（如微信） */

@@ -33,6 +33,8 @@ yarn-error.log*
 
 # 服务器上发布的简历快照（勿提交个人数据）
 /data/published-site.json
+/data/published-site.en.json
+/data/published-site*.tmp
 
 # typescript
 *.tsbuildinfo

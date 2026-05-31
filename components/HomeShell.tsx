@@ -3,15 +3,14 @@
 import { EditNetworkBanner } from "@/components/EditNetworkBanner";
 import { PersistErrorBanner } from "@/components/PersistErrorBanner";
 import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
+import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
-import { HrPresenceHud } from "@/components/HrPresenceHud";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
 import { SiteEditorDock } from "@/components/SiteEditorDock";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteTourAutoStart, SiteTourListener } from "@/components/SiteTourDriver";
 import { TourReadonlySentinels } from "@/components/TourReadonlySentinels";
-import { VisitorSessionPinger } from "@/components/VisitorSessionPinger";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { TopUtilityBar } from "@/components/TopUtilityBar";
 import { VerticalScrollLayout } from "@/components/VerticalScrollLayout";
@@ -54,6 +53,7 @@ const ResumeDetailOverlay = dynamic(
 
 export function HomeShell() {
   const { contentReady } = useSiteContent();
+  const { mode } = useLanguageMode();
 
   if (!contentReady) {
     return (
@@ -66,7 +66,9 @@ export function HomeShell() {
           className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-ink/70"
           aria-hidden
         />
-        <p className="text-sm font-medium">正在加载简历…</p>
+        <p className="text-sm font-medium">
+          {mode === "zh" ? "正在加载简历…" : "Loading resume..."}
+        </p>
       </div>
     );
   }
@@ -77,10 +79,8 @@ export function HomeShell() {
       <SiteTourListener />
       <SiteTourAutoStart />
       <TourReadonlySentinels />
-      <VisitorSessionPinger />
       <ThemeSwitcher />
       <TopUtilityBar />
-      <HrPresenceHud />
       <EditNetworkBanner />
       <SiteLoadWarningBanner />
       <PersistErrorBanner />
@@ -88,19 +88,19 @@ export function HomeShell() {
       <VerticalScrollLayout>
         <section
           id="intro"
-          aria-label="首页"
+          aria-label={mode === "zh" ? "首页" : "Home"}
           className="border-b border-line/50"
         >
           <HeroPage />
         </section>
         <section
           id="resume"
-          aria-label="履历"
+          aria-label={mode === "zh" ? "履历" : "Resume"}
           className="border-b border-line/50"
         >
           <ResumePage />
         </section>
-        <section id="portfolio" aria-label="作品集">
+        <section id="portfolio" aria-label={mode === "zh" ? "作品集" : "Portfolio"}>
           <PortfolioPage />
         </section>
         <SiteFooter />

@@ -7,10 +7,17 @@ import {
 } from "@/lib/server/published-site-store";
 import type { PersistedSiteBundle } from "@/lib/types";
 import { type NextRequest, NextResponse } from "next/server";
+type SiteLang = "zh" | "en";
+
+function parseLang(request: NextRequest): SiteLang {
+  const raw = request.nextUrl.searchParams.get("lang");
+  return raw === "en" ? "en" : "zh";
+}
 
 /** 访客与站长读取已发布到服务器的简历快照 */
-export async function GET() {
-  const result = await readPublishedSite();
+export async function GET(request: NextRequest) {
+  const lang = parseLang(request);
+  const result = await readPublishedSite(lang);
   if (result.status === "missing") {
     return NextResponse.json({
       ok: true as const,
@@ -40,6 +47,7 @@ export async function GET() {
 
 /** 仅 IP 白名单内可写：将当前编辑内容发布到服务器，供所有访客看到 */
 export async function PUT(request: NextRequest) {
+  const lang = parseLang(request);
   const auth = resolveCanEdit(request.headers);
   if (!auth.canEdit) {
     return NextResponse.json(
@@ -80,7 +88,7 @@ export async function PUT(request: NextRequest) {
       site: bundle.site,
       savedAt,
     };
-    await writePublishedBundle(toStore);
+    await writePublishedBundle(toStore, lang);
     return NextResponse.json({
       ok: true as const,
       published: true,

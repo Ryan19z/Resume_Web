@@ -2,6 +2,7 @@
 
 import { EducationEditorPanel } from "@/components/EducationEditorPanel";
 import { ExperienceEditorModal } from "@/components/ExperienceEditorModal";
+import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { defaultSiteContent } from "@/lib/default-site-content";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
@@ -33,6 +34,7 @@ function ExperienceSection({
   onOpen,
   showExpEdit,
   onEdit,
+  editLabel,
   sectionEyebrow,
   cardCta,
   headerExtra,
@@ -41,6 +43,7 @@ function ExperienceSection({
   onOpen: (id: string) => void;
   showExpEdit: boolean;
   onEdit: (id: string) => void;
+  editLabel: string;
   sectionEyebrow: ReactNode;
   cardCta: string;
   headerExtra?: ReactNode;
@@ -98,7 +101,7 @@ function ExperienceSection({
                     onClick={() => onEdit(c.id)}
                     className="w-full px-5 py-3 text-sm font-medium text-ink-muted transition-colors hover:bg-ink/[0.04] hover:text-ink sm:w-auto sm:py-0 sm:pt-8"
                   >
-                    编辑
+                    {editLabel}
                   </button>
                 </div>
               ) : null}
@@ -161,6 +164,7 @@ function EducationSection({
 }
 
 export function ResumePage() {
+  const { mode } = useLanguageMode();
   const {
     site,
     openExperienceDetail,
@@ -183,6 +187,12 @@ export function ResumePage() {
   const [eduEditing, setEduEditing] = useState(false);
   const showAuthorTools = canEdit && !previewMode;
   const canInline = editPermissionLoaded && canEdit && !previewMode;
+  const i18n = {
+    edit: mode === "zh" ? "编辑" : "Edit",
+    addExp: mode === "zh" ? "+ 添加工作经历" : "+ Add experience",
+    closeEdit: mode === "zh" ? "关闭编辑" : "Close editor",
+    editSave: mode === "zh" ? "编辑 / 保存" : "Edit / Save",
+  };
 
   const [pageEyebrow, setPageEyebrow] = useState(() => rc.pageEyebrow ?? "");
   const [pageTitle, setPageTitle] = useState(() => rc.pageTitle ?? "");
@@ -297,6 +307,7 @@ export function ResumePage() {
         onOpen={openExperienceDetail}
         showExpEdit={showAuthorTools}
         onEdit={(id) => setExpEditorId(id)}
+        editLabel={i18n.edit}
         sectionEyebrow={
           canInline ? (
             <input
@@ -323,7 +334,7 @@ export function ResumePage() {
               }}
               className="rounded-full border border-dashed border-ink/20 bg-surface/90 px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
             >
-              + 添加工作经历
+              {i18n.addExp}
             </button>
           ) : null
         }
@@ -352,7 +363,7 @@ export function ResumePage() {
               onClick={() => setEduEditing((v) => !v)}
               className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink-muted shadow-sm transition-colors hover:border-ink/15 hover:text-ink print:hidden"
             >
-              {eduEditing ? "关闭编辑" : "编辑 / 保存"}
+              {eduEditing ? i18n.closeEdit : i18n.editSave}
             </button>
           ) : null}
         </div>

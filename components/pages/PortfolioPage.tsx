@@ -1,6 +1,7 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { defaultSiteContent } from "@/lib/default-site-content";
 import {
   PLACEHOLDER_IMAGES,
@@ -21,12 +22,14 @@ function ProjectCard({
   canEdit,
   onRemove,
   pageCopy,
+  mode,
 }: {
   project: PortfolioProject;
   index: number;
   canEdit: boolean;
   onRemove: (id: string) => void;
   pageCopy: PortfolioCopy;
+  mode: "zh" | "en";
 }) {
   const poster = project.posterSrc ?? project.coverSrc;
   return (
@@ -45,11 +48,11 @@ function ProjectCard({
       {canEdit ? (
         <button
           type="button"
-          aria-label="删除作品"
+          aria-label={mode === "zh" ? "删除作品" : "Delete project"}
           onClick={() => onRemove(project.id)}
           className="absolute right-3 top-3 z-[2] rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm transition-colors hover:bg-black/60 print:hidden"
         >
-          删除
+          {mode === "zh" ? "删除" : "Delete"}
         </button>
       ) : null}
       <a
@@ -87,7 +90,7 @@ function ProjectCard({
         <div className="relative h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-line/50">
           <img
             src={poster}
-            alt={`${project.title} 海报`}
+            alt={`${project.title} ${mode === "zh" ? "海报" : "poster"}`}
             className="absolute inset-0 h-full w-full object-cover"
             loading="lazy"
             decoding="async"
@@ -110,9 +113,11 @@ function ProjectCard({
 function AddProjectForm({
   onAdd,
   onCancel,
+  mode,
 }: {
   onAdd: (p: PortfolioProject) => void;
   onCancel: () => void;
+  mode: "zh" | "en";
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -127,7 +132,9 @@ function AddProjectForm({
     const link = href.trim();
     if (!isReasonableHttpUrl(link)) {
       setLinkError(
-        "请填写有效的 http(s) 作品链接（需包含完整域名，不能仅为 https://）",
+        mode === "zh"
+          ? "请填写有效的 http(s) 作品链接（需包含完整域名，不能仅为 https://）"
+          : "Please enter a valid http(s) portfolio URL with a full domain.",
       );
       return;
     }
@@ -147,9 +154,13 @@ function AddProjectForm({
 
   return (
     <div className="mb-10 rounded-3xl border border-line bg-surface/90 p-6 shadow-sm">
-      <h3 className="mb-1 text-base font-semibold tracking-[-0.02em]">新增作品</h3>
+      <h3 className="mb-1 text-base font-semibold tracking-[-0.02em]">
+        {mode === "zh" ? "新增作品" : "Add project"}
+      </h3>
       <p className="mb-5 text-xs leading-relaxed text-ink-muted">
-        填写标题、主图链接与 HR 要看的作品页链接；海报图为可选项。
+        {mode === "zh"
+          ? "填写标题、主图链接与 HR 要看的作品页链接；海报图为可选项。"
+          : "Provide title, cover URL and portfolio link for HR review; poster image is optional."}
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="flex flex-col gap-1 text-xs sm:col-span-2">
@@ -158,11 +169,13 @@ function AddProjectForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="rounded-xl border border-line bg-paper px-3 py-2 text-sm outline-none focus:border-ink/20"
-            placeholder="例如：年度品牌片"
+            placeholder={mode === "zh" ? "例如：年度品牌片" : "e.g. Annual brand reel"}
           />
         </label>
         <label className="flex flex-col gap-1 text-xs sm:col-span-2">
-          <span className="font-medium text-ink">简介（可选）</span>
+          <span className="font-medium text-ink">
+            {mode === "zh" ? "简介（可选）" : "Summary (optional)"}
+          </span>
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
@@ -170,7 +183,9 @@ function AddProjectForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs sm:col-span-2">
-          <span className="font-medium text-ink">主图 / 封面 URL</span>
+          <span className="font-medium text-ink">
+            {mode === "zh" ? "主图 / 封面 URL" : "Main image / cover URL"}
+          </span>
           <input
             value={coverSrc}
             onChange={(e) => setCoverSrc(e.target.value)}
@@ -178,7 +193,11 @@ function AddProjectForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs sm:col-span-2">
-          <span className="font-medium text-ink">海报 / 备选图 URL（可选）</span>
+          <span className="font-medium text-ink">
+            {mode === "zh"
+              ? "海报 / 备选图 URL（可选）"
+              : "Poster / fallback image URL (optional)"}
+          </span>
           <input
             value={posterSrc}
             onChange={(e) => setPosterSrc(e.target.value)}
@@ -186,7 +205,11 @@ function AddProjectForm({
           />
         </label>
         <label className="flex flex-col gap-1 text-xs sm:col-span-2">
-          <span className="font-medium text-ink">作品外链（Behance / 视频页等）</span>
+          <span className="font-medium text-ink">
+            {mode === "zh"
+              ? "作品外链（Behance / 视频页等）"
+              : "External project link (Behance/video/etc.)"}
+          </span>
           <input
             value={href}
             onChange={(e) => {
@@ -209,14 +232,14 @@ function AddProjectForm({
           onClick={submit}
           className="rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
         >
-          添加到作品集
+          {mode === "zh" ? "添加到作品集" : "Add to portfolio"}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink-muted hover:bg-ink/[0.04]"
         >
-          取消
+          {mode === "zh" ? "取消" : "Cancel"}
         </button>
       </div>
     </div>
@@ -224,6 +247,7 @@ function AddProjectForm({
 }
 
 export function PortfolioPage() {
+  const { mode } = useLanguageMode();
   const {
     site,
     canEdit,
@@ -240,6 +264,17 @@ export function PortfolioPage() {
     : defaultSiteContent.projects;
   const showAuthorTools = canEdit && !previewMode;
   const canInline = editPermissionLoaded && canEdit && !previewMode;
+  const i18n = {
+    addEntry:
+      mode === "zh" ? "+ 插入作品（链接与图片）" : "+ Add project (link + image)",
+    helperTitle:
+      mode === "zh"
+        ? "作品卡片上的辅助文案（就地编辑，停顿后自动保存）"
+        : "Card helper copy (inline edit, auto-save after pause)",
+    tagOpenLabel: mode === "zh" ? "封面角标" : "Cover badge",
+    thumbTitle: mode === "zh" ? "缩略图区标题" : "Thumbnail title",
+    thumbCaption: mode === "zh" ? "缩略图区说明" : "Thumbnail caption",
+  };
 
   const [pageEyebrow, setPageEyebrow] = useState(() => pc.pageEyebrow ?? "");
   const [pageTitle, setPageTitle] = useState(() => pc.pageTitle ?? "");
@@ -363,6 +398,7 @@ export function PortfolioPage() {
         <div className="mb-6 print:hidden">
           {adding ? (
             <AddProjectForm
+              mode={mode}
               onAdd={(p) => {
                 addPortfolioProject(p);
                 setAdding(false);
@@ -375,7 +411,7 @@ export function PortfolioPage() {
               onClick={() => setAdding(true)}
               className="rounded-full border border-dashed border-ink/20 bg-surface/80 px-5 py-3 text-sm font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
             >
-              + 插入作品（链接与图片）
+              {i18n.addEntry}
             </button>
           )}
         </div>
@@ -384,11 +420,11 @@ export function PortfolioPage() {
       {canInline ? (
         <div className="mb-8 max-w-2xl rounded-2xl border border-line/80 bg-surface/40 px-4 py-4 print:hidden">
           <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-muted/80">
-            作品卡片上的辅助文案（就地编辑，停顿后自动保存）
+            {i18n.helperTitle}
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
-              <span>封面角标</span>
+              <span>{i18n.tagOpenLabel}</span>
               <input
                 type="text"
                 value={openLinkLabel}
@@ -398,7 +434,7 @@ export function PortfolioPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-[11px] text-ink-muted">
-              <span>缩略图区标题</span>
+              <span>{i18n.thumbTitle}</span>
               <input
                 type="text"
                 value={posterThumbTitle}
@@ -408,7 +444,7 @@ export function PortfolioPage() {
               />
             </label>
             <label className="flex flex-col gap-1 text-[11px] text-ink-muted sm:col-span-1">
-              <span>缩略图区说明</span>
+              <span>{i18n.thumbCaption}</span>
               <input
                 type="text"
                 value={posterThumbCaption}
@@ -430,6 +466,7 @@ export function PortfolioPage() {
             canEdit={showAuthorTools}
             onRemove={removePortfolioProject}
             pageCopy={cardCopy}
+            mode={mode}
           />
         ))}
       </div>

@@ -5,6 +5,7 @@ import {
   forceTeardownDriverTourDom,
   resetSiteTourCompletion,
 } from "@/components/SiteTourDriver";
+import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { HELP_GUIDE_TEXT } from "@/lib/help-guide-content";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
@@ -18,6 +19,7 @@ export function TopUtilityBar() {
     previewMode,
     setPreviewMode,
   } = useSiteContent();
+  const { mode, toggleMode } = useLanguageMode();
   const [helpOpen, setHelpOpen] = useState(false);
   const titleId = useId();
 
@@ -51,9 +53,22 @@ export function TopUtilityBar() {
                 : "border-line bg-surface/90 text-ink-muted hover:border-ink/15 hover:text-ink"
             }`}
           >
-            {previewMode ? "退出预览" : "预览"}
+            {previewMode
+              ? mode === "zh"
+                ? "退出预览"
+                : "Exit Preview"
+              : mode === "zh"
+                ? "预览"
+                : "Preview"}
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={toggleMode}
+          className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
+        >
+          {mode === "zh" ? "EN" : "中文"}
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -62,7 +77,7 @@ export function TopUtilityBar() {
           }}
           className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
         >
-          使用说明
+          {mode === "zh" ? "使用说明" : "Guide"}
         </button>
       </div>
 
@@ -76,7 +91,7 @@ export function TopUtilityBar() {
           >
             <button
               type="button"
-              aria-label="关闭"
+              aria-label={mode === "zh" ? "关闭" : "Close"}
               className="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"
               onClick={() => setHelpOpen(false)}
             />
@@ -95,10 +110,12 @@ export function TopUtilityBar() {
                   id={titleId}
                   className="text-lg font-semibold tracking-[-0.02em]"
                 >
-                  使用说明
+                  {mode === "zh" ? "使用说明" : "Guide"}
                 </h2>
                 <p className="mt-1 text-xs text-ink-muted">
-                  第一次使用可先看新手引导；也可随时点此面板复习。
+                  {mode === "zh"
+                    ? "第一次使用可先看新手引导；也可随时点此面板复习。"
+                    : "New here? Start with the onboarding tour and revisit this panel anytime."}
                 </p>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-ink/90 sm:px-6">
@@ -115,7 +132,9 @@ export function TopUtilityBar() {
                       window.setTimeout(() => dispatchStartSiteTour(), 300);
                     }}
                   >
-                    重新播放新手引导
+                    {mode === "zh"
+                      ? "重新播放新手引导"
+                      : "Replay onboarding tour"}
                   </button>
                 </div>
               </div>
@@ -125,7 +144,7 @@ export function TopUtilityBar() {
                   onClick={() => setHelpOpen(false)}
                   className="w-full rounded-full bg-ink py-3 text-sm font-medium text-white hover:opacity-90"
                 >
-                  关闭
+                  {mode === "zh" ? "关闭" : "Close"}
                 </button>
               </div>
             </motion.div>

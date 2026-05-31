@@ -1,6 +1,7 @@
 "use client";
 
 import { defaultSiteContent } from "@/lib/default-site-content";
+import { useLanguageMode } from "@/context/LanguageModeProvider";
 import {
   buildBundleFromState,
   loadPersistedBundle,
@@ -69,6 +70,8 @@ type SiteContentContextValue = {
         | "tagline"
         | "targetRole"
         | "heroPreviewLines"
+        | "transferableSkills"
+        | "heroSpotlight"
         | "contactEmail"
         | "contactExtra"
       >
@@ -134,6 +137,7 @@ function mergePortfolioCopy(
 const SiteContentContext = createContext<SiteContentContextValue | null>(null);
 
 export function SiteContentProvider({ children }: { children: ReactNode }) {
+  const { mode } = useLanguageMode();
   const [contentReady, setContentReady] = useState(false);
   const [siteLoadWarning, setSiteLoadWarning] = useState<string | null>(null);
   const publishedMetaRef = useRef<{ updatedAt: number } | null>(null);
@@ -198,7 +202,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       setProfile(p);
       setSite(s);
       const stamped = stampBundleForSave(buildBundleFromState(p, s));
-      const localOk = savePersistedBundle(stamped);
+      const localOk = savePersistedBundle(stamped, mode);
 
       if (!localOk) {
         showPersistError(PERSIST_SAVE_FAILED_MESSAGE);
@@ -209,7 +213,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      void publishBundleToServer(stamped).then((res) => {
+      void publishBundleToServer(stamped, mode).then((res) => {
         if (!res.ok) {
           showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
           return;
@@ -218,7 +222,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         if (localOk) dismissPersistError();
       });
     },
-    [dismissPersistError, showPersistError],
+    [dismissPersistError, showPersistError, mode],
   );
 
   useEffect(
@@ -232,10 +236,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    setContentReady(false);
     void (async () => {
       const [publishedResult, local] = await Promise.all([
-        fetchPublishedSite(),
-        Promise.resolve(loadPersistedBundle()),
+        fetchPublishedSite(mode),
+        Promise.resolve(loadPersistedBundle(mode)),
       ]);
       if (cancelled) return;
 
@@ -250,9 +255,61 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
       if (publishedResult.status === "ok") {
         applyBundle(publishedResult.bundle);
-        savePersistedBundle(publishedResult.bundle);
+        savePersistedBundle(publishedResult.bundle, mode);
       } else if (local) {
         applyBundle(local);
+      } else {
+        // 不同语言间给出独立初始内容，避免英文模式仍显示中文占位
+        const fallback = {
+          ...defaultSiteContent,
+          heroCopy:
+            mode === "en"
+              ? {
+                  ...defaultSiteContent.heroCopy,
+                  eyebrow: "Portfolio",
+                  swipeHint: "Scroll down to resume and portfolio",
+                  portraitCaption:
+                    "Current image is placeholder (portrait crop recommended).",
+                }
+              : defaultSiteContent.heroCopy,
+          resumeCopy:
+            mode === "en"
+              ? {
+                  ...defaultSiteContent.resumeCopy,
+                  pageEyebrow: "Resume",
+                  pageTitle: "Resume",
+                  pageIntro:
+                    "Open each card to view details, evidence and representative work.",
+                  experienceSectionEyebrow: "Experience",
+                  educationSectionEyebrow: "Education",
+                  experienceCardCta: "View outcomes →",
+                  educationCardCta: "View highlights →",
+                  detailWorkEyebrow: "Work Outcomes",
+                  detailCampusEyebrow: "Academic Highlights",
+                  keyResultsHeading: "Key Results",
+                  repProjectsHeading: "Representative Projects",
+                }
+              : defaultSiteContent.resumeCopy,
+          portfolioCopy:
+            mode === "en"
+              ? {
+                  ...defaultSiteContent.portfolioCopy,
+                  pageEyebrow: "Work",
+                  pageTitle: "Portfolio",
+                  pageIntro:
+                    "Selected projects with direct links and preview assets.",
+                  openLinkLabel: "Open",
+                  posterThumbTitle: "Poster / Preview",
+                  posterThumbCaption:
+                    "Use this area to highlight context and contribution.",
+                }
+              : defaultSiteContent.portfolioCopy,
+        };
+        applyBundle(
+          stampBundleForSave(
+            buildBundleFromState(defaultProfile, fallback),
+          ),
+        );
       }
 
       setContentReady(true);
@@ -260,7 +317,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [applyBundle]);
+  }, [applyBundle, mode]);
 
   /**
    * 站长：若本机草稿比服务器新，恢复本机并自动重发发布（解决「发布失败 + 刷新丢稿」）。
@@ -268,7 +325,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!contentReady || !editPermissionLoaded || !canEdit) return;
 
-    const local = loadPersistedBundle();
+    const local = loadPersistedBundle(mode);
     if (!local) return;
 
     const localAt = local.savedAt ?? 0;
@@ -281,9 +338,9 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     const stamped = stampBundleForSave(
       buildBundleFromState(local.profile, mergeInitialSite(local)),
     );
-    savePersistedBundle(stamped);
+    savePersistedBundle(stamped, mode);
 
-    void publishBundleToServer(stamped).then((res) => {
+    void publishBundleToServer(stamped, mode).then((res) => {
       if (!res.ok) {
         showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
         return;
@@ -296,6 +353,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     canEdit,
     applyBundle,
     showPersistError,
+    mode,
   ]);
 
   /**
@@ -392,9 +450,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         s.targetRole = tr.length ? tr : cur.targetRole;
       }
       if (meta?.heroPreviewLines !== undefined) {
-        const lines = [...meta.heroPreviewLines];
-        while (lines.length < 3) lines.push("");
-        s.heroPreviewLines = lines.slice(0, 3);
+        s.heroPreviewLines = meta.heroPreviewLines
+          .map((x) => String(x ?? "").trim())
+          .filter(Boolean)
+          .slice(0, 10);
       }
       if (meta?.contactEmail !== undefined) {
         const e = meta.contactEmail.trim();
@@ -430,6 +489,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "tagline"
           | "targetRole"
           | "heroPreviewLines"
+          | "transferableSkills"
+          | "heroSpotlight"
           | "contactEmail"
           | "contactExtra"
         >
@@ -448,9 +509,19 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         s.targetRole = patch.targetRole.trim() || cur.targetRole;
       }
       if (patch.heroPreviewLines !== undefined) {
-        const lines = [...patch.heroPreviewLines];
-        while (lines.length < 3) lines.push("");
-        s.heroPreviewLines = lines.slice(0, 3);
+        s.heroPreviewLines = patch.heroPreviewLines
+          .map((x) => String(x ?? "").trim())
+          .filter(Boolean)
+          .slice(0, 10);
+      }
+      if (patch.transferableSkills !== undefined) {
+        s.transferableSkills = patch.transferableSkills
+          .map((x) => String(x ?? "").trim())
+          .filter(Boolean)
+          .slice(0, 12);
+      }
+      if (patch.heroSpotlight !== undefined) {
+        s.heroSpotlight = patch.heroSpotlight;
       }
       if (patch.contactEmail !== undefined) {
         const e = patch.contactEmail.trim();

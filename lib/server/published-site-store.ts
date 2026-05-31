@@ -1,9 +1,12 @@
 import { mergeInitialSite } from "@/lib/persist-site";
 import type { PersistedProfile, PersistedSiteBundle, SiteContent } from "@/lib/types";
+import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
 
 const DEFAULT_REL = path.join("data", "published-site.json");
+const EN_REL = path.join("data", "published-site.en.json");
+type SiteLang = "zh" | "en";
 /** 发布快照最大约 5MB（含 Base64 图时仍建议用外链） */
 export const MAX_PUBLISH_BYTES = 5 * 1024 * 1024;
 
@@ -19,12 +22,16 @@ export type PublishedSiteReadResult =
   | { status: "corrupt"; message: string }
   | { status: "read_failed"; message: string };
 
-export function getPublishFilePath(): string {
+export function getPublishFilePath(lang: SiteLang = "zh"): string {
   const custom = process.env.SITE_PUBLISH_PATH?.trim();
   if (custom) {
-    return path.isAbsolute(custom) ? custom : path.join(process.cwd(), custom);
+    const base = path.isAbsolute(custom) ? custom : path.join(process.cwd(), custom);
+    if (lang === "zh") return base;
+    const ext = path.extname(base);
+    if (!ext) return `${base}.en`;
+    return `${base.slice(0, -ext.length)}.en${ext}`;
   }
-  return path.join(process.cwd(), DEFAULT_REL);
+  return path.join(process.cwd(), lang === "zh" ? DEFAULT_REL : EN_REL);
 }
 
 function isSiteContentShape(x: unknown): x is SiteContent {
@@ -85,8 +92,8 @@ function parseFilePayload(
   return { bundle: legacy, updatedAt };
 }
 
-export async function readPublishedSite(): Promise<PublishedSiteReadResult> {
-  const filePath = getPublishFilePath();
+export async function readPublishedSite(lang: SiteLang = "zh"): Promise<PublishedSiteReadResult> {
+  const filePath = getPublishFilePath(lang);
   try {
     const [raw, stat] = await Promise.all([
       fs.readFile(filePath, "utf8"),
@@ -140,14 +147,15 @@ export async function readPublishedSite(): Promise<PublishedSiteReadResult> {
 
 /** @deprecated 使用 readPublishedSite */
 export async function readPublishedBundle(): Promise<PersistedSiteBundle | null> {
-  const r = await readPublishedSite();
+  const r = await readPublishedSite("zh");
   return r.status === "ok" ? r.bundle : null;
 }
 
 export async function writePublishedBundle(
   bundle: PersistedSiteBundle,
+  lang: SiteLang = "zh",
 ): Promise<void> {
-  const filePath = getPublishFilePath();
+  const filePath = getPublishFilePath(lang);
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
   const updatedAt = bundle.savedAt ?? Date.now();
@@ -165,7 +173,8 @@ export async function writePublishedBundle(
   if (Buffer.byteLength(text, "utf8") > MAX_PUBLISH_BYTES) {
     throw new Error("publish_payload_too_large");
   }
-  const tmp = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+  // 避免高频自动保存在同一毫秒内写入同名临时文件导致 rename ENOENT
+  const tmp = `${filePath}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`;
   await fs.writeFile(tmp, text, "utf8");
   await fs.rename(tmp, filePath);
 }

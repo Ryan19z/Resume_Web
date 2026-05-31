@@ -15,6 +15,23 @@ export const defaultSiteContent: SiteContent = {
     "首屏要点二：一条可量化成果（数据或影响面）",
     "首屏要点三：与目标岗位最相关的关键词",
   ],
+  transferableSkills: [
+    "结果导向",
+    "跨团队协作",
+    "结构化表达",
+    "方案落地",
+    "数据复盘",
+    "用户洞察",
+  ],
+  heroSpotlight: {
+    title: "个人核心优势展示窗",
+    summary:
+      "可展示你最拿得出手的一项成果：代码片段、摄影作品、Vlog、广告案例、小程序链接或项目网址。",
+    media: {
+      kind: "image",
+      url: PLACEHOLDER_IMAGES.wide3,
+    },
+  },
   contactEmail: "hertz.hou719@gmail.com",
   heroPortraitSrc: PLACEHOLDER_IMAGES.heroPortrait,
   pageBackgroundImageSrc: PAGE_BACKGROUND_DEFAULT,

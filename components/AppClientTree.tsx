@@ -2,6 +2,7 @@
 
 import { HomeShell } from "@/components/HomeShell";
 import { forceTeardownDriverTourDom } from "@/components/SiteTourDriver";
+import { LanguageModeProvider } from "@/context/LanguageModeProvider";
 import { SiteContentProvider } from "@/context/SiteContentProvider";
 import { useLayoutEffect } from "react";
 
@@ -18,8 +19,10 @@ export default function AppClientTree() {
   }, []);
 
   return (
-    <SiteContentProvider>
-      <HomeShell />
-    </SiteContentProvider>
+    <LanguageModeProvider>
+      <SiteContentProvider>
+        <HomeShell />
+      </SiteContentProvider>
+    </LanguageModeProvider>
   );
 }
