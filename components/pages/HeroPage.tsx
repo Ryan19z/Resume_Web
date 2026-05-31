@@ -645,7 +645,7 @@ export function HeroPage() {
                 {highlightsForCards.map((line, idx) => (
                   <div
                     key={`hl-${idx}`}
-                    className="rounded-xl border border-line/80 bg-surface/55 p-3"
+                    className="micro-card rounded-xl border border-line/80 bg-surface/55 p-3"
                   >
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
                       {`${i18n.highlightWord} ${String(idx + 1).padStart(2, "0")}`}
@@ -819,7 +819,7 @@ export function HeroPage() {
               {roleCards.map((role) => (
                 <article
                   key={role.id}
-                  className="rounded-xl border border-line/80 bg-surface/50 p-3"
+                  className="micro-card rounded-xl border border-line/80 bg-surface/50 p-3"
                 >
                   {canInline ? (
                     <div className="space-y-2">

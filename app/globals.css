@@ -99,3 +99,55 @@ html[data-theme="ocean"] {
     height: auto !important;
   }
 }
+
+@layer utilities {
+  [data-micro-interaction="on"] .micro-card {
+    position: relative;
+    border-color: rgb(var(--color-line) / 0.9);
+    transition:
+      box-shadow 220ms ease,
+      border-color 220ms ease,
+      background-color 220ms ease;
+  }
+
+  [data-micro-interaction="on"] .micro-card::after {
+    content: "";
+    pointer-events: none;
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    border: 2px solid rgb(var(--selection) / 0);
+    box-shadow: 0 0 0 0 rgb(var(--selection) / 0);
+    transition:
+      border-color 220ms ease,
+      box-shadow 220ms ease,
+      opacity 220ms ease;
+    opacity: 0;
+  }
+
+  [data-micro-interaction="on"] .micro-card:hover {
+    box-shadow:
+      0 10px 24px -18px rgb(0 0 0 / 0.34),
+      0 2px 6px -4px rgb(0 0 0 / 0.2);
+    border-color: rgb(var(--color-ink-muted) / 0.38);
+    background-color: rgb(var(--color-surface) / 0.92);
+  }
+
+  [data-micro-interaction="on"] .micro-card:hover::after {
+    opacity: 1;
+    border-color: rgb(var(--color-ink-muted) / 0.33);
+    box-shadow:
+      0 0 0 2px rgb(var(--color-ink-muted) / 0.1),
+      0 8px 20px -16px rgb(var(--color-ink-muted) / 0.26);
+  }
+
+  [data-micro-interaction="on"] .micro-card:focus-within {
+    border-color: rgb(var(--color-ink-muted) / 0.4);
+  }
+
+  [data-micro-interaction="on"] .micro-card:focus-within::after {
+    opacity: 1;
+    border-color: rgb(var(--color-ink-muted) / 0.34);
+    box-shadow: 0 0 0 2px rgb(var(--color-ink-muted) / 0.12);
+  }
+}

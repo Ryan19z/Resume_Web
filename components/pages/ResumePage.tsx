@@ -72,7 +72,7 @@ function ExperienceSection({
             key={c.id}
             role="listitem"
             variants={itemVariants}
-            className="list-none rounded-2xl border border-line bg-surface/70 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-sm print:break-inside-avoid"
+            className="micro-card list-none rounded-2xl border border-line bg-surface/70 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-sm print:break-inside-avoid"
           >
             <div className="flex flex-col sm:flex-row">
               <button
@@ -152,7 +152,7 @@ function EducationSection({
             <button
               type="button"
               onClick={() => onOpen(c.id)}
-              className="w-full rounded-2xl border border-line bg-surface/70 px-6 py-5 text-left shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-sm transition-transform duration-200 hover:border-ink/12 active:scale-[0.99]"
+              className="micro-card w-full rounded-2xl border border-line bg-surface/70 px-6 py-5 text-left shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-sm transition-transform duration-200 hover:border-ink/12 active:scale-[0.99]"
             >
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <h3 className="text-base font-semibold tracking-[-0.01em]">

@@ -76,6 +76,8 @@ type SiteContentContextValue = {
         | "heroSpotlight"
         | "contactEmail"
         | "contactExtra"
+        | "pageBackgroundImageSrc"
+        | "pageBackgroundImageOpacity"
       >
     >,
   ) => void;
@@ -511,6 +513,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "heroSpotlight"
           | "contactEmail"
           | "contactExtra"
+          | "pageBackgroundImageSrc"
+          | "pageBackgroundImageOpacity"
         >
       >,
     ) => {
@@ -559,6 +563,17 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       if (patch.contactExtra !== undefined) {
         const x = patch.contactExtra.trim();
         s.contactExtra = x.length ? x : undefined;
+      }
+      if (patch.pageBackgroundImageSrc !== undefined) {
+        const bg = patch.pageBackgroundImageSrc.trim();
+        s.pageBackgroundImageSrc = bg.length > 0 ? bg : "";
+      }
+      if (patch.pageBackgroundImageOpacity !== undefined) {
+        const o = patch.pageBackgroundImageOpacity;
+        s.pageBackgroundImageOpacity =
+          typeof o === "number" && Number.isFinite(o)
+            ? Math.min(1, Math.max(0, o))
+            : cur.pageBackgroundImageOpacity;
       }
       const nextProfile: PersistedProfile = {
         ...p,

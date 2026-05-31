@@ -1,6 +1,7 @@
 "use client";
 
 import { PageBackgroundLayer } from "@/components/PageBackgroundLayer";
+import { useInteractionMode } from "@/context/InteractionModeProvider";
 import type { ReactNode } from "react";
 
 /**
@@ -8,8 +9,12 @@ import type { ReactNode } from "react";
  * 背景层叠在本容器底层（absolute + 负 z-index），避免与顶栏/悬浮按钮的 fixed 层级抢点击。
  */
 export function VerticalScrollLayout({ children }: { children: ReactNode }) {
+  const { microInteractionEnabled } = useInteractionMode();
   return (
-    <div className="relative z-[1] flex min-w-0 w-full flex-col bg-transparent pb-28 text-ink print:pb-6">
+    <div
+      className="relative z-[1] flex min-w-0 w-full flex-col bg-transparent pb-28 text-ink print:pb-6"
+      data-micro-interaction={microInteractionEnabled ? "on" : "off"}
+    >
       <PageBackgroundLayer />
       <div className="relative z-10 flex min-w-0 w-full flex-col">{children}</div>
     </div>

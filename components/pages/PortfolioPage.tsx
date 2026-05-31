@@ -43,7 +43,7 @@ function ProjectCard({
         mass: 0.88,
         delay: index * 0.05,
       }}
-      className="group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface/70 shadow-[0_1px_0_rgba(0,0,0,0.04)] print:break-inside-avoid"
+      className="micro-card group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface/70 shadow-[0_1px_0_rgba(0,0,0,0.04)] print:break-inside-avoid"
     >
       {canEdit ? (
         <button
