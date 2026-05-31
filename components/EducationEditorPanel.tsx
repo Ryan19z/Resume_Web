@@ -16,6 +16,7 @@ type Props = {
   open: boolean;
   items: EducationItem[];
   onSave: (next: EducationItem[]) => void;
+  onRemoveItem?: (id: string) => void;
   onClose: () => void;
 };
 
@@ -23,6 +24,7 @@ export function EducationEditorPanel({
   open,
   items,
   onSave,
+  onRemoveItem,
   onClose,
 }: Props) {
   const [draft, setDraft] = useState<EducationItem[]>(() => clone(items));
@@ -127,11 +129,26 @@ export function EducationEditorPanel({
         {draft.map((edu, ei) => (
           <div
             key={edu.id}
+            id={`edu-entry-${edu.id}`}
             className="rounded-2xl border border-line/80 bg-paper/60 p-4 sm:p-5"
           >
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
-              条目 {ei + 1}
-            </p>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
+                条目 {ei + 1}
+              </p>
+              {onRemoveItem ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm("确认删除这条教育经历吗？")) return;
+                    onRemoveItem(edu.id);
+                  }}
+                  className="rounded-full border border-red-200 px-2.5 py-1 text-[11px] text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-600"
+                >
+                  删除条目
+                </button>
+              ) : null}
+            </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-xs sm:col-span-2">
                 <span className="font-medium text-ink">学历 / 专业（主标题）</span>

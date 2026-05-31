@@ -34,7 +34,9 @@ function ExperienceSection({
   onOpen,
   showExpEdit,
   onEdit,
+  onDelete,
   editLabel,
+  deleteLabel,
   sectionEyebrow,
   cardCta,
   headerExtra,
@@ -43,7 +45,9 @@ function ExperienceSection({
   onOpen: (id: string) => void;
   showExpEdit: boolean;
   onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
   editLabel: string;
+  deleteLabel: string;
   sectionEyebrow: ReactNode;
   cardCta: string;
   headerExtra?: ReactNode;
@@ -102,6 +106,13 @@ function ExperienceSection({
                     className="w-full px-5 py-3 text-sm font-medium text-ink-muted transition-colors hover:bg-ink/[0.04] hover:text-ink sm:w-auto sm:py-0 sm:pt-8"
                   >
                     {editLabel}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(c.id)}
+                    className="w-full border-l border-line px-5 py-3 text-sm font-medium text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-600 sm:w-auto sm:py-0 sm:pt-8"
+                  >
+                    {deleteLabel}
                   </button>
                 </div>
               ) : null}
@@ -172,7 +183,10 @@ export function ResumePage() {
     canEdit,
     previewMode,
     addExperienceItem,
+    removeExperienceItem,
     updateEducationItems,
+    addEducationItem,
+    removeEducationItem,
     editPermissionLoaded,
     updateResumeCopy,
   } = useSiteContent();
@@ -189,9 +203,15 @@ export function ResumePage() {
   const canInline = editPermissionLoaded && canEdit && !previewMode;
   const i18n = {
     edit: mode === "zh" ? "编辑" : "Edit",
+    remove: mode === "zh" ? "删除" : "Delete",
     addExp: mode === "zh" ? "+ 添加工作经历" : "+ Add experience",
+    addEdu: mode === "zh" ? "+ 添加教育经历" : "+ Add education",
     closeEdit: mode === "zh" ? "关闭编辑" : "Close editor",
     editSave: mode === "zh" ? "编辑 / 保存" : "Edit / Save",
+    confirmDeleteExp:
+      mode === "zh"
+        ? "确认删除这条工作经历吗？删除后无法自动恢复。"
+        : "Delete this experience item?",
   };
 
   const [pageEyebrow, setPageEyebrow] = useState(() => rc.pageEyebrow ?? "");
@@ -307,7 +327,13 @@ export function ResumePage() {
         onOpen={openExperienceDetail}
         showExpEdit={showAuthorTools}
         onEdit={(id) => setExpEditorId(id)}
+        onDelete={(id) => {
+          if (!window.confirm(i18n.confirmDeleteExp)) return;
+          removeExperienceItem(id);
+          if (expEditorId === id) setExpEditorId(null);
+        }}
         editLabel={i18n.edit}
+        deleteLabel={i18n.remove}
         sectionEyebrow={
           canInline ? (
             <input
@@ -358,13 +384,29 @@ export function ResumePage() {
             </p>
           )}
           {showAuthorTools ? (
-            <button
-              type="button"
-              onClick={() => setEduEditing((v) => !v)}
-              className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink-muted shadow-sm transition-colors hover:border-ink/15 hover:text-ink print:hidden"
-            >
-              {eduEditing ? i18n.closeEdit : i18n.editSave}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const id = addEducationItem();
+                  setEduEditing(true);
+                  setTimeout(() => {
+                    const el = document.getElementById(`edu-entry-${id}`);
+                    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 50);
+                }}
+                className="rounded-full border border-dashed border-ink/20 bg-surface/90 px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink print:hidden"
+              >
+                {i18n.addEdu}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEduEditing((v) => !v)}
+                className="rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink-muted shadow-sm transition-colors hover:border-ink/15 hover:text-ink print:hidden"
+              >
+                {eduEditing ? i18n.closeEdit : i18n.editSave}
+              </button>
+            </div>
           ) : null}
         </div>
 
@@ -373,6 +415,7 @@ export function ResumePage() {
             open={eduEditing}
             items={education}
             onSave={updateEducationItems}
+            onRemoveItem={removeEducationItem}
             onClose={() => setEduEditing(false)}
           />
         ) : (

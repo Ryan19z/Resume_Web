@@ -14,6 +14,7 @@ import type {
   PersistedSiteBundle,
   PortfolioProject,
   RepresentativeProject,
+  RoleFitEntry,
   SiteContent,
 } from "./types";
 
@@ -76,6 +77,42 @@ function normalizeAchievementBlocks(
       fallback[i] ?? fallback[0] ?? { heading: "", bullets: [] },
     ),
   );
+}
+
+function normalizeRoleFitEntries(
+  raw: unknown,
+  fallback: RoleFitEntry[],
+): RoleFitEntry[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return fallback.map((x) => ({ ...x }));
+  }
+  const out: RoleFitEntry[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const fb = fallback[i] ?? fallback[0];
+    const title =
+      typeof o.title === "string" && o.title.trim().length > 0
+        ? o.title.trim()
+        : fb?.title ?? "";
+    const fit =
+      typeof o.fit === "string" && o.fit.trim().length > 0
+        ? o.fit.trim()
+        : fb?.fit ?? "";
+    const proofRaw = typeof o.proof === "string" ? o.proof.trim() : "";
+    if (!title && !fit && !proofRaw) continue;
+    out.push({
+      id:
+        typeof o.id === "string" && o.id.trim().length > 0
+          ? o.id
+          : `${fb?.id ?? "rf"}-${i + 1}`,
+      title,
+      fit,
+      proof: proofRaw || undefined,
+    });
+  }
+  return out.length > 0 ? out.slice(0, 12) : fallback.map((x) => ({ ...x }));
 }
 
 function normalizeRepProjectsArray(
@@ -481,6 +518,10 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     : Array.isArray(base.transferableSkills)
       ? [...base.transferableSkills]
       : [];
+  const roleFitEntries = normalizeRoleFitEntries(
+    (s as SiteContent).roleFitEntries,
+    base.roleFitEntries ?? [],
+  );
 
   const targetRole =
     typeof (s as SiteContent).targetRole === "string" &&
@@ -529,6 +570,7 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     targetRole,
     heroPreviewLines: normalizedHeroPreviewLines,
     transferableSkills,
+    roleFitEntries,
     contactEmail,
     contactExtra,
     name: s.name?.trim() || base.name,

@@ -114,6 +114,13 @@ export type HeroSpotlight = {
   documentName?: string;
 };
 
+export type RoleFitEntry = {
+  id: string;
+  title: string;
+  fit: string;
+  proof?: string;
+};
+
 export type SiteContent = {
   name: string;
   tagline: string;
@@ -123,6 +130,8 @@ export type SiteContent = {
   heroPreviewLines: string[];
   /** 通用能力标签（首页可增删改） */
   transferableSkills?: string[];
+  /** 岗位适配说明（首页可增删改） */
+  roleFitEntries?: RoleFitEntry[];
   /** 首页核心优势展示窗（支持图片/视频/代码/链接） */
   heroSpotlight: HeroSpotlight;
   /** 页脚联系邮箱 */

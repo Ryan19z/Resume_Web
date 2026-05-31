@@ -3,6 +3,7 @@
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
+import { randomId } from "@/lib/random-id";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -81,6 +82,19 @@ function buildSkillTags(targetRole: string): string[] {
   return Array.from(new Set([...fromRole, ...base])).slice(0, 8);
 }
 
+function buildDefaultRoleFits(
+  mode: "zh" | "en",
+  proofs: string[],
+): RoleFitDraft[] {
+  const roleBase = mode === "zh" ? DEFAULT_ROLE_FITS_ZH : DEFAULT_ROLE_FITS_EN;
+  return roleBase.map((item, i) => ({
+    id: `rf-${mode}-${i + 1}`,
+    title: item.title,
+    fit: item.fit,
+    proof: proofs[i % proofs.length],
+  }));
+}
+
 type ResolvedVideoPreview =
   | { mode: "direct"; src: string }
   | { mode: "embed"; src: string }
@@ -93,6 +107,13 @@ type SpotlightMediaLinks = {
   video: string;
   link: string;
   document: string;
+};
+
+type RoleFitDraft = {
+  id: string;
+  title: string;
+  fit: string;
+  proof?: string;
 };
 
 function extractYouTubeId(url: URL): string | null {
@@ -180,6 +201,21 @@ export function HeroPage() {
   );
   const [newHighlight, setNewHighlight] = useState("");
   const [newSkill, setNewSkill] = useState("");
+  const heroProofDefaults = extractProofLines(
+    experiences
+      .flatMap((e) => e.keyResults)
+      .map((x) => String(x ?? ""))
+      .slice(0, 5),
+    mode,
+  );
+  const [roleFits, setRoleFits] = useState<RoleFitDraft[]>(
+    Array.isArray(site.roleFitEntries) && site.roleFitEntries.length > 0
+      ? site.roleFitEntries
+      : buildDefaultRoleFits(mode, heroProofDefaults),
+  );
+  const [newRoleTitle, setNewRoleTitle] = useState("");
+  const [newRoleFit, setNewRoleFit] = useState("");
+  const [newRoleProof, setNewRoleProof] = useState("");
   const fallbackSpotlight = {
     title:
       mode === "zh"
@@ -247,6 +283,8 @@ export function HeroPage() {
   const siteSnap = `${site.name}|${site.targetRole}|${site.tagline}|${JSON.stringify(
     hp,
   )}|${JSON.stringify(site.transferableSkills ?? [])}|${JSON.stringify(
+    site.roleFitEntries ?? [],
+  )}|${JSON.stringify(
     site.heroSpotlight ?? null,
   )}`;
   const siteRef = useRef(site);
@@ -267,6 +305,21 @@ export function HeroPage() {
         ? s.transferableSkills
         : buildSkillTags(s.targetRole ?? "");
     setSkills(nextSkills);
+    const proofs = extractProofLines(
+      (Array.isArray(s.experience) ? s.experience : [])
+        .flatMap((e) => e.keyResults)
+        .map((x) => String(x ?? ""))
+        .slice(0, 5),
+      mode,
+    );
+    setRoleFits(
+      Array.isArray(s.roleFitEntries) && s.roleFitEntries.length > 0
+        ? s.roleFitEntries
+        : buildDefaultRoleFits(mode, proofs),
+    );
+    setNewRoleTitle("");
+    setNewRoleFit("");
+    setNewRoleProof("");
     const sp = s.heroSpotlight ?? fallbackSpotlight;
     setSpotlightTitle(sp.title ?? fallbackSpotlight.title);
     setSpotlightSummary(sp.summary ?? fallbackSpotlight.summary);
@@ -319,6 +372,7 @@ export function HeroPage() {
         targetRole,
         heroPreviewLines: highlights,
         transferableSkills: skills,
+        roleFitEntries: roleFits,
         heroSpotlight: {
           title: spotlightTitle.trim() || fallbackSpotlight.title,
           summary: spotlightSummary.trim() || fallbackSpotlight.summary,
@@ -356,6 +410,7 @@ export function HeroPage() {
     targetRole,
     highlights,
     skills,
+    roleFits,
     spotlightTitle,
     spotlightSummary,
     spotlightKind,
@@ -367,18 +422,8 @@ export function HeroPage() {
   ]);
 
   const visitorLines = highlights;
-  const heroProofs = extractProofLines(
-    experiences
-      .flatMap((e) => e.keyResults)
-      .map((x) => String(x ?? ""))
-      .slice(0, 5),
-    mode,
-  );
-  const roleBase = mode === "zh" ? DEFAULT_ROLE_FITS_ZH : DEFAULT_ROLE_FITS_EN;
-  const roleCards = roleBase.map((item, i) => ({
-    ...item,
-    proof: heroProofs[i % heroProofs.length],
-  }));
+  const roleCards =
+    roleFits.length > 0 ? roleFits : buildDefaultRoleFits(mode, heroProofDefaults);
   const skillTags = skills.length > 0 ? skills : buildSkillTags(site.targetRole ?? "");
   const highlightsForCards = useMemo(
     () => (highlights.length > 0 ? highlights : ["", "", ""]).slice(0, 10),
@@ -405,6 +450,13 @@ export function HeroPage() {
       mode === "zh"
         ? "岗位适配说明（面向不同岗位投递）"
         : "Role-fit matrix (for different applications)",
+    roleTitlePlaceholder: mode === "zh" ? "岗位名（如：产品经理）" : "Role title",
+    roleFitPlaceholder:
+      mode === "zh" ? "为什么你适配这个岗位" : "Why you fit this role",
+    roleProofPlaceholder:
+      mode === "zh" ? "证据示例（可选）" : "Evidence (optional)",
+    roleAdd: mode === "zh" ? "添加岗位" : "Add role",
+    roleRemove: mode === "zh" ? "删除岗位" : "Remove role",
     evidencePrefix: mode === "zh" ? "证据示例：" : "Evidence:",
     swipeHintFallback:
       mode === "zh"
@@ -766,19 +818,132 @@ export function HeroPage() {
             <div className="grid gap-2 sm:grid-cols-2">
               {roleCards.map((role) => (
                 <article
-                  key={role.title}
+                  key={role.id}
                   className="rounded-xl border border-line/80 bg-surface/50 p-3"
                 >
-                  <h3 className="text-sm font-semibold text-ink">{role.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-ink/90">
-                    {role.fit}
-                  </p>
-                  <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
-                    {i18n.evidencePrefix} {role.proof}
-                  </p>
+                  {canInline ? (
+                    <div className="space-y-2">
+                      <input
+                        value={role.title}
+                        onChange={(e) =>
+                          setRoleFits((prev) =>
+                            prev.map((x) =>
+                              x.id === role.id ? { ...x, title: e.target.value } : x,
+                            ),
+                          )
+                        }
+                        maxLength={40}
+                        placeholder={i18n.roleTitlePlaceholder}
+                        className={`${SEAMLESS_INPUT} text-sm font-semibold`}
+                      />
+                      <textarea
+                        value={role.fit}
+                        onChange={(e) =>
+                          setRoleFits((prev) =>
+                            prev.map((x) =>
+                              x.id === role.id ? { ...x, fit: e.target.value } : x,
+                            ),
+                          )
+                        }
+                        rows={2}
+                        maxLength={180}
+                        placeholder={i18n.roleFitPlaceholder}
+                        className={`${SEAMLESS_INPUT} w-full resize-y text-xs leading-relaxed text-ink/90`}
+                      />
+                      <input
+                        value={role.proof ?? ""}
+                        onChange={(e) =>
+                          setRoleFits((prev) =>
+                            prev.map((x) =>
+                              x.id === role.id
+                                ? { ...x, proof: e.target.value || undefined }
+                                : x,
+                            ),
+                          )
+                        }
+                        maxLength={180}
+                        placeholder={i18n.roleProofPlaceholder}
+                        className={`${SEAMLESS_INPUT} text-[11px] text-ink-muted`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setRoleFits((prev) => prev.filter((x) => x.id !== role.id))
+                        }
+                        className="rounded-full border border-line px-2.5 py-1 text-[11px] text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
+                      >
+                        {i18n.roleRemove}
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <h3 className="text-sm font-semibold text-ink">{role.title}</h3>
+                      <p className="mt-1 text-xs leading-relaxed text-ink/90">
+                        {role.fit}
+                      </p>
+                      {role.proof ? (
+                        <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
+                          {i18n.evidencePrefix} {role.proof}
+                        </p>
+                      ) : null}
+                    </>
+                  )}
                 </article>
               ))}
             </div>
+            {canInline ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                <input
+                  value={newRoleTitle}
+                  onChange={(e) => setNewRoleTitle(e.target.value)}
+                  maxLength={40}
+                  placeholder={i18n.roleTitlePlaceholder}
+                  className="rounded-xl border border-line bg-surface/70 px-3 py-2 text-sm outline-none focus:border-ink/20 sm:col-span-1"
+                />
+                <input
+                  value={newRoleFit}
+                  onChange={(e) => setNewRoleFit(e.target.value)}
+                  maxLength={180}
+                  placeholder={i18n.roleFitPlaceholder}
+                  className="rounded-xl border border-line bg-surface/70 px-3 py-2 text-sm outline-none focus:border-ink/20 sm:col-span-2"
+                />
+                <div className="flex gap-2 sm:col-span-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const title = newRoleTitle.trim();
+                      const fit = newRoleFit.trim();
+                      const proof = newRoleProof.trim();
+                      if (!title && !fit && !proof) return;
+                      setRoleFits((prev) =>
+                        [
+                          ...prev,
+                          {
+                            id: randomId("rf-"),
+                            title,
+                            fit,
+                            proof: proof || undefined,
+                          },
+                        ].slice(0, 12),
+                      );
+                      setNewRoleTitle("");
+                      setNewRoleFit("");
+                      setNewRoleProof("");
+                    }}
+                    className="flex-1 rounded-full border border-line bg-surface/90 px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
+                  >
+                    {i18n.roleAdd}
+                  </button>
+                </div>
+                <input
+                  value={newRoleProof}
+                  onChange={(e) => setNewRoleProof(e.target.value)}
+                  maxLength={180}
+                  placeholder={i18n.roleProofPlaceholder}
+                  className="rounded-xl border border-line bg-surface/70 px-3 py-2 text-sm outline-none focus:border-ink/20 sm:col-span-4"
+                />
+              </div>
+            ) : null}
           </div>
 
           <motion.p

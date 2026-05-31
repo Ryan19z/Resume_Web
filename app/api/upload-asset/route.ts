@@ -26,6 +26,26 @@ function safeBaseName(name: string): string {
   return base.replace(/[^a-zA-Z0-9._-]/g, "");
 }
 
+async function resolveRuntimePublicDir(): Promise<string> {
+  const cwd = process.cwd();
+  // 生产部署常见目录：DEPLOY_PATH/release（Next standalone）；
+  // 某些重启方式下 cwd 可能回到 DEPLOY_PATH 根目录，优先写入 release/public。
+  const candidates = [
+    path.join(cwd, "release", "public"),
+    path.join(cwd, "public"),
+  ];
+  for (const dir of candidates) {
+    try {
+      await fs.access(dir);
+      return dir;
+    } catch {
+      // try next
+    }
+  }
+  // 开发环境或首次目录不存在时，默认落到 cwd/public
+  return candidates[1];
+}
+
 export async function POST(request: NextRequest) {
   const auth = resolveCanEdit(request.headers);
   if (!auth.canEdit) {
@@ -74,8 +94,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const root = process.cwd();
-    const uploadDir = path.join(root, "public", "uploads");
+    const publicDir = await resolveRuntimePublicDir();
+    const uploadDir = path.join(publicDir, "uploads");
     await fs.mkdir(uploadDir, { recursive: true });
 
     const finalName = `${Date.now()}-${randomUUID()}${ext}`;

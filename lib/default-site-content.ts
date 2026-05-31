@@ -23,6 +23,26 @@ export const defaultSiteContent: SiteContent = {
     "数据复盘",
     "用户洞察",
   ],
+  roleFitEntries: [
+    {
+      id: "rf-1",
+      title: "摄影",
+      fit: "具备视觉叙事与成片交付能力，能围绕业务目标输出可传播画面。",
+      proof: "证据示例：将核心页面 LCP 从 3.1s 优化到 1.4s，转化率提升约 8%。",
+    },
+    {
+      id: "rf-2",
+      title: "设计",
+      fit: "能把抽象需求转成信息结构与界面细节，兼顾审美与可用性。",
+      proof: "证据示例：搭建组件库与设计令牌，跨 5 条业务线复用。",
+    },
+    {
+      id: "rf-3",
+      title: "软件工程",
+      fit: "可独立推进从需求拆解、实现到上线的完整交付闭环。",
+      proof: "证据示例：推动可访问性与响应式规范，减少一线设计返工。",
+    },
+  ],
   heroSpotlight: {
     title: "个人核心优势展示窗",
     summary:

@@ -16,6 +16,7 @@ import {
   publishBundleToServer,
 } from "@/lib/publish-site-client";
 import { newExperienceItem } from "@/lib/experience-factory";
+import { newEducationItem } from "@/lib/education-factory";
 import {
   hasCompletedSiteTour,
   SITE_TOUR_FINISHED_EVENT,
@@ -71,6 +72,7 @@ type SiteContentContextValue = {
         | "targetRole"
         | "heroPreviewLines"
         | "transferableSkills"
+        | "roleFitEntries"
         | "heroSpotlight"
         | "contactEmail"
         | "contactExtra"
@@ -78,6 +80,9 @@ type SiteContentContextValue = {
     >,
   ) => void;
   addExperienceItem: () => string;
+  removeExperienceItem: (id: string) => void;
+  addEducationItem: () => string;
+  removeEducationItem: (id: string) => void;
   updateResumeCopy: (patch: Partial<ResumeCopy>) => void;
   resumePageCopyModalOpen: boolean;
   openResumePageCopyModal: () => void;
@@ -502,6 +507,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "targetRole"
           | "heroPreviewLines"
           | "transferableSkills"
+          | "roleFitEntries"
           | "heroSpotlight"
           | "contactEmail"
           | "contactExtra"
@@ -530,6 +536,17 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         s.transferableSkills = patch.transferableSkills
           .map((x) => String(x ?? "").trim())
           .filter(Boolean)
+          .slice(0, 12);
+      }
+      if (patch.roleFitEntries !== undefined) {
+        s.roleFitEntries = patch.roleFitEntries
+          .map((x) => ({
+            id: String(x.id ?? "").trim(),
+            title: String(x.title ?? "").trim(),
+            fit: String(x.fit ?? "").trim(),
+            proof: String(x.proof ?? "").trim() || undefined,
+          }))
+          .filter((x) => x.id && (x.title || x.fit || x.proof))
           .slice(0, 12);
       }
       if (patch.heroSpotlight !== undefined) {
@@ -562,6 +579,38 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     });
     return item.id;
   }, [commitAll]);
+
+  const removeExperienceItem = useCallback(
+    (id: string) => {
+      const s = siteRef.current;
+      commitAll(profileRef.current, {
+        ...s,
+        experience: s.experience.filter((e) => e.id !== id),
+      });
+    },
+    [commitAll],
+  );
+
+  const addEducationItem = useCallback(() => {
+    const s = siteRef.current;
+    const item = newEducationItem();
+    commitAll(profileRef.current, {
+      ...s,
+      education: [item, ...s.education],
+    });
+    return item.id;
+  }, [commitAll]);
+
+  const removeEducationItem = useCallback(
+    (id: string) => {
+      const s = siteRef.current;
+      commitAll(profileRef.current, {
+        ...s,
+        education: s.education.filter((e) => e.id !== id),
+      });
+    },
+    [commitAll],
+  );
 
   const updateResumeCopy = useCallback(
     (patch: Partial<ResumeCopy>) => {
@@ -685,6 +734,9 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       updateProfile,
       updateQuickHeroFields,
       addExperienceItem,
+      removeExperienceItem,
+      addEducationItem,
+      removeEducationItem,
       updateResumeCopy,
       resumePageCopyModalOpen,
       openResumePageCopyModal,
@@ -721,6 +773,9 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       updateProfile,
       updateQuickHeroFields,
       addExperienceItem,
+      removeExperienceItem,
+      addEducationItem,
+      removeEducationItem,
       updateResumeCopy,
       resumePageCopyModalOpen,
       openResumePageCopyModal,
