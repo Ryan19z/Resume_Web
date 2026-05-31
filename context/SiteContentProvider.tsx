@@ -238,81 +238,93 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     setContentReady(false);
     void (async () => {
-      const [publishedResult, local] = await Promise.all([
-        fetchPublishedSite(mode),
-        Promise.resolve(loadPersistedBundle(mode)),
-      ]);
-      if (cancelled) return;
+      try {
+        const [publishedResult, local] = await Promise.all([
+          fetchPublishedSite(mode),
+          Promise.resolve(loadPersistedBundle(mode)),
+        ]);
+        if (cancelled) return;
 
-      if (publishedResult.status === "error") {
-        setSiteLoadWarning(publishedResult.message);
-        publishedMetaRef.current = null;
-      } else if (publishedResult.status === "ok") {
-        publishedMetaRef.current = { updatedAt: publishedResult.updatedAt };
-      } else {
-        publishedMetaRef.current = null;
+        if (publishedResult.status === "error") {
+          setSiteLoadWarning(publishedResult.message);
+          publishedMetaRef.current = null;
+        } else if (publishedResult.status === "ok") {
+          publishedMetaRef.current = { updatedAt: publishedResult.updatedAt };
+        } else {
+          publishedMetaRef.current = null;
+        }
+
+        if (publishedResult.status === "ok") {
+          applyBundle(publishedResult.bundle);
+          savePersistedBundle(publishedResult.bundle, mode);
+        } else if (local) {
+          applyBundle(local);
+        } else {
+          // 不同语言间给出独立初始内容，避免英文模式仍显示中文占位
+          const fallback = {
+            ...defaultSiteContent,
+            heroCopy:
+              mode === "en"
+                ? {
+                    ...defaultSiteContent.heroCopy,
+                    eyebrow: "Portfolio",
+                    swipeHint: "Scroll down to resume and portfolio",
+                    portraitCaption:
+                      "Current image is placeholder (portrait crop recommended).",
+                  }
+                : defaultSiteContent.heroCopy,
+            resumeCopy:
+              mode === "en"
+                ? {
+                    ...defaultSiteContent.resumeCopy,
+                    pageEyebrow: "Resume",
+                    pageTitle: "Resume",
+                    pageIntro:
+                      "Open each card to view details, evidence and representative work.",
+                    experienceSectionEyebrow: "Experience",
+                    educationSectionEyebrow: "Education",
+                    experienceCardCta: "View outcomes →",
+                    educationCardCta: "View highlights →",
+                    detailWorkEyebrow: "Work Outcomes",
+                    detailCampusEyebrow: "Academic Highlights",
+                    keyResultsHeading: "Key Results",
+                    repProjectsHeading: "Representative Projects",
+                  }
+                : defaultSiteContent.resumeCopy,
+            portfolioCopy:
+              mode === "en"
+                ? {
+                    ...defaultSiteContent.portfolioCopy,
+                    pageEyebrow: "Work",
+                    pageTitle: "Portfolio",
+                    pageIntro:
+                      "Selected projects with direct links and preview assets.",
+                    openLinkLabel: "Open",
+                    posterThumbTitle: "Poster / Preview",
+                    posterThumbCaption:
+                      "Use this area to highlight context and contribution.",
+                  }
+                : defaultSiteContent.portfolioCopy,
+          };
+          applyBundle(
+            stampBundleForSave(
+              buildBundleFromState(defaultProfile, fallback),
+            ),
+          );
+        }
+      } catch (e) {
+        console.error("[SiteContentProvider] 初始化加载失败，已回退默认内容", e);
+        if (!cancelled) {
+          applyBundle(
+            stampBundleForSave(
+              buildBundleFromState(defaultProfile, defaultSiteContent),
+            ),
+          );
+          setSiteLoadWarning("加载远端数据失败，已回退到本地默认模板。");
+        }
+      } finally {
+        if (!cancelled) setContentReady(true);
       }
-
-      if (publishedResult.status === "ok") {
-        applyBundle(publishedResult.bundle);
-        savePersistedBundle(publishedResult.bundle, mode);
-      } else if (local) {
-        applyBundle(local);
-      } else {
-        // 不同语言间给出独立初始内容，避免英文模式仍显示中文占位
-        const fallback = {
-          ...defaultSiteContent,
-          heroCopy:
-            mode === "en"
-              ? {
-                  ...defaultSiteContent.heroCopy,
-                  eyebrow: "Portfolio",
-                  swipeHint: "Scroll down to resume and portfolio",
-                  portraitCaption:
-                    "Current image is placeholder (portrait crop recommended).",
-                }
-              : defaultSiteContent.heroCopy,
-          resumeCopy:
-            mode === "en"
-              ? {
-                  ...defaultSiteContent.resumeCopy,
-                  pageEyebrow: "Resume",
-                  pageTitle: "Resume",
-                  pageIntro:
-                    "Open each card to view details, evidence and representative work.",
-                  experienceSectionEyebrow: "Experience",
-                  educationSectionEyebrow: "Education",
-                  experienceCardCta: "View outcomes →",
-                  educationCardCta: "View highlights →",
-                  detailWorkEyebrow: "Work Outcomes",
-                  detailCampusEyebrow: "Academic Highlights",
-                  keyResultsHeading: "Key Results",
-                  repProjectsHeading: "Representative Projects",
-                }
-              : defaultSiteContent.resumeCopy,
-          portfolioCopy:
-            mode === "en"
-              ? {
-                  ...defaultSiteContent.portfolioCopy,
-                  pageEyebrow: "Work",
-                  pageTitle: "Portfolio",
-                  pageIntro:
-                    "Selected projects with direct links and preview assets.",
-                  openLinkLabel: "Open",
-                  posterThumbTitle: "Poster / Preview",
-                  posterThumbCaption:
-                    "Use this area to highlight context and contribution.",
-                }
-              : defaultSiteContent.portfolioCopy,
-        };
-        applyBundle(
-          stampBundleForSave(
-            buildBundleFromState(defaultProfile, fallback),
-          ),
-        );
-      }
-
-      setContentReady(true);
     })();
     return () => {
       cancelled = true;

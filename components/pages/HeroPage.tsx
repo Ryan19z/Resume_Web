@@ -90,7 +90,6 @@ export function HeroPage() {
     updateQuickHeroFields,
   } = useSiteContent();
   const { mode } = useLanguageMode();
-  const portrait = site.heroPortraitSrc?.trim();
   const canInline = editPermissionLoaded && canEdit && !previewMode;
 
   const hp = Array.isArray(site.heroPreviewLines)
@@ -306,13 +305,7 @@ export function HeroPage() {
     mediaVideo: mode === "zh" ? "视频" : "Video",
     mediaCode: mode === "zh" ? "代码" : "Code",
     mediaLink: mode === "zh" ? "网址 / 小程序" : "Link / Mini-program",
-    portrait: mode === "zh" ? "个人照片" : "Portrait",
-    portraitHint:
-      mode === "zh"
-        ? "「站点编辑」→「首屏与形象」上传或粘贴链接"
-        : "Use site editor to upload/paste portrait URL",
   };
-  const showPortrait = mode === "zh";
   const spotlightPreview = (() => {
     if (spotlightKind === "code") {
       return {
@@ -347,46 +340,22 @@ export function HeroPage() {
               {i18n.scanHint}
             </div>
 
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                {canInline ? (
-                  <input
-                    type="text"
-                    name="hero-name"
-                    title="点击修改，停顿后自动保存"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    maxLength={40}
-                    autoComplete="name"
-                    className={`${SEAMLESS_INPUT} text-[clamp(1.85rem,4.2vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink`}
-                  />
-                ) : (
-                  <h1 className="text-[clamp(1.85rem,4.2vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
-                    {site.name}
-                  </h1>
-                )}
-              </div>
-              {showPortrait ? (
-                <div className="w-[110px] shrink-0 sm:w-[130px]">
-                  <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-line/80 bg-surface shadow-[0_8px_24px_-18px_rgba(0,0,0,0.4)]">
-                    {portrait ? (
-                      <img
-                        src={portrait}
-                        alt={i18n.portrait}
-                        className="absolute inset-0 h-full w-full object-cover object-center"
-                        loading="eager"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center px-2 text-center text-[10px] leading-relaxed text-ink-muted/80">
-                        {i18n.portraitHint}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-            </div>
+            {canInline ? (
+              <input
+                type="text"
+                name="hero-name"
+                title="点击修改，停顿后自动保存"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={40}
+                autoComplete="name"
+                className={`${SEAMLESS_INPUT} text-[clamp(1.85rem,4.2vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink`}
+              />
+            ) : (
+              <h1 className="text-[clamp(1.85rem,4.2vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
+                {site.name}
+              </h1>
+            )}
 
             {canInline ? (
               <input
