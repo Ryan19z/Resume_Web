@@ -133,15 +133,62 @@ function normalizeHeroSpotlight(
       ? o.summary.trim()
       : fallback.summary;
   const mediaRaw = o.media;
+  const linksRaw = o.mediaLinks;
+  const linksObj =
+    linksRaw && typeof linksRaw === "object"
+      ? (linksRaw as Record<string, unknown>)
+      : null;
+  const normalizeLink = (v: unknown): string | undefined =>
+    typeof v === "string" ? v.trim() : undefined;
+  const mediaLinks: HeroSpotlight["mediaLinks"] =
+    linksObj
+      ? {
+          image: normalizeLink(linksObj.image),
+          video: normalizeLink(linksObj.video),
+          link: normalizeLink(linksObj.link),
+          document: normalizeLink(linksObj.document),
+        }
+      : undefined;
+  const documentName =
+    typeof o.documentName === "string" && o.documentName.trim().length > 0
+      ? o.documentName.trim()
+      : undefined;
+
   if (!mediaRaw || typeof mediaRaw !== "object") {
-    return { title, summary, media: fallback.media };
+    return {
+      title,
+      summary,
+      media: fallback.media,
+      mediaLinks,
+      documentName,
+    };
   }
   const m = mediaRaw as Record<string, unknown>;
   const kind = m.kind;
   if (kind === "image" || kind === "video" || kind === "link") {
     const url = typeof m.url === "string" ? m.url.trim() : "";
     if (url.length > 0) {
-      return { title, summary, media: { kind, url } };
+      return { title, summary, media: { kind, url }, mediaLinks, documentName };
+    }
+  }
+  if (kind === "document") {
+    const url = typeof m.url === "string" ? m.url.trim() : "";
+    if (url.length > 0) {
+      const fileName =
+        typeof m.fileName === "string" && m.fileName.trim().length > 0
+          ? m.fileName.trim()
+          : documentName;
+      return {
+        title,
+        summary,
+        media: {
+          kind: "document",
+          url,
+          fileName,
+        },
+        mediaLinks,
+        documentName: fileName,
+      };
     }
   }
   if (kind === "code") {
@@ -155,10 +202,18 @@ function normalizeHeroSpotlight(
           code,
           language: typeof m.language === "string" ? m.language : undefined,
         },
+        mediaLinks,
+        documentName,
       };
     }
   }
-  return { title, summary, media: fallback.media };
+  return {
+    title,
+    summary,
+    media: fallback.media,
+    mediaLinks,
+    documentName,
+  };
 }
 
 function migrateExperienceItem(

@@ -83,10 +83,29 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
   }));
   const experience = site.experience.map(normalizeExperience);
   const education = site.education.map(normalizeEducation);
+  const heroSpotlight = (() => {
+    const hs = site.heroSpotlight;
+    if (!hs) return hs;
+    const media =
+      "url" in hs.media
+        ? { ...hs.media, url: normalizeDevAssetUrl(hs.media.url) ?? hs.media.url }
+        : hs.media;
+    const mediaLinks = hs.mediaLinks
+      ? {
+          image: normalizeDevAssetUrl(hs.mediaLinks.image) ?? hs.mediaLinks.image,
+          video: normalizeDevAssetUrl(hs.mediaLinks.video) ?? hs.mediaLinks.video,
+          link: normalizeDevAssetUrl(hs.mediaLinks.link) ?? hs.mediaLinks.link,
+          document:
+            normalizeDevAssetUrl(hs.mediaLinks.document) ?? hs.mediaLinks.document,
+        }
+      : hs.mediaLinks;
+    return { ...hs, media, mediaLinks };
+  })();
   return {
     ...site,
     heroPortraitSrc,
     pageBackgroundImageSrc,
+    heroSpotlight,
     projects,
     experience,
     education,

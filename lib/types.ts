@@ -94,12 +94,24 @@ export type HeroSpotlightMedia =
   | { kind: "image"; url: string }
   | { kind: "video"; url: string }
   | { kind: "code"; code: string; language?: string }
-  | { kind: "link"; url: string };
+  | { kind: "link"; url: string }
+  | { kind: "document"; url: string; fileName?: string };
+
+export type HeroSpotlightMediaLinks = {
+  image?: string;
+  video?: string;
+  link?: string;
+  document?: string;
+};
 
 export type HeroSpotlight = {
   title: string;
   summary: string;
   media: HeroSpotlightMedia;
+  /** 不同展示类型各自独立保存链接，切换类型时不互相覆盖 */
+  mediaLinks?: HeroSpotlightMediaLinks;
+  /** 文档展示时的文件名/标题（可选） */
+  documentName?: string;
 };
 
 export type SiteContent = {

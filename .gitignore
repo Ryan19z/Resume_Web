@@ -35,6 +35,7 @@ yarn-error.log*
 /data/published-site.json
 /data/published-site.en.json
 /data/published-site*.tmp
+/public/uploads/*
 
 # typescript
 *.tsbuildinfo

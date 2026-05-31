@@ -31,6 +31,13 @@ export const defaultSiteContent: SiteContent = {
       kind: "image",
       url: PLACEHOLDER_IMAGES.wide3,
     },
+    mediaLinks: {
+      image: PLACEHOLDER_IMAGES.wide3,
+      video: DEMO_SAMPLE_VIDEO_MP4,
+      link: PORTFOLIO_LINK_PLACEHOLDER,
+      document: "",
+    },
+    documentName: "",
   },
   contactEmail: "hertz.hou719@gmail.com",
   heroPortraitSrc: PLACEHOLDER_IMAGES.heroPortrait,

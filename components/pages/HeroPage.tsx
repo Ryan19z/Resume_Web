@@ -81,6 +81,72 @@ function buildSkillTags(targetRole: string): string[] {
   return Array.from(new Set([...fromRole, ...base])).slice(0, 8);
 }
 
+type ResolvedVideoPreview =
+  | { mode: "direct"; src: string }
+  | { mode: "embed"; src: string }
+  | { mode: "unknown"; src: string };
+
+type SpotlightKind = "image" | "video" | "code" | "link" | "document";
+
+type SpotlightMediaLinks = {
+  image: string;
+  video: string;
+  link: string;
+  document: string;
+};
+
+function extractYouTubeId(url: URL): string | null {
+  const host = url.hostname.toLowerCase();
+  const pathParts = url.pathname.split("/").filter(Boolean);
+  if (host === "youtu.be") return pathParts[0] ?? null;
+  if (!host.includes("youtube.com")) return null;
+  if (url.pathname.startsWith("/watch")) return url.searchParams.get("v");
+  if (url.pathname.startsWith("/shorts/")) return pathParts[1] ?? null;
+  if (url.pathname.startsWith("/embed/")) return pathParts[1] ?? null;
+  return null;
+}
+
+function resolveVideoPreview(urlText: string): ResolvedVideoPreview {
+  const src = urlText.trim();
+  if (!src) return { mode: "unknown", src: "" };
+  if (/\.(mp4|webm|ogg|mov|m3u8)(\?.*)?$/i.test(src)) {
+    return { mode: "direct", src };
+  }
+  try {
+    const url = new URL(src);
+    const host = url.hostname.toLowerCase();
+
+    const youtubeId = extractYouTubeId(url);
+    if (youtubeId) {
+      return { mode: "embed", src: `https://www.youtube.com/embed/${youtubeId}` };
+    }
+
+    if (host.includes("bilibili.com")) {
+      const path = url.pathname;
+      const bvMatch = path.match(/\/video\/(BV[0-9A-Za-z]+)/i);
+      if (bvMatch) {
+        return {
+          mode: "embed",
+          src: `https://player.bilibili.com/player.html?bvid=${bvMatch[1]}&page=1`,
+        };
+      }
+      const avMatch = path.match(/\/video\/av(\d+)/i);
+      if (avMatch) {
+        return {
+          mode: "embed",
+          src: `https://player.bilibili.com/player.html?aid=${avMatch[1]}&page=1`,
+        };
+      }
+      if (host.includes("player.bilibili.com")) {
+        return { mode: "embed", src };
+      }
+    }
+  } catch {
+    // ignore invalid URL and fall through
+  }
+  return { mode: "unknown", src };
+}
+
 export function HeroPage() {
   const {
     site,
@@ -131,21 +197,33 @@ export function HeroPage() {
   const [spotlightSummary, setSpotlightSummary] = useState(
     site.heroSpotlight?.summary ?? fallbackSpotlight.summary,
   );
-  const [spotlightKind, setSpotlightKind] = useState<
-    "image" | "video" | "code" | "link"
-  >(
+  const [spotlightKind, setSpotlightKind] = useState<SpotlightKind>(
     (site.heroSpotlight?.media?.kind as
       | "image"
       | "video"
       | "code"
       | "link"
+      | "document"
       | undefined) ?? "image",
   );
-  const [spotlightUrl, setSpotlightUrl] = useState(
-    site.heroSpotlight?.media && "url" in site.heroSpotlight.media
-      ? site.heroSpotlight.media.url
-      : "",
-  );
+  const [spotlightMediaLinks, setSpotlightMediaLinks] = useState<SpotlightMediaLinks>(() => {
+    const media = site.heroSpotlight?.media;
+    const mediaUrl = media && "url" in media ? media.url : "";
+    return {
+      image:
+        site.heroSpotlight?.mediaLinks?.image ??
+        (media?.kind === "image" ? mediaUrl : ""),
+      video:
+        site.heroSpotlight?.mediaLinks?.video ??
+        (media?.kind === "video" ? mediaUrl : ""),
+      link:
+        site.heroSpotlight?.mediaLinks?.link ??
+        (media?.kind === "link" ? mediaUrl : ""),
+      document:
+        site.heroSpotlight?.mediaLinks?.document ??
+        (media?.kind === "document" ? mediaUrl : ""),
+    };
+  });
   const [spotlightCode, setSpotlightCode] = useState(
     site.heroSpotlight?.media?.kind === "code"
       ? site.heroSpotlight.media.code
@@ -156,6 +234,15 @@ export function HeroPage() {
       ? (site.heroSpotlight.media.language ?? "")
       : "",
   );
+  const [spotlightDocName, setSpotlightDocName] = useState(
+    site.heroSpotlight?.documentName ??
+      (site.heroSpotlight?.media?.kind === "document"
+        ? (site.heroSpotlight.media.fileName ?? "")
+        : ""),
+  );
+  const [spotlightUploadBusy, setSpotlightUploadBusy] = useState(false);
+  const [spotlightUploadMessage, setSpotlightUploadMessage] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const siteSnap = `${site.name}|${site.targetRole}|${site.tagline}|${JSON.stringify(
     hp,
@@ -184,12 +271,32 @@ export function HeroPage() {
     setSpotlightTitle(sp.title ?? fallbackSpotlight.title);
     setSpotlightSummary(sp.summary ?? fallbackSpotlight.summary);
     setSpotlightKind(
-      (sp.media?.kind as "image" | "video" | "code" | "link" | undefined) ??
+      (sp.media?.kind as SpotlightKind | undefined) ??
         "image",
     );
-    setSpotlightUrl(sp.media && "url" in sp.media ? sp.media.url : "");
+    const media = sp.media;
+    const mediaUrl = media && "url" in media ? media.url : "";
+    setSpotlightMediaLinks({
+      image:
+        sp.mediaLinks?.image ??
+        (media?.kind === "image" ? mediaUrl : ""),
+      video:
+        sp.mediaLinks?.video ??
+        (media?.kind === "video" ? mediaUrl : ""),
+      link:
+        sp.mediaLinks?.link ??
+        (media?.kind === "link" ? mediaUrl : ""),
+      document:
+        sp.mediaLinks?.document ??
+        (media?.kind === "document" ? mediaUrl : ""),
+    });
     setSpotlightCode(sp.media?.kind === "code" ? sp.media.code : "");
     setSpotlightCodeLang(sp.media?.kind === "code" ? (sp.media.language ?? "") : "");
+    setSpotlightDocName(
+      sp.documentName ??
+        (sp.media?.kind === "document" ? (sp.media.fileName ?? "") : ""),
+    );
+    setSpotlightUploadMessage("");
   }, [siteSnap]);
 
   const saveRef = useRef(updateQuickHeroFields);
@@ -222,10 +329,23 @@ export function HeroPage() {
                   code: spotlightCode.trim() || "// your best code here",
                   language: spotlightCodeLang.trim() || undefined,
                 }
+              : spotlightKind === "document"
+                ? {
+                    kind: "document",
+                    url: spotlightMediaLinks.document.trim(),
+                    fileName: spotlightDocName.trim() || undefined,
+                  }
               : {
                   kind: spotlightKind,
-                  url: spotlightUrl.trim(),
+                  url: spotlightMediaLinks[spotlightKind].trim(),
                 },
+          mediaLinks: {
+            image: spotlightMediaLinks.image.trim(),
+            video: spotlightMediaLinks.video.trim(),
+            link: spotlightMediaLinks.link.trim(),
+            document: spotlightMediaLinks.document.trim(),
+          },
+          documentName: spotlightDocName.trim() || undefined,
         },
       });
     }, DEBOUNCE_MS);
@@ -239,9 +359,10 @@ export function HeroPage() {
     spotlightTitle,
     spotlightSummary,
     spotlightKind,
-    spotlightUrl,
+    spotlightMediaLinks,
     spotlightCode,
     spotlightCodeLang,
+    spotlightDocName,
     canInline,
   ]);
 
@@ -300,11 +421,24 @@ export function HeroPage() {
       mode === "zh" ? "媒体链接 / 网址" : "Media URL / Link",
     spotlightCode: mode === "zh" ? "代码内容" : "Code snippet",
     spotlightCodeLang: mode === "zh" ? "代码语言" : "Language",
+    spotlightDocumentName: mode === "zh" ? "文件名（可选）" : "Document name (optional)",
     spotlightOpenLink: mode === "zh" ? "打开链接" : "Open link",
     mediaImage: mode === "zh" ? "图片" : "Image",
     mediaVideo: mode === "zh" ? "视频" : "Video",
     mediaCode: mode === "zh" ? "代码" : "Code",
     mediaLink: mode === "zh" ? "网址 / 小程序" : "Link / Mini-program",
+    mediaDocument: mode === "zh" ? "文档 (PDF/Word/PPT)" : "Document (PDF/Word/PPT)",
+    uploadAsset: mode === "zh" ? "上传本地文件" : "Upload local file",
+    uploading: mode === "zh" ? "上传中..." : "Uploading...",
+    uploadDone: mode === "zh" ? "上传成功，已填入链接。" : "Uploaded and URL filled.",
+    uploadFail: mode === "zh" ? "上传失败，请重试。" : "Upload failed, please retry.",
+    openDocument: mode === "zh" ? "打开文档" : "Open document",
+    downloadDocument: mode === "zh" ? "下载文件" : "Download file",
+    videoUnsupported:
+      mode === "zh"
+        ? "当前链接不是可直接播放的视频流。B站/YouTube 网页链接会自动嵌入，其它请使用 .mp4/.webm 直链。"
+        : "This URL is not a direct playable stream. Bilibili/YouTube pages are auto-embedded, otherwise use a direct .mp4/.webm URL.",
+    openInNewTab: mode === "zh" ? "新窗口打开" : "Open in new tab",
   };
   const spotlightPreview = (() => {
     if (spotlightKind === "code") {
@@ -314,8 +448,70 @@ export function HeroPage() {
         language: spotlightCodeLang.trim(),
       };
     }
-    return { kind: spotlightKind, url: spotlightUrl.trim() };
+    if (spotlightKind === "document") {
+      return {
+        kind: "document" as const,
+        url: spotlightMediaLinks.document.trim(),
+        fileName: spotlightDocName.trim(),
+      };
+    }
+    return {
+      kind: spotlightKind,
+      url: spotlightMediaLinks[spotlightKind].trim(),
+    };
   })();
+  const resolvedVideo =
+    spotlightPreview.kind === "video"
+      ? resolveVideoPreview(spotlightPreview.url)
+      : null;
+  const mediaAccept =
+    spotlightKind === "image"
+      ? "image/*"
+      : spotlightKind === "video"
+        ? "video/*"
+        : ".pdf,.doc,.docx,.ppt,.pptx";
+
+  async function onUploadSpotlightFile(file: File) {
+    if (!canInline) return;
+    setSpotlightUploadBusy(true);
+    setSpotlightUploadMessage("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const resp = await fetch("/api/upload-asset", {
+        method: "POST",
+        body: form,
+      });
+      const data = (await resp.json()) as {
+        ok?: boolean;
+        url?: string;
+        fileName?: string;
+        message?: string;
+      };
+      if (!resp.ok || !data.ok || !data.url) {
+        throw new Error(data.message || i18n.uploadFail);
+      }
+
+      if (spotlightKind === "document") {
+        setSpotlightMediaLinks((prev) => ({ ...prev, document: data.url ?? "" }));
+        setSpotlightDocName(data.fileName ?? file.name);
+      } else if (spotlightKind === "image") {
+        setSpotlightMediaLinks((prev) => ({ ...prev, image: data.url ?? "" }));
+      } else if (spotlightKind === "video") {
+        setSpotlightMediaLinks((prev) => ({ ...prev, video: data.url ?? "" }));
+      } else if (spotlightKind === "link") {
+        setSpotlightMediaLinks((prev) => ({ ...prev, link: data.url ?? "" }));
+      }
+      setSpotlightUploadMessage(i18n.uploadDone);
+    } catch (e) {
+      setSpotlightUploadMessage(
+        e instanceof Error && e.message ? e.message : i18n.uploadFail,
+      );
+    } finally {
+      setSpotlightUploadBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
 
   return (
     <div className="relative min-h-[min(100svh,880px)] px-6 py-16 sm:px-10 sm:py-20 md:px-14 lg:px-16">
@@ -652,9 +848,7 @@ export function HeroPage() {
                     <select
                       value={spotlightKind}
                       onChange={(e) =>
-                        setSpotlightKind(
-                          e.target.value as "image" | "video" | "code" | "link",
-                        )
+                        setSpotlightKind(e.target.value as SpotlightKind)
                       }
                       className="rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink outline-none focus:border-ink/20"
                     >
@@ -662,6 +856,7 @@ export function HeroPage() {
                       <option value="video">{i18n.mediaVideo}</option>
                       <option value="code">{i18n.mediaCode}</option>
                       <option value="link">{i18n.mediaLink}</option>
+                      <option value="document">{i18n.mediaDocument}</option>
                     </select>
                   </label>
                   {spotlightKind === "code" ? (
@@ -675,17 +870,49 @@ export function HeroPage() {
                         placeholder="ts / js / py ..."
                       />
                     </label>
+                  ) : spotlightKind === "document" ? (
+                    <label className="flex flex-col gap-1 text-xs text-ink-muted">
+                      <span>{i18n.spotlightDocumentName}</span>
+                      <input
+                        value={spotlightDocName}
+                        onChange={(e) => setSpotlightDocName(e.target.value)}
+                        maxLength={80}
+                        className="rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink outline-none focus:border-ink/20"
+                        placeholder={mode === "zh" ? "如：项目方案.pdf" : "e.g. Proposal.pdf"}
+                      />
+                    </label>
                   ) : (
                     <label className="flex flex-col gap-1 text-xs text-ink-muted">
                       <span>{i18n.spotlightMediaSource}</span>
                       <input
-                        value={spotlightUrl}
-                        onChange={(e) => setSpotlightUrl(e.target.value)}
+                        value={spotlightMediaLinks[spotlightKind]}
+                        onChange={(e) =>
+                          setSpotlightMediaLinks((prev) => ({
+                            ...prev,
+                            [spotlightKind]: e.target.value,
+                          }))
+                        }
                         className="rounded-lg border border-line bg-surface px-2.5 py-2 text-xs text-ink outline-none focus:border-ink/20"
                         placeholder="https://..."
                       />
                     </label>
                   )}
+                  {spotlightKind === "document" ? (
+                    <label className="sm:col-span-2 flex flex-col gap-1 text-xs text-ink-muted">
+                      <span>{i18n.spotlightMediaSource}</span>
+                      <input
+                        value={spotlightMediaLinks.document}
+                        onChange={(e) =>
+                          setSpotlightMediaLinks((prev) => ({
+                            ...prev,
+                            document: e.target.value,
+                          }))
+                        }
+                        className="rounded-lg border border-line bg-surface px-2.5 py-2 text-xs text-ink outline-none focus:border-ink/20"
+                        placeholder="/uploads/your-file.pdf"
+                      />
+                    </label>
+                  ) : null}
                   {spotlightKind === "code" ? (
                     <label className="sm:col-span-2 flex flex-col gap-1 text-xs text-ink-muted">
                       <span>{i18n.spotlightCode}</span>
@@ -702,25 +929,89 @@ export function HeroPage() {
                       />
                     </label>
                   ) : null}
+                  {spotlightKind !== "code" && spotlightKind !== "link" ? (
+                    <div className="sm:col-span-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={mediaAccept}
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          void onUploadSpotlightFile(f);
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={spotlightUploadBusy}
+                        className="rounded-full border border-line bg-surface/90 px-3 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {spotlightUploadBusy ? i18n.uploading : i18n.uploadAsset}
+                      </button>
+                      {spotlightUploadMessage ? (
+                        <p className="mt-2 text-xs text-ink-muted">{spotlightUploadMessage}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
               {spotlightPreview.kind === "image" && spotlightPreview.url ? (
-                <img
-                  src={spotlightPreview.url}
-                  alt={spotlightTitle}
-                  className="h-[220px] w-full rounded-lg object-cover"
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                />
+                <div className="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1">
+                  <img
+                    src={spotlightPreview.url}
+                    alt={spotlightTitle}
+                    className="h-auto w-full rounded-md object-contain"
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
               ) : null}
-              {spotlightPreview.kind === "video" && spotlightPreview.url ? (
-                <video
-                  src={spotlightPreview.url}
-                  controls
-                  className="h-[220px] w-full rounded-lg bg-black/80 object-cover"
-                />
+              {spotlightPreview.kind === "video" &&
+              spotlightPreview.url &&
+              resolvedVideo?.mode === "embed" ? (
+                <div className="overflow-hidden rounded-lg border border-line/60 bg-black/80">
+                  <div className="aspect-video w-full">
+                    <iframe
+                      src={resolvedVideo.src}
+                      title={spotlightTitle || "embedded video"}
+                      className="h-full w-full"
+                      loading="lazy"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                      allowFullScreen
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {spotlightPreview.kind === "video" &&
+              spotlightPreview.url &&
+              resolvedVideo?.mode === "direct" ? (
+                <div className="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-black/80 p-1">
+                  <video
+                    src={resolvedVideo.src}
+                    controls
+                    className="h-auto max-h-[410px] w-full rounded-md object-contain"
+                  />
+                </div>
+              ) : null}
+              {spotlightPreview.kind === "video" &&
+              spotlightPreview.url &&
+              resolvedVideo?.mode === "unknown" ? (
+                <div className="rounded-lg border border-dashed border-line/80 bg-surface px-4 py-6 text-center text-sm text-ink-muted">
+                  <p>{i18n.videoUnsupported}</p>
+                  <a
+                    href={spotlightPreview.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-block rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                  >
+                    {i18n.openInNewTab}
+                  </a>
+                </div>
               ) : null}
               {spotlightPreview.kind === "code" ? (
                 <pre className="max-h-[220px] overflow-auto rounded-lg bg-[#0f172a] p-3 font-mono text-xs leading-relaxed text-[#e2e8f0]">
@@ -739,6 +1030,41 @@ export function HeroPage() {
                     {spotlightPreview.url}
                   </span>
                 </a>
+              ) : null}
+              {spotlightPreview.kind === "document" && spotlightPreview.url ? (
+                <div className="space-y-3">
+                  {spotlightPreview.url.toLowerCase().endsWith(".pdf") ? (
+                    <div className="overflow-hidden rounded-lg border border-line/60 bg-surface/40">
+                      <iframe
+                        src={spotlightPreview.url}
+                        title={spotlightPreview.fileName || spotlightTitle || "document"}
+                        className="h-[420px] w-full"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="rounded-lg border border-dashed border-line/80 bg-surface px-4 py-4 text-sm text-ink">
+                    <p className="font-medium">
+                      {spotlightPreview.fileName || spotlightPreview.url.split("/").pop()}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={spotlightPreview.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                      >
+                        {i18n.openDocument}
+                      </a>
+                      <a
+                        href={spotlightPreview.url}
+                        download={spotlightPreview.fileName || true}
+                        className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                      >
+                        {i18n.downloadDocument}
+                      </a>
+                    </div>
+                  </div>
+                </div>
               ) : null}
               {spotlightPreview.kind !== "code" &&
               !("url" in spotlightPreview && spotlightPreview.url) ? (
