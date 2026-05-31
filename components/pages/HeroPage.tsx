@@ -1221,7 +1221,9 @@ export function HeroPage() {
                         {i18n.openDocument}
                       </a>
                       <a
-                        href={spotlightPreview.url}
+                        href={`${spotlightPreview.url}${
+                          spotlightPreview.url.includes("?") ? "&" : "?"
+                        }download=1`}
                         download={spotlightPreview.fileName || true}
                         className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
                       >

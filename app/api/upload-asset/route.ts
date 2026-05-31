@@ -1,50 +1,15 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
+import {
+  ensureUploadDir,
+  isAllowedUploadExt,
+  safeBaseName,
+} from "@/lib/server/upload-asset-store";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
 import path from "path";
 import { type NextRequest, NextResponse } from "next/server";
 
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30MB
-const ALLOWED_EXT = new Set([
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
-  ".gif",
-  ".mp4",
-  ".webm",
-  ".mov",
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".ppt",
-  ".pptx",
-]);
-
-function safeBaseName(name: string): string {
-  const base = path.basename(name).replace(/\s+/g, "-");
-  return base.replace(/[^a-zA-Z0-9._-]/g, "");
-}
-
-async function resolveRuntimePublicDir(): Promise<string> {
-  const cwd = process.cwd();
-  // 生产部署常见目录：DEPLOY_PATH/release（Next standalone）；
-  // 某些重启方式下 cwd 可能回到 DEPLOY_PATH 根目录，优先写入 release/public。
-  const candidates = [
-    path.join(cwd, "release", "public"),
-    path.join(cwd, "public"),
-  ];
-  for (const dir of candidates) {
-    try {
-      await fs.access(dir);
-      return dir;
-    } catch {
-      // try next
-    }
-  }
-  // 开发环境或首次目录不存在时，默认落到 cwd/public
-  return candidates[1];
-}
 
 export async function POST(request: NextRequest) {
   const auth = resolveCanEdit(request.headers);
@@ -83,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     const cleanedName = safeBaseName(fileValue.name || "upload.bin");
     const ext = path.extname(cleanedName).toLowerCase();
-    if (!ALLOWED_EXT.has(ext)) {
+    if (!isAllowedUploadExt(ext)) {
       return NextResponse.json(
         {
           ok: false,
@@ -94,9 +59,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const publicDir = await resolveRuntimePublicDir();
-    const uploadDir = path.join(publicDir, "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
+    const uploadDir = await ensureUploadDir();
 
     const finalName = `${Date.now()}-${randomUUID()}${ext}`;
     const destPath = path.join(uploadDir, finalName);
@@ -105,7 +68,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true as const,
-      url: `/uploads/${finalName}`,
+      url: `/api/upload-asset/file/${encodeURIComponent(finalName)}`,
       fileName: cleanedName,
       size: fileValue.size,
     });
