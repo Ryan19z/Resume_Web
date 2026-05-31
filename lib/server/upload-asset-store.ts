@@ -52,3 +52,43 @@ export function resolveUploadFilePath(fileName: string): string {
   return path.join(resolveUploadBaseDir(), safe);
 }
 
+function uniquePaths(paths: string[]): string[] {
+  return Array.from(new Set(paths.map((p) => path.normalize(p))));
+}
+
+export function resolveUploadCandidatePaths(fileName: string): string[] {
+  const safe = safeBaseName(fileName);
+  const cwd = process.cwd();
+  const publishPath = process.env.SITE_PUBLISH_PATH?.trim();
+  const publishAbs = publishPath
+    ? path.isAbsolute(publishPath)
+      ? publishPath
+      : path.join(cwd, publishPath)
+    : "";
+  const deployRoot = publishAbs ? path.dirname(path.dirname(publishAbs)) : path.dirname(cwd);
+
+  const bases = uniquePaths([
+    resolveUploadBaseDir(),
+    path.join(cwd, "public", "uploads"),
+    path.join(cwd, "release", "public", "uploads"),
+    path.join(deployRoot, "public", "uploads"),
+    path.join(deployRoot, "release", "public", "uploads"),
+  ]);
+  return bases.map((base) => path.join(base, safe));
+}
+
+export async function resolveExistingUploadFilePath(
+  fileName: string,
+): Promise<string | null> {
+  const candidates = resolveUploadCandidatePaths(fileName);
+  for (const p of candidates) {
+    try {
+      const st = await fs.stat(p);
+      if (st.isFile()) return p;
+    } catch {
+      // try next
+    }
+  }
+  return null;
+}
+

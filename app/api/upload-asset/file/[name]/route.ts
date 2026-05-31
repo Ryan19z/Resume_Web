@@ -1,6 +1,6 @@
 import {
   isAllowedUploadExt,
-  resolveUploadFilePath,
+  resolveExistingUploadFilePath,
   safeBaseName,
 } from "@/lib/server/upload-asset-store";
 import fs from "fs/promises";
@@ -54,9 +54,8 @@ export async function GET(
   }
 
   try {
-    const filePath = resolveUploadFilePath(safeName);
-    const stat = await fs.stat(filePath);
-    if (!stat.isFile()) throw new Error("not_file");
+    const filePath = await resolveExistingUploadFilePath(safeName);
+    if (!filePath) throw new Error("not_file");
     const bytes = await fs.readFile(filePath);
 
     const headers = new Headers();
