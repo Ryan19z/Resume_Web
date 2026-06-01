@@ -120,7 +120,7 @@ jobs:
             fi
             if [ -f "${DEPLOY_PATH}/.env.local" ]; then
               while IFS= read -r line || [ -n "$line" ]; do
-                line="${line%$'\r'}"
+                line="$(printf '%s' "$line" | tr -d '\r')"
                 [ -z "$line" ] && continue
                 case "$line" in
                   \#*) continue ;;
@@ -134,13 +134,30 @@ jobs:
                 key="$(printf '%s' "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
                 value="$(printf '%s' "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
                 case "$key" in
-                  ''|*[!A-Za-z0-9_]*)
+                  '')
+                    continue
+                    ;;
+                  [A-Za-z_]*)
+                    ;;
+                  *)
                     continue
                     ;;
                 esac
-                if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
-                  value="${value:1:${#value}-2}"
-                fi
+                case "$key" in
+                  *[!A-Za-z0-9_]*)
+                    continue
+                    ;;
+                esac
+                case "$value" in
+                  \"*\")
+                    value="${value#\"}"
+                    value="${value%\"}"
+                    ;;
+                  \'*\')
+                    value="${value#\'}"
+                    value="${value%\'}"
+                    ;;
+                esac
                 export "$key=$value"
               done < "${DEPLOY_PATH}/.env.local"
             fi
