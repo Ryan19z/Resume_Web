@@ -145,9 +145,14 @@ jobs:
               done < "${DEPLOY_PATH}/.env.local"
             fi
             cd "${RELEASE_DIR}"
-            pm2 delete resume-web 2>/dev/null || true
-            HOSTNAME=0.0.0.0 PORT=3000 SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json" \
-              pm2 start server.js --name resume-web --update-env
+            export HOSTNAME=0.0.0.0
+            export PORT=3000
+            export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
+            if pm2 describe resume-web >/dev/null 2>&1; then
+              pm2 restart resume-web --update-env
+            else
+              pm2 start server.js --name resume-web
+            fi
             pm2 save 2>/dev/null || true
             pm2 list
             echo "[deploy] 健康检查..."
