@@ -5,6 +5,28 @@ set -euo pipefail
 DEPLOY_PATH="${1:-$HOME/Resume_Web}"
 RELEASE_DIR="${DEPLOY_PATH}/release"
 
+load_env_file() {
+  local env_file="$1"
+  [[ -f "$env_file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+    [[ "$line" == *"="* ]] || continue
+    local key="${line%%=*}"
+    local value="${line#*=}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    if [[ "$value" =~ ^\".*\"$ || "$value" =~ ^\'.*\'$ ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+    export "$key=$value"
+  done < "$env_file"
+}
+
 if [[ ! -f "${RELEASE_DIR}/server.js" ]]; then
   echo "错误：未找到 ${RELEASE_DIR}/server.js"
   exit 1
@@ -14,10 +36,7 @@ mkdir -p "${DEPLOY_PATH}/data"
 [[ -f "${DEPLOY_PATH}/.env.local" ]] && ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local"
 
 if [[ -f "${DEPLOY_PATH}/.env.local" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "${DEPLOY_PATH}/.env.local"
-  set +a
+  load_env_file "${DEPLOY_PATH}/.env.local"
   echo "[pm2] 已加载 ${DEPLOY_PATH}/.env.local"
   echo "[pm2] ALLOWED_EDIT_IPS=${ALLOWED_EDIT_IPS:-（未设置）}"
 else
