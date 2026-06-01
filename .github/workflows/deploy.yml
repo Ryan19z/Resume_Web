@@ -148,16 +148,6 @@ jobs:
                     continue
                     ;;
                 esac
-                case "$value" in
-                  \"*\")
-                    value="${value#\"}"
-                    value="${value%\"}"
-                    ;;
-                  \'*\')
-                    value="${value#\'}"
-                    value="${value%\'}"
-                    ;;
-                esac
                 export "$key=$value"
               done < "${DEPLOY_PATH}/.env.local"
             fi
