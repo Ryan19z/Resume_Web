@@ -4,10 +4,12 @@ import { useSiteContent } from "@/context/SiteContentProvider";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
 import { randomId } from "@/lib/random-id";
+import { appendResumeScopeToPath, parseClientResumeScope } from "@/lib/resume-scope";
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
+const CLIENT_RESUME_SCOPE = parseClientResumeScope();
 const DEFAULT_ROLE_FITS_ZH = [
   {
     title: "摄影",
@@ -530,7 +532,12 @@ export function HeroPage() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const resp = await fetch("/api/upload-asset", {
+      const uploadUrl = appendResumeScopeToPath(
+        "/api/upload-asset",
+        CLIENT_RESUME_SCOPE,
+        { includeEditToken: true, includeViewToken: false },
+      );
+      const resp = await fetch(uploadUrl, {
         method: "POST",
         body: form,
       });
