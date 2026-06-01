@@ -17,6 +17,7 @@ import type {
   RoleFitEntry,
   SiteContent,
 } from "./types";
+import type { ResumeScope } from "./resume-scope";
 
 export const PERSIST_SAVE_FAILED_MESSAGE =
   "保存到浏览器失败：内容过大或存储已满。请缩小图片、改用图床链接，或清理本站本地数据后重试。";
@@ -28,12 +29,14 @@ const STORAGE_KEY_V2 = "resume-site-bundle-v2";
 const STORAGE_KEY_V1 = "resume-site-profile-v1";
 type SiteLang = "zh" | "en";
 
-function getStorageKeyV2(lang: SiteLang): string {
-  return lang === "en" ? `${STORAGE_KEY_V2}-en` : STORAGE_KEY_V2;
+function getStorageKeyV2(lang: SiteLang, scope?: ResumeScope): string {
+  const base = lang === "en" ? `${STORAGE_KEY_V2}-en` : STORAGE_KEY_V2;
+  return scope?.resumeId ? `${base}-${scope.resumeId}` : base;
 }
 
-function getStorageKeyV1(lang: SiteLang): string {
-  return lang === "en" ? `${STORAGE_KEY_V1}-en` : STORAGE_KEY_V1;
+function getStorageKeyV1(lang: SiteLang, scope?: ResumeScope): string {
+  const base = lang === "en" ? `${STORAGE_KEY_V1}-en` : STORAGE_KEY_V1;
+  return scope?.resumeId ? `${base}-${scope.resumeId}` : base;
 }
 
 function cloneSite(): SiteContent {
@@ -371,8 +374,8 @@ function isSiteContent(x: unknown): x is SiteContent {
   );
 }
 
-function loadV2Bundle(lang: SiteLang): PersistedSiteBundle | null {
-  const raw2 = window.localStorage.getItem(getStorageKeyV2(lang));
+function loadV2Bundle(lang: SiteLang, scope?: ResumeScope): PersistedSiteBundle | null {
+  const raw2 = window.localStorage.getItem(getStorageKeyV2(lang, scope));
   if (!raw2) return null;
   let parsed: Partial<PersistedSiteBundle>;
   try {
@@ -403,8 +406,8 @@ function loadV2Bundle(lang: SiteLang): PersistedSiteBundle | null {
   return null;
 }
 
-function loadV1Bundle(lang: SiteLang): PersistedSiteBundle | null {
-  const raw1 = window.localStorage.getItem(getStorageKeyV1(lang));
+function loadV1Bundle(lang: SiteLang, scope?: ResumeScope): PersistedSiteBundle | null {
+  const raw1 = window.localStorage.getItem(getStorageKeyV1(lang, scope));
   if (!raw1) return null;
   let p: Partial<PersistedProfile>;
   try {
@@ -423,19 +426,22 @@ function loadV1Bundle(lang: SiteLang): PersistedSiteBundle | null {
     site.name = profile.name.trim() || site.name;
     site.tagline = profile.tagline.trim() || site.tagline;
     const bundle: PersistedSiteBundle = { version: 2, profile, site };
-    savePersistedBundle(bundle, lang);
-    window.localStorage.removeItem(getStorageKeyV1(lang));
+    savePersistedBundle(bundle, lang, scope);
+    window.localStorage.removeItem(getStorageKeyV1(lang, scope));
     return bundle;
   }
   return null;
 }
 
-export function loadPersistedBundle(lang: SiteLang = "zh"): PersistedSiteBundle | null {
+export function loadPersistedBundle(
+  lang: SiteLang = "zh",
+  scope?: ResumeScope,
+): PersistedSiteBundle | null {
   if (typeof window === "undefined") return null;
   try {
-    const v2 = loadV2Bundle(lang);
+    const v2 = loadV2Bundle(lang, scope);
     if (v2) return v2;
-    return loadV1Bundle(lang);
+    return loadV1Bundle(lang, scope);
   } catch (e) {
     console.warn("[persist-site] 读取本地快照失败", e);
     return null;
@@ -459,11 +465,12 @@ export function stampBundleForSave(
 export function savePersistedBundle(
   bundle: PersistedSiteBundle,
   lang: SiteLang = "zh",
+  scope?: ResumeScope,
 ): boolean {
   if (typeof window === "undefined") return true;
   try {
     const stored = stampBundleForSave(bundle);
-    window.localStorage.setItem(getStorageKeyV2(lang), JSON.stringify(stored));
+    window.localStorage.setItem(getStorageKeyV2(lang, scope), JSON.stringify(stored));
     return true;
   } catch (e) {
     console.warn("[persist-site] 写入 localStorage 失败", e);

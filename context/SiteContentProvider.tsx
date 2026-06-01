@@ -15,6 +15,7 @@ import {
   fetchPublishedSite,
   publishBundleToServer,
 } from "@/lib/publish-site-client";
+import { parseClientResumeScope } from "@/lib/resume-scope";
 import { newExperienceItem } from "@/lib/experience-factory";
 import { newEducationItem } from "@/lib/education-factory";
 import {
@@ -166,6 +167,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [previewMode, setPreviewModeState] = useState(false);
   const [persistError, setPersistError] = useState<string | null>(null);
   const persistErrorTimerRef = useRef<number | null>(null);
+  const resumeScopeRef = useRef(parseClientResumeScope());
 
   const profileRef = useRef(profile);
   const siteRef = useRef(site);
@@ -209,7 +211,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       setProfile(p);
       setSite(s);
       const stamped = stampBundleForSave(buildBundleFromState(p, s));
-      const localOk = savePersistedBundle(stamped, mode);
+      const localOk = savePersistedBundle(stamped, mode, resumeScopeRef.current);
 
       if (!localOk) {
         showPersistError(PERSIST_SAVE_FAILED_MESSAGE);
@@ -220,7 +222,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      void publishBundleToServer(stamped, mode).then((res) => {
+      void publishBundleToServer(stamped, mode, resumeScopeRef.current).then((res) => {
         if (!res.ok) {
           showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
           return;
@@ -247,8 +249,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     void (async () => {
       try {
         const [publishedResult, local] = await Promise.all([
-          fetchPublishedSite(mode),
-          Promise.resolve(loadPersistedBundle(mode)),
+          fetchPublishedSite(mode, resumeScopeRef.current),
+          Promise.resolve(loadPersistedBundle(mode, resumeScopeRef.current)),
         ]);
         if (cancelled) return;
 
@@ -263,7 +265,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
         if (publishedResult.status === "ok") {
           applyBundle(publishedResult.bundle);
-          savePersistedBundle(publishedResult.bundle, mode);
+          savePersistedBundle(publishedResult.bundle, mode, resumeScopeRef.current);
         } else if (local) {
           applyBundle(local);
         } else {
@@ -344,7 +346,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!contentReady || !editPermissionLoaded || !canEdit) return;
 
-    const local = loadPersistedBundle(mode);
+    const local = loadPersistedBundle(mode, resumeScopeRef.current);
     if (!local) return;
 
     const localAt = local.savedAt ?? 0;
@@ -357,9 +359,9 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     const stamped = stampBundleForSave(
       buildBundleFromState(local.profile, mergeInitialSite(local)),
     );
-    savePersistedBundle(stamped, mode);
+    savePersistedBundle(stamped, mode, resumeScopeRef.current);
 
-    void publishBundleToServer(stamped, mode).then((res) => {
+    void publishBundleToServer(stamped, mode, resumeScopeRef.current).then((res) => {
       if (!res.ok) {
         showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
         return;
@@ -402,7 +404,13 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const url =
       typeof window !== "undefined"
-        ? `${window.location.origin}/api/can-edit`
+        ? (() => {
+            const params = new URLSearchParams();
+            const scope = resumeScopeRef.current;
+            if (scope.resumeId) params.set("resumeId", scope.resumeId);
+            if (scope.editToken) params.set("editToken", scope.editToken);
+            return `${window.location.origin}/api/can-edit${params.toString() ? `?${params}` : ""}`;
+          })()
         : "/api/can-edit";
     fetch(url, { cache: "no-store" })
       .then(async (r) => {

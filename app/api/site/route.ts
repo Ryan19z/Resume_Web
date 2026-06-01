@@ -1,10 +1,15 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
+import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import {
   MAX_PUBLISH_BYTES,
   parsePersistedBundlePayload,
   readPublishedSite,
   writePublishedBundle,
 } from "@/lib/server/published-site-store";
+import {
+  canEditByToken,
+  canViewByToken,
+} from "@/lib/server/resume-space-store";
 import type { PersistedSiteBundle } from "@/lib/types";
 import { type NextRequest, NextResponse } from "next/server";
 type SiteLang = "zh" | "en";
@@ -17,7 +22,28 @@ function parseLang(request: NextRequest): SiteLang {
 /** 访客与站长读取已发布到服务器的简历快照 */
 export async function GET(request: NextRequest) {
   const lang = parseLang(request);
-  const result = await readPublishedSite(lang);
+  const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
+  const editToken = sanitizeResumeToken(
+    request.nextUrl.searchParams.get("editToken"),
+  );
+  const viewToken = sanitizeResumeToken(
+    request.nextUrl.searchParams.get("viewToken"),
+  );
+  if (resumeId) {
+    const canView = await canViewByToken(resumeId, viewToken, editToken);
+    if (!canView) {
+      return NextResponse.json(
+        {
+          ok: false,
+          published: false,
+          error: "forbidden",
+          message: "无查看权限，请检查 viewToken。",
+        },
+        { status: 403 },
+      );
+    }
+  }
+  const result = await readPublishedSite(lang, resumeId);
   if (result.status === "missing") {
     return NextResponse.json({
       ok: true as const,
@@ -48,17 +74,37 @@ export async function GET(request: NextRequest) {
 /** 仅 IP 白名单内可写：将当前编辑内容发布到服务器，供所有访客看到 */
 export async function PUT(request: NextRequest) {
   const lang = parseLang(request);
-  const auth = resolveCanEdit(request.headers);
-  if (!auth.canEdit) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "forbidden",
-        message: "无编辑权限，无法发布到服务器。",
-        reason: auth.reason,
-      },
-      { status: 403 },
-    );
+  const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
+  const editToken = sanitizeResumeToken(
+    request.nextUrl.searchParams.get("editToken"),
+  );
+
+  if (resumeId) {
+    const tokenOk = editToken ? await canEditByToken(resumeId, editToken) : false;
+    if (!tokenOk) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "forbidden",
+          message: "无编辑权限，无法发布到服务器。",
+          reason: "缺少或无效的 editToken。",
+        },
+        { status: 403 },
+      );
+    }
+  } else {
+    const auth = resolveCanEdit(request.headers);
+    if (!auth.canEdit) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "forbidden",
+          message: "无编辑权限，无法发布到服务器。",
+          reason: auth.reason,
+        },
+        { status: 403 },
+      );
+    }
   }
 
   try {
@@ -88,7 +134,7 @@ export async function PUT(request: NextRequest) {
       site: bundle.site,
       savedAt,
     };
-    await writePublishedBundle(toStore, lang);
+    await writePublishedBundle(toStore, lang, resumeId);
     return NextResponse.json({
       ok: true as const,
       published: true,

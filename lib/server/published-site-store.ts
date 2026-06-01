@@ -1,4 +1,6 @@
 import { mergeInitialSite } from "@/lib/persist-site";
+import { sanitizeResumeId } from "@/lib/resume-scope";
+import { getResumePublishFilePath } from "@/lib/server/resume-space-store";
 import type { PersistedProfile, PersistedSiteBundle, SiteContent } from "@/lib/types";
 import { randomUUID } from "crypto";
 import fs from "fs/promises";
@@ -22,7 +24,15 @@ export type PublishedSiteReadResult =
   | { status: "corrupt"; message: string }
   | { status: "read_failed"; message: string };
 
-export function getPublishFilePath(lang: SiteLang = "zh"): string {
+export function getPublishFilePath(
+  lang: SiteLang = "zh",
+  resumeId?: string,
+): string {
+  const scopedId = sanitizeResumeId(resumeId);
+  if (scopedId) {
+    const scopedPath = getResumePublishFilePath(scopedId, lang);
+    if (scopedPath) return scopedPath;
+  }
   const custom = process.env.SITE_PUBLISH_PATH?.trim();
   if (custom) {
     const base = path.isAbsolute(custom) ? custom : path.join(process.cwd(), custom);
@@ -92,8 +102,11 @@ function parseFilePayload(
   return { bundle: legacy, updatedAt };
 }
 
-export async function readPublishedSite(lang: SiteLang = "zh"): Promise<PublishedSiteReadResult> {
-  const filePath = getPublishFilePath(lang);
+export async function readPublishedSite(
+  lang: SiteLang = "zh",
+  resumeId?: string,
+): Promise<PublishedSiteReadResult> {
+  const filePath = getPublishFilePath(lang, resumeId);
   try {
     const [raw, stat] = await Promise.all([
       fs.readFile(filePath, "utf8"),
@@ -154,8 +167,9 @@ export async function readPublishedBundle(): Promise<PersistedSiteBundle | null>
 export async function writePublishedBundle(
   bundle: PersistedSiteBundle,
   lang: SiteLang = "zh",
+  resumeId?: string,
 ): Promise<void> {
-  const filePath = getPublishFilePath(lang);
+  const filePath = getPublishFilePath(lang, resumeId);
   const dir = path.dirname(filePath);
   await fs.mkdir(dir, { recursive: true });
   const updatedAt = bundle.savedAt ?? Date.now();

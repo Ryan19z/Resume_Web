@@ -1,4 +1,6 @@
 import type { PersistedSiteBundle } from "@/lib/types";
+import type { ResumeScope } from "@/lib/resume-scope";
+import { appendResumeScopeToPath } from "@/lib/resume-scope";
 type SiteLang = "zh" | "en";
 
 export type FetchPublishedResult =
@@ -28,10 +30,16 @@ type SitePutResponse = {
 /** 读取服务器已发布快照（所有访客应优先使用） */
 export async function fetchPublishedSite(
   lang: SiteLang = "zh",
+  scope: ResumeScope = {},
 ): Promise<FetchPublishedResult> {
   if (typeof window === "undefined") return { status: "empty" };
   try {
-    const r = await fetch(`/api/site?lang=${lang}`, { cache: "no-store" });
+    const base = appendResumeScopeToPath("/api/site", scope, {
+      includeEditToken: true,
+      includeViewToken: true,
+    });
+    const join = base.includes("?") ? "&" : "?";
+    const r = await fetch(`${base}${join}lang=${lang}`, { cache: "no-store" });
     const data = (await r.json().catch(() => ({}))) as SiteGetResponse;
     if (!r.ok || data.ok === false) {
       const code =
@@ -72,10 +80,16 @@ export async function fetchPublishedBundle(): Promise<PersistedSiteBundle | null
 export async function publishBundleToServer(
   bundle: PersistedSiteBundle,
   lang: SiteLang = "zh",
+  scope: ResumeScope = {},
 ): Promise<{ ok: boolean; message?: string }> {
   if (typeof window === "undefined") return { ok: false, message: "非浏览器环境" };
   try {
-    const r = await fetch(`/api/site?lang=${lang}`, {
+    const base = appendResumeScopeToPath("/api/site", scope, {
+      includeEditToken: true,
+      includeViewToken: false,
+    });
+    const join = base.includes("?") ? "&" : "?";
+    const r = await fetch(`${base}${join}lang=${lang}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bundle),

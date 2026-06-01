@@ -1,4 +1,6 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
+import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
+import { canEditByToken } from "@/lib/server/resume-space-store";
 import { type NextRequest, NextResponse } from "next/server";
 
 /**
@@ -6,6 +8,22 @@ import { type NextRequest, NextResponse } from "next/server";
  */
 export async function GET(request: NextRequest) {
   try {
+    const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
+    const editToken = sanitizeResumeToken(
+      request.nextUrl.searchParams.get("editToken"),
+    );
+    if (resumeId) {
+      const tokenOk = editToken
+        ? await canEditByToken(resumeId, editToken)
+        : false;
+      return NextResponse.json({
+        canEdit: tokenOk,
+        ip: "",
+        reason: tokenOk
+          ? "编辑令牌已授权。"
+          : "缺少或无效的 editToken，当前链接仅可只读浏览。",
+      });
+    }
     const { canEdit, ip, reason } = resolveCanEdit(request.headers);
     return NextResponse.json({ canEdit, ip, reason });
   } catch (e) {

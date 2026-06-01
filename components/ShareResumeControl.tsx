@@ -50,7 +50,22 @@ export function ShareResumeControl() {
     setSendMsg("");
   }, [open]);
 
-  const shareUrl = pageUrl;
+  const shareUrl = (() => {
+    if (!pageUrl) return "";
+    try {
+      const u = new URL(pageUrl);
+      const resumeId = u.searchParams.get("resumeId");
+      const viewToken = u.searchParams.get("viewToken");
+      if (!resumeId || !viewToken) return pageUrl;
+      const view = new URL(u.origin + u.pathname);
+      view.searchParams.set("resumeId", resumeId);
+      view.searchParams.set("viewToken", viewToken);
+      if (u.hash) view.hash = u.hash;
+      return view.toString();
+    } catch {
+      return pageUrl;
+    }
+  })();
 
   useBodyScrollLock(open);
 
