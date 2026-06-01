@@ -20,12 +20,7 @@ export function IndustryTemplateSwitcher() {
   } = useSiteContent();
   const { mode } = useLanguageMode();
   const { setTheme } = useTheme();
-  const {
-    microInteractionEnabled,
-    setMicroInteractionEnabled,
-    industryTemplateId,
-    setIndustryTemplateId,
-  } = useInteractionMode();
+  const { industryTemplateId, setIndustryTemplateId } = useInteractionMode();
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -51,9 +46,6 @@ export function IndustryTemplateSwitcher() {
     hint: mode === "zh" ? "一键切换背景与岗位侧重点" : "Apply role-focused preset",
     selected: mode === "zh" ? "当前" : "Current",
     custom: mode === "zh" ? "自定义" : "Custom",
-    motion: mode === "zh" ? "轻鼠标互动" : "Micro interactions",
-    motionOn: mode === "zh" ? "开启" : "On",
-    motionOff: mode === "zh" ? "关闭" : "Off",
   };
 
   return (
@@ -134,19 +126,6 @@ export function IndustryTemplateSwitcher() {
                 </span>
               </button>
             ))}
-            <div className="mx-3 my-1 h-px bg-line/80" />
-            <button
-              type="button"
-              role="menuitemcheckbox"
-              aria-checked={microInteractionEnabled}
-              onClick={() => setMicroInteractionEnabled(!microInteractionEnabled)}
-              className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm transition-colors hover:bg-ink/[0.04]"
-            >
-              <span className="text-ink">{i18n.motion}</span>
-              <span className="rounded-full border border-line px-2 py-0.5 text-[11px] text-ink-muted">
-                {microInteractionEnabled ? i18n.motionOn : i18n.motionOff}
-              </span>
-            </button>
           </motion.div>
         ) : null}
       </AnimatePresence>

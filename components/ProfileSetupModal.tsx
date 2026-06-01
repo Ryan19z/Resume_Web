@@ -215,10 +215,11 @@ export function ProfileSetupModal() {
                 <p className="mb-2 text-sm font-medium text-ink">整页背景图</p>
                 <p className="mb-3 text-[11px] leading-relaxed text-ink-muted">
                   叠在主题纸色之上，可单独调透明度；留空并保存则仅保留素色背景。
-                  展示方式为铺满视口（cover），建议用<strong className="text-ink/80">横向宽幅</strong>
-                  图，例如约 <strong className="text-ink/80">1920×1080</strong> 或{" "}
+                  现在会优先保留原图清晰度（不再强制放大），并自动叠加柔和渐变底层。
+                  建议用<strong className="text-ink/80">横向宽幅</strong>图，例如约{" "}
+                  <strong className="text-ink/80">1920×1080</strong> 或{" "}
                   <strong className="text-ink/80">2400×1350</strong>（16:9），
-                  手机竖屏会裁两侧；单张体积建议约 500KB～1MB（WebP/JPEG）以免拖慢滚动。
+                  单张体积建议约 500KB～1MB（WebP/JPEG）以免拖慢滚动。
                 </p>
                 <label className="mb-3 flex flex-col gap-1.5 text-xs text-ink-muted">
                   <span className="font-medium text-ink">图片地址（HTTPS 或本地上传）</span>

@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 
-const MICRO_INTERACTION_STORAGE_KEY = "resume-micro-interaction-v1";
 const INDUSTRY_TEMPLATE_STORAGE_KEY = "resume-industry-template-v1";
 
 export type IndustryTemplateId =
@@ -33,21 +32,11 @@ export function InteractionModeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [microInteractionEnabled, setMicroInteractionEnabledState] =
-    useState(true);
+  const microInteractionEnabled = true;
   const [industryTemplateId, setIndustryTemplateIdState] =
     useState<IndustryTemplateId | null>(null);
 
   useEffect(() => {
-    try {
-      const savedMicro = window.localStorage.getItem(
-        MICRO_INTERACTION_STORAGE_KEY,
-      );
-      if (savedMicro === "0") setMicroInteractionEnabledState(false);
-      if (savedMicro === "1") setMicroInteractionEnabledState(true);
-    } catch {
-      // ignore
-    }
     try {
       const savedIndustry = window.localStorage.getItem(
         INDUSTRY_TEMPLATE_STORAGE_KEY,
@@ -65,17 +54,7 @@ export function InteractionModeProvider({
     }
   }, []);
 
-  const setMicroInteractionEnabled = (next: boolean) => {
-    setMicroInteractionEnabledState(next);
-    try {
-      window.localStorage.setItem(
-        MICRO_INTERACTION_STORAGE_KEY,
-        next ? "1" : "0",
-      );
-    } catch {
-      // ignore
-    }
-  };
+  const setMicroInteractionEnabled = () => {};
 
   const setIndustryTemplateId = (next: IndustryTemplateId | null) => {
     setIndustryTemplateIdState(next);
@@ -97,7 +76,7 @@ export function InteractionModeProvider({
       industryTemplateId,
       setIndustryTemplateId,
     }),
-    [microInteractionEnabled, industryTemplateId],
+    [industryTemplateId],
   );
 
   return (

@@ -120,7 +120,7 @@ export function TopUtilityBar() {
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-ink/90 sm:px-6">
                 <pre className="whitespace-pre-wrap font-sans text-[13px]">
-                  {HELP_GUIDE_TEXT}
+                  {HELP_GUIDE_TEXT[mode]}
                 </pre>
                 <div className="mt-6 flex flex-col gap-2 border-t border-line pt-4">
                   <button
