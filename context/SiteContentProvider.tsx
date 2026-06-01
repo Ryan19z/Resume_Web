@@ -168,6 +168,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [persistError, setPersistError] = useState<string | null>(null);
   const persistErrorTimerRef = useRef<number | null>(null);
   const resumeScopeRef = useRef(parseClientResumeScope());
+  resumeScopeRef.current = parseClientResumeScope();
 
   const profileRef = useRef(profile);
   const siteRef = useRef(site);

@@ -5,7 +5,7 @@ export type ResumeScope = {
 };
 
 const ID_RE = /^[A-Za-z0-9_-]{6,64}$/;
-const TOKEN_RE = /^[A-Za-z0-9_-]{12,128}$/;
+const TOKEN_RE = /^[^\s]{6,256}$/;
 
 export function sanitizeResumeId(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
