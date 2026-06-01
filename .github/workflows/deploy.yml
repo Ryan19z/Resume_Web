@@ -118,39 +118,6 @@ jobs:
               echo "[deploy] 未找到 pm2，尝试全局安装..."
               npm install -g pm2
             fi
-            if [ -f "${DEPLOY_PATH}/.env.local" ]; then
-              while IFS= read -r line || [ -n "$line" ]; do
-                line="$(printf '%s' "$line" | tr -d '\r')"
-                [ -z "$line" ] && continue
-                case "$line" in
-                  \#*) continue ;;
-                esac
-                case "$line" in
-                  *=*) ;;
-                  *) continue ;;
-                esac
-                key="${line%%=*}"
-                value="${line#*=}"
-                key="$(printf '%s' "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-                value="$(printf '%s' "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
-                case "$key" in
-                  '')
-                    continue
-                    ;;
-                  [A-Za-z_]*)
-                    ;;
-                  *)
-                    continue
-                    ;;
-                esac
-                case "$key" in
-                  *[!A-Za-z0-9_]*)
-                    continue
-                    ;;
-                esac
-                export "$key=$value"
-              done < "${DEPLOY_PATH}/.env.local"
-            fi
             cd "${RELEASE_DIR}"
             export HOSTNAME=0.0.0.0
             export PORT=3000
