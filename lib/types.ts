@@ -142,6 +142,8 @@ export type SiteContent = {
   heroSpotlight: HeroSpotlight;
   /** 页脚联系邮箱 */
   contactEmail?: string;
+  /** 联系电话（展示在首屏与底部联系入口） */
+  contactPhone?: string;
   /** 页脚其它联系方式一行（如微信） */
   contactExtra?: string;
   /** 首屏联系二维码列表（可新增多个） */
@@ -171,6 +173,7 @@ export type ProfileSetupMeta = {
   targetRole?: string;
   heroPreviewLines?: string[];
   contactEmail?: string;
+  contactPhone?: string;
   contactExtra?: string;
   pageBackgroundImageSrc?: string;
   pageBackgroundImageOpacity?: number;

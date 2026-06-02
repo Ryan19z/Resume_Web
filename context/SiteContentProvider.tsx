@@ -76,6 +76,7 @@ type SiteContentContextValue = {
         | "roleFitEntries"
         | "heroSpotlight"
         | "contactEmail"
+        | "contactPhone"
         | "contactExtra"
         | "heroContactQrs"
         | "heroContactQrSrc"
@@ -490,6 +491,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         const e = meta.contactEmail.trim();
         s.contactEmail = e.length ? e : undefined;
       }
+      if (meta?.contactPhone !== undefined) {
+        const phone = meta.contactPhone.trim();
+        s.contactPhone = phone.length ? phone : undefined;
+      }
       if (meta?.contactExtra !== undefined) {
         const x = meta.contactExtra.trim();
         s.contactExtra = x.length ? x : undefined;
@@ -524,6 +529,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "roleFitEntries"
           | "heroSpotlight"
           | "contactEmail"
+          | "contactPhone"
           | "contactExtra"
           | "heroContactQrs"
           | "heroContactQrSrc"
@@ -574,6 +580,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       if (patch.contactEmail !== undefined) {
         const e = patch.contactEmail.trim();
         s.contactEmail = e.length ? e : undefined;
+      }
+      if (patch.contactPhone !== undefined) {
+        const phone = patch.contactPhone.trim();
+        s.contactPhone = phone.length ? phone : undefined;
       }
       if (patch.contactExtra !== undefined) {
         const x = patch.contactExtra.trim();

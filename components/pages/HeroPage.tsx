@@ -221,6 +221,7 @@ export function HeroPage() {
   const [targetRole, setTargetRole] = useState(site.targetRole ?? "");
   const [tagline, setTagline] = useState(site.tagline ?? "");
   const [contactEmail, setContactEmail] = useState(site.contactEmail ?? "");
+  const [contactPhone, setContactPhone] = useState(site.contactPhone ?? "");
   const [contactExtra, setContactExtra] = useState(site.contactExtra ?? "");
   const [heroContactQrs, setHeroContactQrs] = useState<ContactQrDraft[]>(() => {
     const fromList = Array.isArray(site.heroContactQrs)
@@ -331,8 +332,9 @@ export function HeroPage() {
   const [contactQrUploadTargetId, setContactQrUploadTargetId] = useState<string>("");
   const [contactQrUploadBusy, setContactQrUploadBusy] = useState(false);
   const [contactQrUploadMessage, setContactQrUploadMessage] = useState("");
+  const [qrZoomItem, setQrZoomItem] = useState<{ src: string; caption: string } | null>(null);
 
-  const siteSnap = `${site.name}|${site.targetRole}|${site.tagline}|${site.contactEmail ?? ""}|${site.contactExtra ?? ""}|${JSON.stringify(site.heroContactQrs ?? [])}|${site.heroContactQrSrc ?? ""}|${site.heroContactQrCaption ?? ""}|${JSON.stringify(
+  const siteSnap = `${site.name}|${site.targetRole}|${site.tagline}|${site.contactEmail ?? ""}|${site.contactPhone ?? ""}|${site.contactExtra ?? ""}|${JSON.stringify(site.heroContactQrs ?? [])}|${site.heroContactQrSrc ?? ""}|${site.heroContactQrCaption ?? ""}|${JSON.stringify(
     hp,
   )}|${JSON.stringify(site.transferableSkills ?? [])}|${JSON.stringify(
     site.roleFitEntries ?? [],
@@ -351,6 +353,7 @@ export function HeroPage() {
     setTargetRole(s.targetRole ?? "");
     setTagline(s.tagline ?? "");
     setContactEmail(s.contactEmail ?? "");
+    setContactPhone(s.contactPhone ?? "");
     setContactExtra(s.contactExtra ?? "");
     const qrsFromList = Array.isArray(s.heroContactQrs)
       ? s.heroContactQrs
@@ -450,6 +453,7 @@ export function HeroPage() {
         tagline,
         targetRole,
         contactEmail,
+        contactPhone,
         contactExtra,
         heroContactQrs,
         heroPreviewLines: highlights,
@@ -491,6 +495,7 @@ export function HeroPage() {
     tagline,
     targetRole,
     contactEmail,
+    contactPhone,
     contactExtra,
     heroContactQrs,
     highlights,
@@ -554,6 +559,7 @@ export function HeroPage() {
     highlightWord: mode === "zh" ? "亮点" : "Highlight",
     profileInfo: mode === "zh" ? "个人信息速览" : "Profile quick info",
     emailLabel: mode === "zh" ? "邮箱" : "Email",
+    phoneLabel: mode === "zh" ? "电话" : "Phone",
     socialLabel: mode === "zh" ? "社媒 / 联系方式" : "Social / Contacts",
     socialHint:
       mode === "zh"
@@ -573,6 +579,10 @@ export function HeroPage() {
     qrReplace: mode === "zh" ? "替换二维码" : "Replace QR",
     qrRemove: mode === "zh" ? "移除二维码" : "Remove QR",
     qrAdd: mode === "zh" ? "新增二维码" : "Add QR",
+    qrZoomHint:
+      mode === "zh" ? "双击二维码放大" : "Double-click QR to zoom",
+    qrZoomTitle: mode === "zh" ? "二维码放大预览" : "Zoomed QR preview",
+    qrZoomClose: mode === "zh" ? "关闭" : "Close",
     noContact:
       mode === "zh"
         ? "可补充 Instagram / LinkedIn / 微信等，方便 HR 直接联系。"
@@ -674,6 +684,15 @@ export function HeroPage() {
     if (canInline) return heroContactQrs;
     return heroContactQrs.filter((item) => item.src || item.caption);
   }, [heroContactQrs, canInline]);
+
+  useEffect(() => {
+    if (!qrZoomItem) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setQrZoomItem(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [qrZoomItem]);
 
   async function onUploadContactQr(file: File) {
     if (!canInline) return;
@@ -850,12 +869,29 @@ export function HeroPage() {
                     placeholder="you@example.com"
                   />
                 ) : contactEmail ? (
-                  <a
-                    href={`mailto:${contactEmail}`}
-                    className="inline-flex w-fit text-sm text-ink underline decoration-line/80 underline-offset-4 hover:text-[rgb(var(--selection))]"
-                  >
+                  <p className="inline-flex w-fit text-sm text-ink">
                     {contactEmail}
-                  </a>
+                  </p>
+                ) : (
+                  <p className="text-sm text-ink-muted">—</p>
+                )}
+              </div>
+
+              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  {i18n.phoneLabel}
+                </p>
+                {canInline ? (
+                  <input
+                    type="tel"
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    maxLength={40}
+                    className="h-9 w-full rounded-lg border border-line/80 bg-surface/70 px-3 text-sm text-ink outline-none focus:border-ink/20"
+                    placeholder="13800000000"
+                  />
+                ) : contactPhone ? (
+                  <p className="inline-flex w-fit text-sm text-ink">{contactPhone}</p>
                 ) : (
                   <p className="text-sm text-ink-muted">—</p>
                 )}
@@ -909,7 +945,17 @@ export function HeroPage() {
                       key={item.id}
                       className="rounded-xl border border-line/75 bg-surface/72 p-2"
                     >
-                      <div className="h-20 w-20 overflow-hidden rounded-lg border border-line/70 bg-paper/70">
+                      <div
+                        className={`${canInline ? "h-20 w-20" : "h-24 w-24 cursor-zoom-in"} overflow-hidden rounded-lg border border-line/70 bg-paper/70`}
+                        title={!canInline ? i18n.qrZoomHint : undefined}
+                        onDoubleClick={() => {
+                          if (canInline || !item.src) return;
+                          setQrZoomItem({
+                            src: item.src,
+                            caption: item.caption || "",
+                          });
+                        }}
+                      >
                         {item.src ? (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -929,7 +975,7 @@ export function HeroPage() {
                       </div>
 
                       {canInline ? (
-                        <div className="mt-2 w-20 space-y-1.5">
+                        <div className={`${canInline ? "w-20" : "w-24"} mt-2 space-y-1.5`}>
                           <input
                             value={item.src}
                             onChange={(e) =>
@@ -985,9 +1031,16 @@ export function HeroPage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="mt-1.5 w-20 text-center text-[10px] leading-relaxed text-ink-muted">
-                          {item.caption || i18n.qrCaptionHint}
-                        </p>
+                        <div className={`${canInline ? "w-20" : "w-24"} mt-1.5 text-center`}>
+                          <p className={`${canInline ? "text-[10px]" : "text-[11px]"} leading-relaxed text-ink-muted`}>
+                            {item.caption || i18n.qrCaptionHint}
+                          </p>
+                          {!canInline ? (
+                            <p className="mt-0.5 text-[10px] text-ink-muted/80">
+                              {i18n.qrZoomHint}
+                            </p>
+                          ) : null}
+                        </div>
                       )}
                     </div>
                   ))}
@@ -1660,6 +1713,44 @@ export function HeroPage() {
           </div>
         </motion.aside>
       </div>
+
+      {qrZoomItem ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 py-8">
+          <button
+            type="button"
+            aria-label={i18n.qrZoomClose}
+            className="absolute inset-0 bg-ink/55 backdrop-blur-[2px]"
+            onClick={() => setQrZoomItem(null)}
+          />
+          <div className="relative z-[1] w-full max-w-sm rounded-2xl border border-line bg-surface p-4 shadow-[0_20px_48px_rgba(0,0,0,0.35)]">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-ink">{i18n.qrZoomTitle}</p>
+              <button
+                type="button"
+                className="rounded-full border border-line px-3 py-1 text-xs text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
+                onClick={() => setQrZoomItem(null)}
+              >
+                {i18n.qrZoomClose}
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-xl border border-line/70 bg-paper/70">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrZoomItem.src}
+                alt={i18n.qrLabel}
+                className="mx-auto block h-auto w-full max-w-[320px] object-contain p-2"
+                loading="eager"
+                decoding="async"
+              />
+            </div>
+            {qrZoomItem.caption ? (
+              <p className="mt-2 text-center text-xs leading-relaxed text-ink-muted">
+                {qrZoomItem.caption}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

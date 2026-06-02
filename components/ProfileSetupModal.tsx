@@ -20,6 +20,7 @@ export function ProfileSetupModal() {
   const [hl1, setHl1] = useState(site.heroPreviewLines[1] ?? "");
   const [hl2, setHl2] = useState(site.heroPreviewLines[2] ?? "");
   const [contactEmail, setContactEmail] = useState(site.contactEmail ?? "");
+  const [contactPhone, setContactPhone] = useState(site.contactPhone ?? "");
   const [contactExtra, setContactExtra] = useState(site.contactExtra ?? "");
   const [portraitUrl, setPortraitUrl] = useState(site.heroPortraitSrc ?? "");
   const [heroCopy, setHeroCopy] = useState<HeroCopy>(site.heroCopy);
@@ -46,6 +47,7 @@ export function ProfileSetupModal() {
     setHl1(site.heroPreviewLines[1] ?? "");
     setHl2(site.heroPreviewLines[2] ?? "");
     setContactEmail(site.contactEmail ?? "");
+    setContactPhone(site.contactPhone ?? "");
     setContactExtra(site.contactExtra ?? "");
     setPortraitUrl(site.heroPortraitSrc ?? "");
     setHeroCopy(site.heroCopy);
@@ -65,6 +67,7 @@ export function ProfileSetupModal() {
     site.targetRole,
     site.heroPreviewLines,
     site.contactEmail,
+    site.contactPhone,
     site.contactExtra,
     site.heroPortraitSrc,
     site.heroCopy,
@@ -311,6 +314,16 @@ export function ProfileSetupModal() {
                     placeholder="hello@qq.com"
                   />
                 </label>
+                <label className="mb-3 flex flex-col gap-1.5 text-xs text-ink-muted">
+                  <span className="font-medium text-ink">电话</span>
+                  <input
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    className="rounded-lg border border-line bg-surface px-3 py-2 font-mono text-[12px] outline-none focus:border-ink/20"
+                    placeholder="13800000000"
+                    maxLength={40}
+                  />
+                </label>
                 <label className="flex flex-col gap-1.5 text-xs text-ink-muted">
                   <span className="font-medium text-ink">社媒账号（可选，多个用“|”或换行分隔）</span>
                   <textarea
@@ -434,6 +447,7 @@ export function ProfileSetupModal() {
                     targetRole: targetRole.trim(),
                     heroPreviewLines: [hl0, hl1, hl2],
                     contactEmail: contactEmail.trim(),
+                    contactPhone: contactPhone.trim(),
                     contactExtra: contactExtra.trim(),
                     pageBackgroundImageSrc: pageBgUrl,
                     pageBackgroundImageOpacity: pageBgOpacity,

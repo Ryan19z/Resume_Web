@@ -568,6 +568,12 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
       ? contactEmailRaw.trim() || undefined
       : base.contactEmail;
 
+  const contactPhoneRaw = (s as SiteContent).contactPhone;
+  const contactPhone =
+    typeof contactPhoneRaw === "string"
+      ? contactPhoneRaw.trim() || undefined
+      : base.contactPhone;
+
   const contactExtraRaw = (s as SiteContent).contactExtra;
   const contactExtra =
     typeof contactExtraRaw === "string"
@@ -638,6 +644,7 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     transferableSkills,
     roleFitEntries,
     contactEmail,
+    contactPhone,
     contactExtra,
     heroContactQrs,
     heroContactQrSrc,
