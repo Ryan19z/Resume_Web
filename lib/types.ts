@@ -121,6 +121,12 @@ export type RoleFitEntry = {
   proof?: string;
 };
 
+export type HeroContactQrItem = {
+  id: string;
+  src: string;
+  caption?: string;
+};
+
 export type SiteContent = {
   name: string;
   tagline: string;
@@ -138,6 +144,12 @@ export type SiteContent = {
   contactEmail?: string;
   /** 页脚其它联系方式一行（如微信） */
   contactExtra?: string;
+  /** 首屏联系二维码列表（可新增多个） */
+  heroContactQrs?: HeroContactQrItem[];
+  /** 首屏联系方式区域二维码图片（URL 或 data URL） */
+  heroContactQrSrc?: string;
+  /** 首屏二维码下方说明文案 */
+  heroContactQrCaption?: string;
   /** 第一页右侧形象照（URL 或 data URL） */
   heroPortraitSrc?: string;
   /**

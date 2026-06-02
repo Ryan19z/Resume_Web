@@ -117,6 +117,32 @@ type RoleFitDraft = {
   proof?: string;
 };
 
+type ContactEntry = {
+  platform: string;
+  account: string;
+};
+
+type ContactQrDraft = {
+  id: string;
+  src: string;
+  caption: string;
+};
+
+function parseContactEntries(raw: string): ContactEntry[] {
+  return raw
+    .split(/[\n|；;]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((part) => {
+      const [left, ...rest] = part.split(":");
+      const platform = left?.trim() || "";
+      const account = rest.join(":").trim();
+      if (platform && account) return { platform, account };
+      return { platform: "Contact", account: part };
+    })
+    .filter((x) => x.account);
+}
+
 function extractYouTubeId(url: URL): string | null {
   const host = url.hostname.toLowerCase();
   const pathParts = url.pathname.split("/").filter(Boolean);
@@ -194,6 +220,26 @@ export function HeroPage() {
   const [name, setName] = useState(site.name ?? "");
   const [targetRole, setTargetRole] = useState(site.targetRole ?? "");
   const [tagline, setTagline] = useState(site.tagline ?? "");
+  const [contactEmail, setContactEmail] = useState(site.contactEmail ?? "");
+  const [contactExtra, setContactExtra] = useState(site.contactExtra ?? "");
+  const [heroContactQrs, setHeroContactQrs] = useState<ContactQrDraft[]>(() => {
+    const fromList = Array.isArray(site.heroContactQrs)
+      ? site.heroContactQrs
+          .map((x, i) => ({
+            id: x.id || `qr-${i + 1}`,
+            src: String(x.src ?? "").trim(),
+            caption: String(x.caption ?? "").trim(),
+          }))
+          .filter((x) => x.src || x.caption)
+      : [];
+    if (fromList.length > 0) return fromList;
+    const legacySrc = String(site.heroContactQrSrc ?? "").trim();
+    const legacyCaption = String(site.heroContactQrCaption ?? "").trim();
+    if (legacySrc || legacyCaption) {
+      return [{ id: randomId("qr-"), src: legacySrc, caption: legacyCaption }];
+    }
+    return [{ id: randomId("qr-"), src: "", caption: "" }];
+  });
   const [highlights, setHighlights] = useState<string[]>(hp);
   const [skills, setSkills] = useState<string[]>(
     Array.isArray(site.transferableSkills) && site.transferableSkills.length > 0
@@ -271,6 +317,7 @@ export function HeroPage() {
       ? (site.heroSpotlight.media.language ?? "")
       : "",
   );
+  const [visitorPreviewKind, setVisitorPreviewKind] = useState<SpotlightKind | null>(null);
   const [spotlightDocName, setSpotlightDocName] = useState(
     site.heroSpotlight?.documentName ??
       (site.heroSpotlight?.media?.kind === "document"
@@ -280,8 +327,12 @@ export function HeroPage() {
   const [spotlightUploadBusy, setSpotlightUploadBusy] = useState(false);
   const [spotlightUploadMessage, setSpotlightUploadMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const contactQrInputRef = useRef<HTMLInputElement | null>(null);
+  const [contactQrUploadTargetId, setContactQrUploadTargetId] = useState<string>("");
+  const [contactQrUploadBusy, setContactQrUploadBusy] = useState(false);
+  const [contactQrUploadMessage, setContactQrUploadMessage] = useState("");
 
-  const siteSnap = `${site.name}|${site.targetRole}|${site.tagline}|${JSON.stringify(
+  const siteSnap = `${site.name}|${site.targetRole}|${site.tagline}|${site.contactEmail ?? ""}|${site.contactExtra ?? ""}|${JSON.stringify(site.heroContactQrs ?? [])}|${site.heroContactQrSrc ?? ""}|${site.heroContactQrCaption ?? ""}|${JSON.stringify(
     hp,
   )}|${JSON.stringify(site.transferableSkills ?? [])}|${JSON.stringify(
     site.roleFitEntries ?? [],
@@ -299,6 +350,30 @@ export function HeroPage() {
     setName(s.name ?? "");
     setTargetRole(s.targetRole ?? "");
     setTagline(s.tagline ?? "");
+    setContactEmail(s.contactEmail ?? "");
+    setContactExtra(s.contactExtra ?? "");
+    const qrsFromList = Array.isArray(s.heroContactQrs)
+      ? s.heroContactQrs
+          .map((x, i) => ({
+            id: x.id || `qr-${i + 1}`,
+            src: String(x.src ?? "").trim(),
+            caption: String(x.caption ?? "").trim(),
+          }))
+          .filter((x) => x.src || x.caption)
+      : [];
+    if (qrsFromList.length > 0) {
+      setHeroContactQrs(qrsFromList.slice(0, 8));
+    } else {
+      const legacySrc = String(s.heroContactQrSrc ?? "").trim();
+      const legacyCaption = String(s.heroContactQrCaption ?? "").trim();
+      setHeroContactQrs([
+        {
+          id: randomId("qr-"),
+          src: legacySrc,
+          caption: legacyCaption,
+        },
+      ]);
+    }
     const cleanLines = lines.map((x) => String(x ?? "").trim()).filter(Boolean);
     setHighlights(cleanLines);
     const nextSkills =
@@ -350,7 +425,10 @@ export function HeroPage() {
       sp.documentName ??
         (sp.media?.kind === "document" ? (sp.media.fileName ?? "") : ""),
     );
+    setVisitorPreviewKind(null);
     setSpotlightUploadMessage("");
+    setContactQrUploadTargetId("");
+    setContactQrUploadMessage("");
   }, [siteSnap]);
 
   const saveRef = useRef(updateQuickHeroFields);
@@ -371,6 +449,9 @@ export function HeroPage() {
         name,
         tagline,
         targetRole,
+        contactEmail,
+        contactExtra,
+        heroContactQrs,
         heroPreviewLines: highlights,
         transferableSkills: skills,
         roleFitEntries: roleFits,
@@ -409,6 +490,9 @@ export function HeroPage() {
     name,
     tagline,
     targetRole,
+    contactEmail,
+    contactExtra,
+    heroContactQrs,
     highlights,
     skills,
     roleFits,
@@ -468,6 +552,33 @@ export function HeroPage() {
     skillAdd: mode === "zh" ? "添加标签" : "Add skill",
     skillRemove: mode === "zh" ? "删除标签" : "Remove",
     highlightWord: mode === "zh" ? "亮点" : "Highlight",
+    profileInfo: mode === "zh" ? "个人信息速览" : "Profile quick info",
+    emailLabel: mode === "zh" ? "邮箱" : "Email",
+    socialLabel: mode === "zh" ? "社媒 / 联系方式" : "Social / Contacts",
+    socialHint:
+      mode === "zh"
+        ? "格式：Instagram: your_id | LinkedIn: your_id"
+        : "Format: Instagram: your_id | LinkedIn: your_id",
+    qrLabel: mode === "zh" ? "联系二维码" : "Contact QR",
+    qrHint:
+      mode === "zh"
+        ? "可上传微信/WhatsApp/Telegram 等二维码"
+        : "Upload your WeChat/WhatsApp/Telegram QR",
+    qrCaptionLabel: mode === "zh" ? "二维码说明" : "QR caption",
+    qrCaptionHint:
+      mode === "zh"
+        ? "例如：扫码添加我，备注应聘岗位"
+        : "e.g. Scan to connect, mention job title",
+    qrUpload: mode === "zh" ? "上传二维码" : "Upload QR",
+    qrReplace: mode === "zh" ? "替换二维码" : "Replace QR",
+    qrRemove: mode === "zh" ? "移除二维码" : "Remove QR",
+    qrAdd: mode === "zh" ? "新增二维码" : "Add QR",
+    noContact:
+      mode === "zh"
+        ? "可补充 Instagram / LinkedIn / 微信等，方便 HR 直接联系。"
+        : "Add Instagram / LinkedIn / WeChat to help recruiters reach you quickly.",
+    previewSwitch:
+      mode === "zh" ? "可选预览内容" : "Preview options",
     spotlightTitle: mode === "zh" ? "个人重点展示" : "Showcase",
     spotlightType: mode === "zh" ? "展示类型" : "Type",
     spotlightMediaSource:
@@ -493,15 +604,47 @@ export function HeroPage() {
         : "This URL is not a direct playable stream. Bilibili/YouTube pages are auto-embedded, otherwise use a direct .mp4/.webm URL.",
     openInNewTab: mode === "zh" ? "新窗口打开" : "Open in new tab",
   };
+  const availablePreviewKinds = useMemo(() => {
+    const kinds: SpotlightKind[] = [];
+    if (spotlightMediaLinks.image.trim()) kinds.push("image");
+    if (spotlightMediaLinks.video.trim()) kinds.push("video");
+    if (spotlightMediaLinks.link.trim()) kinds.push("link");
+    if (spotlightMediaLinks.document.trim()) kinds.push("document");
+    if (spotlightCode.trim()) kinds.push("code");
+    // 兜底：如果当前 kind 有值但不在 links 中，也允许展示当前 kind
+    if (!kinds.includes(spotlightKind)) {
+      if (
+        (spotlightKind === "code" && spotlightCode.trim()) ||
+        (spotlightKind !== "code" &&
+          spotlightMediaLinks[spotlightKind]?.trim())
+      ) {
+        kinds.push(spotlightKind);
+      }
+    }
+    return kinds;
+  }, [spotlightCode, spotlightKind, spotlightMediaLinks]);
+
+  const activePreviewKind: SpotlightKind = (() => {
+    if (canInline) return spotlightKind;
+    if (
+      visitorPreviewKind &&
+      availablePreviewKinds.includes(visitorPreviewKind)
+    ) {
+      return visitorPreviewKind;
+    }
+    if (availablePreviewKinds.includes(spotlightKind)) return spotlightKind;
+    return availablePreviewKinds[0] ?? spotlightKind;
+  })();
+
   const spotlightPreview = (() => {
-    if (spotlightKind === "code") {
+    if (activePreviewKind === "code") {
       return {
         kind: "code" as const,
         code: spotlightCode.trim(),
         language: spotlightCodeLang.trim(),
       };
     }
-    if (spotlightKind === "document") {
+    if (activePreviewKind === "document") {
       return {
         kind: "document" as const,
         url: spotlightMediaLinks.document.trim(),
@@ -509,8 +652,8 @@ export function HeroPage() {
       };
     }
     return {
-      kind: spotlightKind,
-      url: spotlightMediaLinks[spotlightKind].trim(),
+      kind: activePreviewKind,
+      url: spotlightMediaLinks[activePreviewKind].trim(),
     };
   })();
   const resolvedVideo =
@@ -523,6 +666,55 @@ export function HeroPage() {
       : spotlightKind === "video"
         ? "video/*"
         : ".pdf,.doc,.docx,.ppt,.pptx";
+  const contactEntries = useMemo(
+    () => parseContactEntries(contactExtra),
+    [contactExtra],
+  );
+  const displayContactQrs = useMemo(() => {
+    if (canInline) return heroContactQrs;
+    return heroContactQrs.filter((item) => item.src || item.caption);
+  }, [heroContactQrs, canInline]);
+
+  async function onUploadContactQr(file: File) {
+    if (!canInline) return;
+    setContactQrUploadBusy(true);
+    setContactQrUploadMessage("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const clientScope = parseClientResumeScope();
+      const uploadUrl = appendResumeScopeToPath(
+        "/api/upload-asset",
+        clientScope,
+        { includeEditToken: true, includeViewToken: false },
+      );
+      const resp = await fetch(uploadUrl, {
+        method: "POST",
+        body: form,
+      });
+      const data = (await resp.json()) as {
+        ok?: boolean;
+        url?: string;
+        message?: string;
+      };
+      if (!resp.ok || !data.ok || !data.url) {
+        throw new Error(data.message || i18n.uploadFail);
+      }
+      setHeroContactQrs((prev) =>
+        prev.map((item) =>
+          item.id === contactQrUploadTargetId ? { ...item, src: data.url ?? "" } : item,
+        ),
+      );
+      setContactQrUploadMessage(i18n.uploadDone);
+    } catch (e) {
+      setContactQrUploadMessage(
+        e instanceof Error && e.message ? e.message : i18n.uploadFail,
+      );
+    } finally {
+      setContactQrUploadBusy(false);
+      if (contactQrInputRef.current) contactQrInputRef.current.value = "";
+    }
+  }
 
   async function onUploadSpotlightFile(file: File) {
     if (!canInline) return;
@@ -587,11 +779,11 @@ export function HeroPage() {
               mass: 0.9,
             }}
           >
-            <p className="mb-3 text-[12px] font-medium uppercase tracking-[0.2em] text-ink-muted sm:mb-4">
+            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted sm:mb-4">
               {heroCopy.eyebrow}
             </p>
 
-            <div className="mb-4 inline-flex items-center rounded-full border border-line/80 bg-surface/65 px-3 py-1 text-[11px] text-ink-muted">
+            <div className="mb-4 inline-flex items-center rounded-full border border-[rgb(var(--selection)/0.22)] bg-[rgb(var(--selection)/0.08)] px-3 py-1 text-[11px] font-medium text-[rgb(var(--selection))]">
               {i18n.scanHint}
             </div>
 
@@ -604,10 +796,10 @@ export function HeroPage() {
                 onChange={(e) => setName(e.target.value)}
                 maxLength={40}
                 autoComplete="name"
-                className={`${SEAMLESS_INPUT} text-[clamp(1.85rem,4.2vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink`}
+                className={`${SEAMLESS_INPUT} text-[clamp(2rem,4.2vw,3.2rem)] font-bold leading-[1.08] tracking-[-0.03em] text-ink`}
               />
             ) : (
-              <h1 className="text-[clamp(1.85rem,4.2vw,3rem)] font-semibold leading-[1.08] tracking-[-0.03em]">
+              <h1 className="text-[clamp(2rem,4.2vw,3.2rem)] font-bold leading-[1.08] tracking-[-0.03em]">
                 {site.name}
               </h1>
             )}
@@ -643,6 +835,185 @@ export function HeroPage() {
                 {site.tagline}
               </p>
             )}
+
+            <div className="mt-5 max-w-3xl space-y-3">
+              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  {i18n.emailLabel}
+                </p>
+                {canInline ? (
+                  <input
+                    type="email"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    className="h-9 w-full rounded-lg border border-line/80 bg-surface/70 px-3 text-sm text-ink outline-none focus:border-ink/20"
+                    placeholder="you@example.com"
+                  />
+                ) : contactEmail ? (
+                  <a
+                    href={`mailto:${contactEmail}`}
+                    className="inline-flex w-fit text-sm text-ink underline decoration-line/80 underline-offset-4 hover:text-[rgb(var(--selection))]"
+                  >
+                    {contactEmail}
+                  </a>
+                ) : (
+                  <p className="text-sm text-ink-muted">—</p>
+                )}
+              </div>
+
+              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-start gap-2">
+                <p className="pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  {i18n.socialLabel}
+                </p>
+                {canInline ? (
+                  <input
+                    value={contactExtra}
+                    onChange={(e) => setContactExtra(e.target.value)}
+                    maxLength={260}
+                    className="h-9 w-full rounded-lg border border-line/80 bg-surface/70 px-3 text-sm text-ink outline-none focus:border-ink/20"
+                    placeholder={i18n.socialHint}
+                  />
+                ) : contactEntries.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {contactEntries.map((item, idx) => (
+                      <span
+                        key={`${item.platform}-${item.account}-${idx}`}
+                        className="rounded-full border border-line/75 bg-surface/72 px-3 py-1.5 text-xs text-ink"
+                      >
+                        <span className="font-semibold text-ink/85">{item.platform}</span>
+                        <span className="mx-1 text-ink-muted">·</span>
+                        <span className="text-ink-muted">{item.account}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="pt-1 text-sm leading-relaxed text-ink-muted">{i18n.noContact}</p>
+                )}
+              </div>
+
+              <div className="micro-card inline-block w-fit max-w-full rounded-2xl border border-line/80 bg-surface/76 p-3 shadow-[0_2px_10px_-8px_rgba(0,0,0,0.25)]">
+                <input
+                  ref={contactQrInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    void onUploadContactQr(f);
+                  }}
+                />
+                <div className="flex w-fit max-w-full flex-wrap gap-3">
+                  {displayContactQrs.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-line/75 bg-surface/72 p-2"
+                    >
+                      <div className="h-20 w-20 overflow-hidden rounded-lg border border-line/70 bg-paper/70">
+                        {item.src ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={item.src}
+                              alt={i18n.qrLabel}
+                              className="h-full w-full object-contain p-1"
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </>
+                        ) : (
+                          <div className="flex h-full items-center justify-center p-2 text-center text-[10px] leading-relaxed text-ink-muted">
+                            {i18n.qrHint}
+                          </div>
+                        )}
+                      </div>
+
+                      {canInline ? (
+                        <div className="mt-2 w-20 space-y-1.5">
+                          <input
+                            value={item.src}
+                            onChange={(e) =>
+                              setHeroContactQrs((prev) =>
+                                prev.map((x) =>
+                                  x.id === item.id ? { ...x, src: e.target.value } : x,
+                                ),
+                              )
+                            }
+                            className="w-full rounded-md border border-line/80 bg-surface/72 px-2 py-1 text-[11px] text-ink outline-none focus:border-ink/20"
+                            placeholder="https://"
+                          />
+                          <input
+                            value={item.caption}
+                            onChange={(e) =>
+                              setHeroContactQrs((prev) =>
+                                prev.map((x) =>
+                                  x.id === item.id ? { ...x, caption: e.target.value } : x,
+                                ),
+                              )
+                            }
+                            maxLength={80}
+                            className="w-full rounded-md border border-line/80 bg-surface/72 px-2 py-1 text-[11px] text-ink outline-none focus:border-ink/20"
+                            placeholder={i18n.qrCaptionHint}
+                          />
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setContactQrUploadTargetId(item.id);
+                                contactQrInputRef.current?.click();
+                              }}
+                              disabled={contactQrUploadBusy}
+                              className="flex-1 rounded-full border border-line px-2 py-1 text-[11px] text-ink-muted transition-colors hover:border-ink/20 hover:text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {contactQrUploadBusy && contactQrUploadTargetId === item.id
+                                ? i18n.uploading
+                                : item.src
+                                  ? i18n.qrReplace
+                                  : i18n.qrUpload}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setHeroContactQrs((prev) =>
+                                  prev.filter((x) => x.id !== item.id),
+                                )
+                              }
+                              className="rounded-full border border-line px-2 py-1 text-[11px] text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
+                            >
+                              {i18n.qrRemove}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="mt-1.5 w-20 text-center text-[10px] leading-relaxed text-ink-muted">
+                          {item.caption || i18n.qrCaptionHint}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {!canInline && displayContactQrs.length === 0 ? (
+                  <p className="text-xs text-ink-muted">{i18n.qrHint}</p>
+                ) : null}
+                {canInline ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setHeroContactQrs((prev) => [
+                        ...prev,
+                        { id: randomId("qr-"), src: "", caption: "" },
+                      ].slice(0, 8))
+                    }
+                    className="mt-3 rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
+                  >
+                    {i18n.qrAdd}
+                  </button>
+                ) : null}
+                {contactQrUploadMessage ? (
+                  <p className="mt-2 text-xs text-ink-muted">{contactQrUploadMessage}</p>
+                ) : null}
+              </div>
+            </div>
 
             <div className="mt-6">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
@@ -974,7 +1345,7 @@ export function HeroPage() {
             delay: 0.05,
           }}
         >
-          <div className="rounded-2xl border border-line/80 bg-surface/65 p-4 shadow-[0_16px_45px_-28px_rgba(0,0,0,0.45)]">
+          <div className="rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_12px_24px_-20px_rgba(0,0,0,0.28)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
               {i18n.spotlightTitle}
             </p>
@@ -1012,7 +1383,44 @@ export function HeroPage() {
               </>
             )}
 
-            <div className="mt-4 rounded-xl border border-line/70 bg-paper/40 p-3">
+            {!canInline && availablePreviewKinds.length > 1 ? (
+              <div className="mt-3">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                  {i18n.previewSwitch}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {availablePreviewKinds.map((kind) => {
+                    const label =
+                      kind === "image"
+                        ? i18n.mediaImage
+                        : kind === "video"
+                          ? i18n.mediaVideo
+                          : kind === "code"
+                            ? i18n.mediaCode
+                            : kind === "document"
+                              ? i18n.mediaDocument
+                              : i18n.mediaLink;
+                    const active = activePreviewKind === kind;
+                    return (
+                      <button
+                        key={`visitor-preview-${kind}`}
+                        type="button"
+                        onClick={() => setVisitorPreviewKind(kind)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "border-[rgb(var(--selection)/0.35)] bg-[rgb(var(--selection)/0.12)] text-[rgb(var(--selection))]"
+                            : "border-line bg-surface text-ink-muted hover:border-ink/20 hover:text-ink"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="mt-4 rounded-xl border border-line/90 bg-paper/55 p-3">
               {canInline ? (
                 <div className="mb-3 grid gap-2 sm:grid-cols-2">
                   <label className="flex flex-col gap-1 text-xs text-ink-muted">

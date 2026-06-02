@@ -68,6 +68,15 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
 
   const heroPortraitSrc =
     normalizeDevAssetUrl(site.heroPortraitSrc) ?? site.heroPortraitSrc;
+  const heroContactQrSrc =
+    normalizeDevAssetUrl(site.heroContactQrSrc) ?? site.heroContactQrSrc;
+  const heroContactQrs = Array.isArray(site.heroContactQrs)
+    ? site.heroContactQrs.map((item, i) => ({
+        id: item.id || `qr-${i + 1}`,
+        src: normalizeDevAssetUrl(item.src) ?? item.src,
+        caption: item.caption,
+      }))
+    : site.heroContactQrs;
   const pageBackgroundImageSrcRaw = String(
     site.pageBackgroundImageSrc ?? "",
   ).trim();
@@ -104,6 +113,8 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
   return {
     ...site,
     heroPortraitSrc,
+    heroContactQrs,
+    heroContactQrSrc,
     pageBackgroundImageSrc,
     heroSpotlight,
     projects,

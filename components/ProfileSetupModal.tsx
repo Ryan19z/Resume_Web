@@ -312,13 +312,14 @@ export function ProfileSetupModal() {
                   />
                 </label>
                 <label className="flex flex-col gap-1.5 text-xs text-ink-muted">
-                  <span className="font-medium text-ink">其它（可选，一行）</span>
-                  <input
+                  <span className="font-medium text-ink">社媒账号（可选，多个用“|”或换行分隔）</span>
+                  <textarea
                     value={contactExtra}
                     onChange={(e) => setContactExtra(e.target.value)}
-                    className="rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink/20"
-                    placeholder="如：微信 YourID · 仅作展示"
-                    maxLength={120}
+                    rows={3}
+                    className="resize-y rounded-lg border border-line bg-surface px-3 py-2 text-sm leading-relaxed outline-none focus:border-ink/20"
+                    placeholder="Instagram: your_ins | LinkedIn: your_linkedin | 微信: your_wechat"
+                    maxLength={260}
                   />
                 </label>
               </div>

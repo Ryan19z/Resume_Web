@@ -72,7 +72,7 @@ function ExperienceSection({
             key={c.id}
             role="listitem"
             variants={itemVariants}
-            className="micro-card list-none rounded-2xl border border-line bg-surface/70 shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-sm print:break-inside-avoid"
+            className="micro-card list-none rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.08)] backdrop-blur-sm print:break-inside-avoid"
           >
             <div className="flex flex-col sm:flex-row">
               <button
@@ -152,7 +152,7 @@ function EducationSection({
             <button
               type="button"
               onClick={() => onOpen(c.id)}
-              className="micro-card w-full rounded-2xl border border-line bg-surface/70 px-6 py-5 text-left shadow-[0_1px_0_rgba(0,0,0,0.04)] backdrop-blur-sm transition-transform duration-200 hover:border-ink/12 active:scale-[0.99]"
+              className="micro-card w-full rounded-2xl border border-line bg-surface px-6 py-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-transform duration-200 hover:border-[rgb(var(--selection)/0.25)] active:scale-[0.99]"
             >
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <h3 className="text-base font-semibold tracking-[-0.01em]">
@@ -286,7 +286,7 @@ export function ResumePage() {
               value={pageEyebrow}
               onChange={(e) => setPageEyebrow(e.target.value)}
               maxLength={48}
-              className={`${SEAMLESS_INPUT} mb-3 block w-full text-[13px] font-medium uppercase tracking-[0.22em] text-ink-muted`}
+              className={`${SEAMLESS_INPUT} mb-3 block w-full text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-muted`}
             />
             <input
               type="text"
@@ -295,7 +295,7 @@ export function ResumePage() {
               value={pageTitle}
               onChange={(e) => setPageTitle(e.target.value)}
               maxLength={48}
-              className={`${SEAMLESS_INPUT} block w-full text-3xl font-semibold tracking-[-0.03em] text-ink sm:text-4xl`}
+              className={`${SEAMLESS_INPUT} block w-full text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl`}
             />
             <textarea
               name="resume-page-intro"
@@ -309,10 +309,10 @@ export function ResumePage() {
           </>
         ) : (
           <>
-            <p className="mb-3 text-[13px] font-medium uppercase tracking-[0.22em] text-ink-muted">
+            <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
               {rc.pageEyebrow}
             </p>
-            <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
               {rc.pageTitle}
             </h2>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-muted">

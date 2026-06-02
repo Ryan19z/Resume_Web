@@ -14,6 +14,7 @@ import type {
   PersistedSiteBundle,
   PortfolioProject,
   RepresentativeProject,
+  HeroContactQrItem,
   RoleFitEntry,
   SiteContent,
 } from "./types";
@@ -116,6 +117,31 @@ function normalizeRoleFitEntries(
     });
   }
   return out.length > 0 ? out.slice(0, 12) : fallback.map((x) => ({ ...x }));
+}
+
+function normalizeHeroContactQrs(
+  raw: unknown,
+  fallback: HeroContactQrItem[],
+): HeroContactQrItem[] {
+  if (!Array.isArray(raw)) return fallback.map((x) => ({ ...x }));
+  const out: HeroContactQrItem[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    const item = raw[i];
+    if (!item || typeof item !== "object") continue;
+    const o = item as Record<string, unknown>;
+    const src = typeof o.src === "string" ? o.src.trim() : "";
+    const caption = typeof o.caption === "string" ? o.caption.trim() : "";
+    if (!src && !caption) continue;
+    out.push({
+      id:
+        typeof o.id === "string" && o.id.trim().length > 0
+          ? o.id.trim()
+          : `qr-${i + 1}`,
+      src,
+      caption: caption || undefined,
+    });
+  }
+  return out.slice(0, 8);
 }
 
 function normalizeRepProjectsArray(
@@ -548,6 +574,39 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
       ? contactExtraRaw.trim() || undefined
       : base.contactExtra;
 
+  const heroContactQrsRaw = (s as SiteContent).heroContactQrs;
+  const heroContactQrsFromLegacy =
+    typeof (s as SiteContent).heroContactQrSrc === "string" ||
+    typeof (s as SiteContent).heroContactQrCaption === "string"
+      ? [
+          {
+            id: "qr-legacy-1",
+            src: String((s as SiteContent).heroContactQrSrc ?? "").trim(),
+            caption: String((s as SiteContent).heroContactQrCaption ?? "").trim() || undefined,
+          },
+        ]
+      : [];
+  const heroContactQrsNormalized = normalizeHeroContactQrs(
+    heroContactQrsRaw,
+    Array.isArray(base.heroContactQrs) ? base.heroContactQrs : [],
+  );
+  const heroContactQrs =
+    heroContactQrsNormalized.length > 0
+      ? heroContactQrsNormalized
+      : normalizeHeroContactQrs(heroContactQrsFromLegacy, []);
+
+  const heroContactQrSrcRaw = (s as SiteContent).heroContactQrSrc;
+  const heroContactQrSrc =
+    typeof heroContactQrSrcRaw === "string"
+      ? heroContactQrSrcRaw.trim() || undefined
+      : base.heroContactQrSrc;
+
+  const heroContactQrCaptionRaw = (s as SiteContent).heroContactQrCaption;
+  const heroContactQrCaption =
+    typeof heroContactQrCaptionRaw === "string"
+      ? heroContactQrCaptionRaw.trim() || undefined
+      : base.heroContactQrCaption;
+
   const rawBgSrc = (s as SiteContent).pageBackgroundImageSrc;
   let pageBackgroundImageSrc: SiteContent["pageBackgroundImageSrc"];
   if (!("pageBackgroundImageSrc" in s)) {
@@ -580,6 +639,9 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     roleFitEntries,
     contactEmail,
     contactExtra,
+    heroContactQrs,
+    heroContactQrSrc,
+    heroContactQrCaption,
     name: s.name?.trim() || base.name,
     tagline: s.tagline?.trim() || base.tagline,
     experience:

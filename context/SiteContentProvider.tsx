@@ -77,6 +77,9 @@ type SiteContentContextValue = {
         | "heroSpotlight"
         | "contactEmail"
         | "contactExtra"
+        | "heroContactQrs"
+        | "heroContactQrSrc"
+        | "heroContactQrCaption"
         | "pageBackgroundImageSrc"
         | "pageBackgroundImageOpacity"
       >
@@ -522,6 +525,9 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "heroSpotlight"
           | "contactEmail"
           | "contactExtra"
+          | "heroContactQrs"
+          | "heroContactQrSrc"
+          | "heroContactQrCaption"
           | "pageBackgroundImageSrc"
           | "pageBackgroundImageOpacity"
         >
@@ -572,6 +578,24 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       if (patch.contactExtra !== undefined) {
         const x = patch.contactExtra.trim();
         s.contactExtra = x.length ? x : undefined;
+      }
+      if (patch.heroContactQrs !== undefined) {
+        s.heroContactQrs = patch.heroContactQrs
+          .map((x, i) => ({
+            id: String(x.id ?? "").trim() || `qr-${i + 1}`,
+            src: String(x.src ?? "").trim(),
+            caption: String(x.caption ?? "").trim() || undefined,
+          }))
+          .filter((x) => x.src || x.caption)
+          .slice(0, 8);
+      }
+      if (patch.heroContactQrSrc !== undefined) {
+        const qr = patch.heroContactQrSrc.trim();
+        s.heroContactQrSrc = qr.length ? qr : undefined;
+      }
+      if (patch.heroContactQrCaption !== undefined) {
+        const qrCap = patch.heroContactQrCaption.trim();
+        s.heroContactQrCaption = qrCap.length ? qrCap : undefined;
       }
       if (patch.pageBackgroundImageSrc !== undefined) {
         const bg = patch.pageBackgroundImageSrc.trim();

@@ -8,17 +8,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 function Blocks({ blocks }: { blocks: AchievementBlock[] }) {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-8">
       {blocks.map((b, bi) => (
         <section key={`${b.heading}-${bi}`}>
-          <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+          <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
             {b.heading}
           </h3>
           <ul className="flex flex-col gap-3">
             {b.bullets.map((line, li) => (
               <li
                 key={`${bi}-${li}`}
-                className="rounded-2xl border border-line bg-surface/80 px-5 py-4 text-[15px] leading-relaxed text-ink/90"
+                className="micro-card rounded-xl border border-line bg-surface px-5 py-4 text-[15px] leading-relaxed text-ink/90 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
               >
                 {line}
               </li>
@@ -41,7 +41,7 @@ function RepresentativeProjectOverlay({
     <AnimatePresence>
       {project ? (
         <motion.div
-          className="fixed inset-0 z-[75] flex flex-col bg-ink/40 backdrop-blur-sm print:hidden"
+          className="fixed inset-0 z-[75] flex flex-col bg-ink/45 backdrop-blur-[2px] print:hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -53,17 +53,17 @@ function RepresentativeProjectOverlay({
             onClick={onClose}
           />
           <motion.div
-            className="relative z-[1] mx-auto mt-auto flex h-[min(94vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-t-3xl border border-line/40 bg-paper shadow-2xl sm:mt-12 sm:mb-auto sm:rounded-3xl"
+            className="relative z-[1] mx-auto mt-auto flex h-[min(94vh,920px)] w-full max-w-6xl flex-col overflow-hidden rounded-t-3xl border border-line bg-surface shadow-[0_10px_40px_rgba(0,0,0,0.22)] sm:mb-auto sm:mt-12 sm:rounded-3xl"
             initial={{ y: 48, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 36, opacity: 0 }}
             transition={{ type: "spring", stiffness: 280, damping: 32 }}
           >
-            <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+            <header className="flex items-center justify-between gap-3 border-b border-line bg-surface px-5 py-4">
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full px-3 py-2 text-sm font-medium text-ink-muted hover:bg-ink/[0.06] hover:text-ink"
+                className="rounded-full border border-line px-3 py-2 text-sm font-medium text-ink-muted hover:border-[rgb(var(--selection)/0.2)] hover:text-[rgb(var(--selection))]"
               >
                 关闭
               </button>
@@ -111,7 +111,7 @@ function RepresentativeProjectOverlay({
                 </div>
               ) : null}
               {project.media.kind === "code" ? (
-                <pre className="overflow-x-auto rounded-2xl border border-line bg-[#1e1e1e] p-4 text-[13px] leading-relaxed text-zinc-100">
+                <pre className="overflow-x-auto rounded-2xl border border-line bg-[#111827] p-4 text-[13px] leading-relaxed text-zinc-100 shadow-inner">
                   <code>{project.media.code}</code>
                 </pre>
               ) : null}
@@ -189,7 +189,7 @@ export function ResumeDetailOverlay() {
       <AnimatePresence>
         {resumeDetail && payload ? (
           <motion.div
-            className="fixed inset-0 z-[70] flex flex-col bg-paper print:hidden"
+            className="fixed inset-0 z-[70] flex flex-col bg-ink/45 backdrop-blur-[2px] print:hidden sm:items-center sm:justify-center sm:p-6"
             initial={{ opacity: 0, x: 28 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 24 }}
@@ -200,24 +200,37 @@ export function ResumeDetailOverlay() {
               mass: 0.9,
             }}
           >
-            <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line/80 px-5 py-4 sm:px-8">
-              <button
-                type="button"
-                onClick={closeResumeDetail}
-                className="rounded-full px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:bg-ink/[0.06] hover:text-ink"
-              >
-                ← 返回
-              </button>
-              <span className="truncate text-center text-[13px] font-medium uppercase tracking-[0.16em] text-ink-muted">
-                {payload.eyebrow}
-              </span>
-              <span className="w-16 shrink-0" aria-hidden />
-            </header>
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-10 sm:px-12 sm:py-12">
-              <h1 className="mb-2 text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
-                {payload.title}
-              </h1>
-              <p className="mb-8 text-sm text-ink-muted">{payload.meta}</p>
+            <button
+              type="button"
+              aria-label="关闭详情"
+              className="absolute inset-0"
+              onClick={closeResumeDetail}
+            />
+            <motion.div
+              className="relative z-[1] flex h-full w-full flex-col overflow-hidden bg-surface sm:h-[min(92vh,920px)] sm:max-w-6xl sm:rounded-3xl sm:border sm:border-line sm:shadow-[0_10px_40px_rgba(0,0,0,0.22)]"
+              initial={{ y: 24, opacity: 0.92 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 18, opacity: 0.92 }}
+              transition={{ type: "spring", stiffness: 280, damping: 30 }}
+            >
+              <header className="flex shrink-0 items-center justify-between gap-4 border-b border-line/90 bg-surface px-5 py-4 sm:px-8">
+                <button
+                  type="button"
+                  onClick={closeResumeDetail}
+                  className="rounded-full border border-line px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:border-[rgb(var(--selection)/0.2)] hover:text-[rgb(var(--selection))]"
+                >
+                  ← 返回
+                </button>
+                <span className="truncate rounded-full border border-[rgb(var(--selection)/0.22)] bg-[rgb(var(--selection)/0.08)] px-3 py-1 text-center text-[12px] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--selection))]">
+                  {payload.eyebrow}
+                </span>
+                <span className="w-16 shrink-0" aria-hidden />
+              </header>
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-10 sm:px-12 sm:py-12">
+                <h1 className="mb-2 text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
+                  {payload.title}
+                </h1>
+                <p className="mb-8 text-sm text-ink-muted">{payload.meta}</p>
               {payload.kind === "experience" ? (
                 <>
                   {payload.intro ? (
@@ -226,7 +239,7 @@ export function ResumeDetailOverlay() {
                     </p>
                   ) : null}
                   <section className="mb-12">
-                    <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                    <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
                       {site.resumeCopy.keyResultsHeading}
                     </h3>
                     <ul className="flex flex-col gap-3">
@@ -236,7 +249,7 @@ export function ResumeDetailOverlay() {
                       ).map((line, i) => (
                         <li
                           key={i}
-                          className="rounded-2xl border border-line bg-surface/80 px-5 py-4 text-[15px] leading-relaxed text-ink/90"
+                          className="micro-card rounded-xl border border-line bg-surface px-5 py-4 text-[15px] leading-relaxed text-ink/90 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
                         >
                           {line}
                         </li>
@@ -245,7 +258,7 @@ export function ResumeDetailOverlay() {
                   </section>
                   {payload.representativeProjects.length > 0 ? (
                     <section>
-                      <h3 className="mb-4 text-[13px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      <h3 className="mb-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
                         {site.resumeCopy.repProjectsHeading}
                       </h3>
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -254,9 +267,9 @@ export function ResumeDetailOverlay() {
                             key={p.id}
                             type="button"
                             onClick={() => setRep(p)}
-                            className="rounded-2xl border border-line bg-surface/80 px-5 py-4 text-left transition-transform hover:border-ink/12 active:scale-[0.99]"
+                            className="micro-card rounded-xl border border-line bg-surface px-5 py-4 text-left transition-transform active:scale-[0.99]"
                           >
-                            <p className="font-semibold tracking-[-0.01em]">
+                            <p className="font-semibold tracking-[-0.01em] text-ink">
                               {p.title}
                             </p>
                             {p.description ? (
@@ -264,7 +277,7 @@ export function ResumeDetailOverlay() {
                                 {p.description}
                               </p>
                             ) : null}
-                            <p className="mt-3 text-[13px] font-medium text-ink-muted">
+                            <p className="mt-3 text-[13px] font-medium text-[rgb(var(--selection))]">
                               查看
                               {p.media.kind === "image"
                                 ? "图片"
@@ -289,7 +302,7 @@ export function ResumeDetailOverlay() {
                   <Blocks blocks={payload.blocks} />
                   {payload.representativeProjects.length > 0 ? (
                     <section className="mt-12">
-                      <h3 className="mb-4 text-[13px] font-semibold uppercase tracking-[0.18em] text-ink-muted">
+                      <h3 className="mb-4 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
                         {site.resumeCopy.repProjectsHeading}
                       </h3>
                       <div className="grid gap-3 sm:grid-cols-2">
@@ -298,7 +311,7 @@ export function ResumeDetailOverlay() {
                             key={p.id}
                             type="button"
                             onClick={() => setRep(p)}
-                            className="rounded-2xl border border-line bg-surface/80 px-5 py-4 text-left transition-transform hover:border-ink/12 active:scale-[0.99]"
+                            className="micro-card rounded-xl border border-line bg-surface px-5 py-4 text-left transition-transform active:scale-[0.99]"
                           >
                             <p className="font-semibold tracking-[-0.01em]">
                               {p.title}
@@ -308,7 +321,7 @@ export function ResumeDetailOverlay() {
                                 {p.description}
                               </p>
                             ) : null}
-                            <p className="mt-3 text-[13px] font-medium text-ink-muted">
+                            <p className="mt-3 text-[13px] font-medium text-[rgb(var(--selection))]">
                               查看
                               {p.media.kind === "image"
                                 ? "图片"
@@ -324,7 +337,8 @@ export function ResumeDetailOverlay() {
                   ) : null}
                 </>
               )}
-            </div>
+              </div>
+            </motion.div>
           </motion.div>
         ) : null}
       </AnimatePresence>

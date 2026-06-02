@@ -4,7 +4,7 @@ import { ShareResumeControl } from "@/components/ShareResumeControl";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 
 const NAV_CLASS =
-  "fixed left-0 right-0 top-0 z-[62] flex items-center justify-center border-b border-line/70 bg-paper/90 px-3 backdrop-blur-md print:hidden pt-[calc(0.5rem+env(safe-area-inset-top,0px))] pb-2";
+  "fixed left-0 right-0 top-0 z-[62] flex items-center justify-center border-b border-line/90 bg-surface/95 px-3 shadow-[0_1px_3px_rgba(0,0,0,0.08)] backdrop-blur-md print:hidden pt-[calc(0.5rem+env(safe-area-inset-top,0px))] pb-2";
 
 /** 占位高度须与导航栏总高约一致（含安全区上边距） */
 const SPACER_STYLE = {
@@ -45,7 +45,7 @@ export function SectionAnchorNav() {
               ) : null}
               <a
                 href={href}
-                className="rounded-full px-2.5 py-1.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-ink-muted transition-colors hover:bg-ink/[0.06] hover:text-ink sm:px-3 sm:tracking-[0.16em]"
+                className="rounded-full px-2.5 py-1.5 text-[12px] font-semibold tracking-[0.02em] text-ink-muted transition-colors hover:bg-[rgb(var(--selection)/0.1)] hover:text-[rgb(var(--selection))] sm:px-3"
               >
                 {label}
               </a>

@@ -43,7 +43,7 @@ function ProjectCard({
         mass: 0.88,
         delay: index * 0.05,
       }}
-      className="micro-card group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface/70 shadow-[0_1px_0_rgba(0,0,0,0.04)] print:break-inside-avoid"
+      className="micro-card group relative flex flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.08)] print:break-inside-avoid"
     >
       {canEdit ? (
         <button
@@ -72,7 +72,7 @@ function ProjectCard({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80" />
         <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 text-white">
           <div className="min-w-0">
-            <h3 className="truncate text-base font-semibold tracking-[-0.02em] drop-shadow-sm">
+            <h3 className="truncate text-base font-bold tracking-[-0.02em] drop-shadow-sm">
               {project.title}
             </h3>
             {project.description ? (
@@ -153,7 +153,7 @@ function AddProjectForm({
   };
 
   return (
-    <div className="mb-10 rounded-3xl border border-line bg-surface/90 p-6 shadow-sm">
+    <div className="mb-10 rounded-3xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
       <h3 className="mb-1 text-base font-semibold tracking-[-0.02em]">
         {mode === "zh" ? "新增作品" : "Add project"}
       </h3>
@@ -358,7 +358,7 @@ export function PortfolioPage() {
               value={pageEyebrow}
               onChange={(e) => setPageEyebrow(e.target.value)}
               maxLength={48}
-              className={`${SEAMLESS_INPUT} mb-3 block w-full text-[13px] font-medium uppercase tracking-[0.22em] text-ink-muted`}
+              className={`${SEAMLESS_INPUT} mb-3 block w-full text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-muted`}
             />
             <input
               type="text"
@@ -367,7 +367,7 @@ export function PortfolioPage() {
               value={pageTitle}
               onChange={(e) => setPageTitle(e.target.value)}
               maxLength={48}
-              className={`${SEAMLESS_INPUT} block w-full text-3xl font-semibold tracking-[-0.03em] text-ink sm:text-4xl`}
+              className={`${SEAMLESS_INPUT} block w-full text-3xl font-bold tracking-[-0.03em] text-ink sm:text-4xl`}
             />
             <textarea
               name="portfolio-page-intro"
@@ -381,10 +381,10 @@ export function PortfolioPage() {
           </>
         ) : (
           <>
-            <p className="mb-3 text-[13px] font-medium uppercase tracking-[0.22em] text-ink-muted">
+            <p className="mb-3 text-[12px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
               {pc.pageEyebrow}
             </p>
-            <h2 className="text-3xl font-semibold tracking-[-0.03em] sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-[-0.03em] sm:text-4xl">
               {pc.pageTitle}
             </h2>
             <p className="mt-4 max-w-lg text-sm leading-relaxed text-ink-muted">

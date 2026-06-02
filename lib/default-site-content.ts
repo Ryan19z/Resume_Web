@@ -60,6 +60,16 @@ export const defaultSiteContent: SiteContent = {
     documentName: "",
   },
   contactEmail: "hertz.hou719@gmail.com",
+  contactExtra: "Instagram: your_id | LinkedIn: your_id",
+  heroContactQrs: [
+    {
+      id: "qr-1",
+      src: "",
+      caption: "微信联系方式",
+    },
+  ],
+  heroContactQrSrc: "",
+  heroContactQrCaption: "扫码添加我，备注：应聘 + 姓名",
   heroPortraitSrc: PLACEHOLDER_IMAGES.heroPortrait,
   pageBackgroundImageSrc: PAGE_BACKGROUND_DEFAULT,
   pageBackgroundImageOpacity: 0.18,
