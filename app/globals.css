@@ -62,12 +62,6 @@ html[data-theme="ocean"] {
   }
   body {
     @apply m-0 min-h-full bg-paper text-ink antialiased;
-    background-image: linear-gradient(
-      180deg,
-      rgb(var(--selection) / 0.06) 0%,
-      rgb(var(--color-paper) / 0.98) 18%,
-      rgb(var(--color-paper) / 1) 100%
-    );
   }
 
   /** 锚点跳转时留出固定顶栏高度（与 SectionAnchorNav 占位一致） */
@@ -107,37 +101,6 @@ html[data-theme="ocean"] {
 }
 
 @layer utilities {
-  .bg-creative-paper {
-    background:
-      radial-gradient(
-        110% 90% at 10% 16%,
-        rgb(var(--selection) / 0.1) 0%,
-        transparent 60%
-      ),
-      radial-gradient(
-        100% 80% at 88% 14%,
-        rgb(var(--selection) / 0.06) 0%,
-        transparent 54%
-      ),
-      radial-gradient(
-        120% 100% at 55% 92%,
-        rgb(var(--color-line) / 0.44) 0%,
-        transparent 62%
-      );
-  }
-
-  .bg-creative-grain {
-    background-image: repeating-linear-gradient(
-      120deg,
-      rgb(var(--color-ink) / 0.018) 0px,
-      rgb(var(--color-ink) / 0.018) 1px,
-      transparent 1px,
-      transparent 7px
-    );
-    opacity: 0.32;
-    mix-blend-mode: soft-light;
-  }
-
   .micro-card {
     position: relative;
     border-color: rgb(var(--color-line) / 1);

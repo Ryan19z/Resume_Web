@@ -51,9 +51,6 @@ export type EducationItem = {
 export type HeroCopy = {
   eyebrow: string;
   swipeHint: string;
-  portraitCaption: string;
-  /** 形象照建议（展示在资料弹窗中，可编辑） */
-  portraitGuidance: string;
 };
 
 /** 作品集页眉、卡片辅助说明等可编辑文案 */
@@ -152,14 +149,6 @@ export type SiteContent = {
   heroContactQrSrc?: string;
   /** 首屏二维码下方说明文案 */
   heroContactQrCaption?: string;
-  /** 第一页右侧形象照（URL 或 data URL） */
-  heroPortraitSrc?: string;
-  /**
-   * 整页背景图（URL 或 data URL）。存盘里若键存在且为空字符串，表示用户主动关闭背景图。
-   */
-  pageBackgroundImageSrc?: string;
-  /** 背景图叠在主题纸色上的不透明度，0–1 */
-  pageBackgroundImageOpacity?: number;
   heroCopy: HeroCopy;
   resumeCopy: ResumeCopy;
   portfolioCopy: PortfolioCopy;
@@ -175,8 +164,6 @@ export type ProfileSetupMeta = {
   contactEmail?: string;
   contactPhone?: string;
   contactExtra?: string;
-  pageBackgroundImageSrc?: string;
-  pageBackgroundImageOpacity?: number;
 };
 
 export type PersistedProfile = {

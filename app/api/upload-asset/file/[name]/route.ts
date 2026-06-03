@@ -3,8 +3,10 @@ import {
   resolveExistingUploadFilePath,
   safeBaseName,
 } from "@/lib/server/upload-asset-store";
+import { createReadStream } from "fs";
 import fs from "fs/promises";
 import path from "path";
+import { Readable } from "stream";
 import { type NextRequest, NextResponse } from "next/server";
 
 function contentTypeForExt(ext: string): string {
@@ -56,20 +58,86 @@ export async function GET(
   try {
     const filePath = await resolveExistingUploadFilePath(safeName);
     if (!filePath) throw new Error("not_file");
-    const bytes = await fs.readFile(filePath);
+    const stat = await fs.stat(filePath);
+    const fileSize = stat.size;
+    const range = request.headers.get("range");
+    const isRangeRequest = typeof range === "string" && range.startsWith("bytes=");
+
+    let start = 0;
+    let end = fileSize - 1;
+    let status = 200;
+
+    if (isRangeRequest) {
+      const match = /^bytes=(\d*)-(\d*)$/i.exec(range ?? "");
+      if (!match) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            "Content-Range": `bytes */${fileSize}`,
+            "Accept-Ranges": "bytes",
+          },
+        });
+      }
+
+      const [, startRaw, endRaw] = match;
+      if (startRaw) {
+        start = Number(startRaw);
+        end = endRaw ? Number(endRaw) : fileSize - 1;
+      } else {
+        const suffix = Number(endRaw || "0");
+        if (!suffix || Number.isNaN(suffix)) {
+          return new NextResponse(null, {
+            status: 416,
+            headers: {
+              "Content-Range": `bytes */${fileSize}`,
+              "Accept-Ranges": "bytes",
+            },
+          });
+        }
+        start = Math.max(fileSize - suffix, 0);
+        end = fileSize - 1;
+      }
+
+      if (
+        Number.isNaN(start) ||
+        Number.isNaN(end) ||
+        start < 0 ||
+        end < start ||
+        start >= fileSize
+      ) {
+        return new NextResponse(null, {
+          status: 416,
+          headers: {
+            "Content-Range": `bytes */${fileSize}`,
+            "Accept-Ranges": "bytes",
+          },
+        });
+      }
+
+      end = Math.min(end, fileSize - 1);
+      status = 206;
+    }
+
+    const chunkSize = end - start + 1;
+    const nodeStream = createReadStream(filePath, { start, end });
+    const webStream = Readable.toWeb(nodeStream) as ReadableStream;
 
     const headers = new Headers();
     headers.set("Content-Type", contentTypeForExt(ext));
-    headers.set("Content-Length", String(bytes.byteLength));
+    headers.set("Content-Length", String(chunkSize));
+    headers.set("Accept-Ranges", "bytes");
     headers.set("Cache-Control", "private, max-age=300");
     headers.set("X-Content-Type-Options", "nosniff");
+    if (status === 206) {
+      headers.set("Content-Range", `bytes ${start}-${end}/${fileSize}`);
+    }
     const download = request.nextUrl.searchParams.get("download") === "1";
     headers.set(
       "Content-Disposition",
       `${download ? "attachment" : "inline"}; filename="${encodeURIComponent(safeName)}"`,
     );
 
-    return new NextResponse(bytes, { status: 200, headers });
+    return new NextResponse(webStream, { status, headers });
   } catch {
     return NextResponse.json(
       { ok: false, error: "not_found", message: "文件不存在。" },

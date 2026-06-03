@@ -60,7 +60,6 @@ type SiteContentContextValue = {
   updateProfile: (
     name: string,
     tagline: string,
-    heroPortraitSrc?: string,
     heroCopyPatch?: Partial<HeroCopy>,
     meta?: ProfileSetupMeta,
   ) => void;
@@ -81,8 +80,6 @@ type SiteContentContextValue = {
         | "heroContactQrs"
         | "heroContactQrSrc"
         | "heroContactQrCaption"
-        | "pageBackgroundImageSrc"
-        | "pageBackgroundImageOpacity"
       >
     >,
   ) => void;
@@ -283,8 +280,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
                     ...defaultSiteContent.heroCopy,
                     eyebrow: "Portfolio",
                     swipeHint: "Scroll down to resume and portfolio",
-                    portraitCaption:
-                      "Current image is placeholder (portrait crop recommended).",
                   }
                 : defaultSiteContent.heroCopy,
             resumeCopy:
@@ -457,7 +452,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     (
       name: string,
       tagline: string,
-      portraitInput?: string,
       heroCopyPatch?: Partial<HeroCopy>,
       meta?: ProfileSetupMeta,
     ) => {
@@ -473,10 +467,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         tagline: p.tagline,
         heroCopy: mergeHeroCopy(cur.heroCopy, heroCopyPatch),
       };
-      if (portraitInput !== undefined) {
-        const t = portraitInput.trim();
-        s.heroPortraitSrc = t.length ? t : undefined;
-      }
       if (meta?.targetRole !== undefined) {
         const tr = meta.targetRole.trim();
         s.targetRole = tr.length ? tr : cur.targetRole;
@@ -498,17 +488,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       if (meta?.contactExtra !== undefined) {
         const x = meta.contactExtra.trim();
         s.contactExtra = x.length ? x : undefined;
-      }
-      if (meta?.pageBackgroundImageSrc !== undefined) {
-        const bg = meta.pageBackgroundImageSrc.trim();
-        s.pageBackgroundImageSrc = bg.length > 0 ? bg : "";
-      }
-      if (meta?.pageBackgroundImageOpacity !== undefined) {
-        const o = meta.pageBackgroundImageOpacity;
-        s.pageBackgroundImageOpacity =
-          typeof o === "number" && Number.isFinite(o)
-            ? Math.min(1, Math.max(0, o))
-            : cur.pageBackgroundImageOpacity;
       }
       commitAll(p, s);
       setSetupModalOpen(false);
@@ -534,8 +513,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "heroContactQrs"
           | "heroContactQrSrc"
           | "heroContactQrCaption"
-          | "pageBackgroundImageSrc"
-          | "pageBackgroundImageOpacity"
         >
       >,
     ) => {
@@ -606,17 +583,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       if (patch.heroContactQrCaption !== undefined) {
         const qrCap = patch.heroContactQrCaption.trim();
         s.heroContactQrCaption = qrCap.length ? qrCap : undefined;
-      }
-      if (patch.pageBackgroundImageSrc !== undefined) {
-        const bg = patch.pageBackgroundImageSrc.trim();
-        s.pageBackgroundImageSrc = bg.length > 0 ? bg : "";
-      }
-      if (patch.pageBackgroundImageOpacity !== undefined) {
-        const o = patch.pageBackgroundImageOpacity;
-        s.pageBackgroundImageOpacity =
-          typeof o === "number" && Number.isFinite(o)
-            ? Math.min(1, Math.max(0, o))
-            : cur.pageBackgroundImageOpacity;
       }
       const nextProfile: PersistedProfile = {
         ...p,

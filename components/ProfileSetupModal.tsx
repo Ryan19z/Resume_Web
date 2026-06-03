@@ -4,11 +4,7 @@ import { useSiteContent } from "@/context/SiteContentProvider";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import type { HeroCopy } from "@/lib/types";
 import { AnimatePresence, motion } from "framer-motion";
-import type { ChangeEvent } from "react";
 import { useEffect, useId, useState } from "react";
-
-const MAX_FILE_BYTES = 650_000;
-const MAX_PAGE_BG_BYTES = 900_000;
 
 export function ProfileSetupModal() {
   const { setupModalOpen, dismissSetupModal, updateProfile, site } =
@@ -22,19 +18,7 @@ export function ProfileSetupModal() {
   const [contactEmail, setContactEmail] = useState(site.contactEmail ?? "");
   const [contactPhone, setContactPhone] = useState(site.contactPhone ?? "");
   const [contactExtra, setContactExtra] = useState(site.contactExtra ?? "");
-  const [portraitUrl, setPortraitUrl] = useState(site.heroPortraitSrc ?? "");
   const [heroCopy, setHeroCopy] = useState<HeroCopy>(site.heroCopy);
-  const [fileHint, setFileHint] = useState<string | null>(null);
-  const [pageBgUrl, setPageBgUrl] = useState(
-    () => site.pageBackgroundImageSrc?.trim() ?? "",
-  );
-  const [pageBgOpacity, setPageBgOpacity] = useState(() => {
-    const o = site.pageBackgroundImageOpacity;
-    return typeof o === "number" && Number.isFinite(o)
-      ? Math.min(1, Math.max(0, o))
-      : 0.18;
-  });
-  const [pageBgFileHint, setPageBgFileHint] = useState<string | null>(null);
   const titleId = useId();
   const descId = useId();
 
@@ -49,17 +33,7 @@ export function ProfileSetupModal() {
     setContactEmail(site.contactEmail ?? "");
     setContactPhone(site.contactPhone ?? "");
     setContactExtra(site.contactExtra ?? "");
-    setPortraitUrl(site.heroPortraitSrc ?? "");
     setHeroCopy(site.heroCopy);
-    setFileHint(null);
-    setPageBgUrl(site.pageBackgroundImageSrc?.trim() ?? "");
-    const op = site.pageBackgroundImageOpacity;
-    setPageBgOpacity(
-      typeof op === "number" && Number.isFinite(op)
-        ? Math.min(1, Math.max(0, op))
-        : 0.18,
-    );
-    setPageBgFileHint(null);
   }, [
     setupModalOpen,
     site.name,
@@ -69,10 +43,7 @@ export function ProfileSetupModal() {
     site.contactEmail,
     site.contactPhone,
     site.contactExtra,
-    site.heroPortraitSrc,
     site.heroCopy,
-    site.pageBackgroundImageSrc,
-    site.pageBackgroundImageOpacity,
   ]);
 
   useBodyScrollLock(setupModalOpen);
@@ -85,62 +56,6 @@ export function ProfileSetupModal() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setupModalOpen, dismissSetupModal]);
-
-  const onPickFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setFileHint("请选择图片文件");
-      return;
-    }
-    if (f.size > MAX_FILE_BYTES) {
-      setFileHint("图片过大，请压缩到约 600KB 以内或使用图床链接");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => {
-      setFileHint("读取图片失败，请换一张图片或改用图床链接");
-    };
-    reader.onload = () => {
-      const r = reader.result;
-      if (typeof r === "string") {
-        setPortraitUrl(r);
-        setFileHint("已读入本地预览（将存入浏览器，勿用超大图）");
-      } else {
-        setFileHint("读取图片失败，请重试");
-      }
-    };
-    reader.readAsDataURL(f);
-  };
-
-  const onPickPageBgFile = (e: ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    e.target.value = "";
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      setPageBgFileHint("请选择图片文件");
-      return;
-    }
-    if (f.size > MAX_PAGE_BG_BYTES) {
-      setPageBgFileHint("背景图过大，请压缩到约 900KB 以内或使用图床链接");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => {
-      setPageBgFileHint("读取背景图失败，请换一张图片或改用图床链接");
-    };
-    reader.onload = () => {
-      const r = reader.result;
-      if (typeof r === "string") {
-        setPageBgUrl(r);
-        setPageBgFileHint("已读入本地预览（将存入浏览器）");
-      } else {
-        setPageBgFileHint("读取背景图失败，请重试");
-      }
-    };
-    reader.readAsDataURL(f);
-  };
 
   return (
     <AnimatePresence>
@@ -214,69 +129,6 @@ export function ProfileSetupModal() {
                   maxLength={80}
                 />
               </label>
-              <div className="rounded-xl border border-line bg-paper/60 p-4">
-                <p className="mb-2 text-sm font-medium text-ink">整页背景图</p>
-                <p className="mb-3 text-[11px] leading-relaxed text-ink-muted">
-                  叠在主题纸色之上，可单独调透明度；留空并保存则仅保留素色背景。
-                  现在会优先保留原图清晰度（不再强制放大），并自动叠加柔和渐变底层。
-                  建议用<strong className="text-ink/80">横向宽幅</strong>图，例如约{" "}
-                  <strong className="text-ink/80">1920×1080</strong> 或{" "}
-                  <strong className="text-ink/80">2400×1350</strong>（16:9），
-                  单张体积建议约 500KB～1MB（WebP/JPEG）以免拖慢滚动。
-                </p>
-                <label className="mb-3 flex flex-col gap-1.5 text-xs text-ink-muted">
-                  <span className="font-medium text-ink">图片地址（HTTPS 或本地上传）</span>
-                  <input
-                    value={pageBgUrl}
-                    onChange={(e) => setPageBgUrl(e.target.value)}
-                    className="rounded-lg border border-line bg-surface px-3 py-2 font-mono text-[11px] text-ink outline-none focus:border-ink/20"
-                    placeholder="https://... 或留空"
-                  />
-                </label>
-                <div className="mb-3 flex flex-wrap items-center gap-3">
-                  <label className="cursor-pointer rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/15 hover:text-ink">
-                    上传背景图
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onPickPageBgFile}
-                    />
-                  </label>
-                  {pageBgUrl ? (
-                    <button
-                      type="button"
-                      className="text-xs text-ink-muted underline decoration-line hover:text-ink"
-                      onClick={() => {
-                        setPageBgUrl("");
-                        setPageBgFileHint(null);
-                      }}
-                    >
-                      清除背景图
-                    </button>
-                  ) : null}
-                </div>
-                {pageBgFileHint ? (
-                  <p className="mb-3 text-[11px] text-ink-muted">{pageBgFileHint}</p>
-                ) : null}
-                <label className="flex flex-col gap-2 text-xs text-ink-muted">
-                  <span className="font-medium text-ink">
-                    背景图透明度：{Math.round(pageBgOpacity * 100)}%
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    value={Math.round(pageBgOpacity * 100)}
-                    onChange={(e) =>
-                      setPageBgOpacity(
-                        Math.min(1, Math.max(0, Number(e.target.value) / 100)),
-                      )
-                    }
-                    className="w-full accent-ink"
-                  />
-                </label>
-              </div>
               <div className="rounded-xl border border-line bg-paper/60 p-4">
                 <p className="mb-3 text-sm font-medium text-ink">首屏三条要点</p>
                 <div className="flex flex-col gap-2">
@@ -361,70 +213,7 @@ export function ProfileSetupModal() {
                       maxLength={80}
                     />
                   </label>
-                  <label className="flex flex-col gap-1.5 text-xs text-ink-muted">
-                    <span className="font-medium text-ink">形象照下方说明</span>
-                    <input
-                      value={heroCopy.portraitCaption}
-                      onChange={(e) =>
-                        setHeroCopy((h) => ({
-                          ...h,
-                          portraitCaption: e.target.value,
-                        }))
-                      }
-                      className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink outline-none focus:border-ink/20"
-                      maxLength={80}
-                    />
-                  </label>
                 </div>
-              </div>
-              <div className="rounded-xl border border-line bg-paper/80 p-4">
-                <p className="mb-2 text-sm font-medium text-ink">右侧形象照</p>
-                <label className="mb-3 flex flex-col gap-1.5 text-xs text-ink-muted">
-                  <span className="font-medium text-ink">选图说明（给访客/自己的提醒，可长期修改）</span>
-                  <textarea
-                    value={heroCopy.portraitGuidance}
-                    onChange={(e) =>
-                      setHeroCopy((h) => ({
-                        ...h,
-                        portraitGuidance: e.target.value,
-                      }))
-                    }
-                    rows={4}
-                    className="resize-y rounded-lg border border-line bg-surface px-3 py-2 text-[11px] leading-relaxed outline-none focus:border-ink/20"
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-xs text-ink-muted">
-                  图片链接（推荐图床 HTTPS）
-                  <input
-                    value={portraitUrl}
-                    onChange={(e) => setPortraitUrl(e.target.value)}
-                    className="rounded-lg border border-line bg-surface px-3 py-2 font-mono text-[11px] text-ink outline-none focus:border-ink/20"
-                    placeholder="https://..."
-                  />
-                </label>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <label className="cursor-pointer rounded-full border border-line bg-surface px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/15 hover:text-ink">
-                    上传小图
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={onPickFile}
-                    />
-                  </label>
-                  {portraitUrl ? (
-                    <button
-                      type="button"
-                      className="text-xs text-ink-muted underline decoration-line hover:text-ink"
-                      onClick={() => setPortraitUrl("")}
-                    >
-                      清除形象照
-                    </button>
-                  ) : null}
-                </div>
-                {fileHint ? (
-                  <p className="mt-2 text-[11px] text-ink-muted">{fileHint}</p>
-                ) : null}
               </div>
             </div>
             <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -438,19 +227,15 @@ export function ProfileSetupModal() {
               <button
                 type="button"
                 onClick={() =>
-                  updateProfile(name, tagline, portraitUrl, {
+                  updateProfile(name, tagline, {
                     eyebrow: heroCopy.eyebrow.trim(),
                     swipeHint: heroCopy.swipeHint.trim(),
-                    portraitCaption: heroCopy.portraitCaption.trim(),
-                    portraitGuidance: heroCopy.portraitGuidance.trim(),
                   }, {
                     targetRole: targetRole.trim(),
                     heroPreviewLines: [hl0, hl1, hl2],
                     contactEmail: contactEmail.trim(),
                     contactPhone: contactPhone.trim(),
                     contactExtra: contactExtra.trim(),
-                    pageBackgroundImageSrc: pageBgUrl,
-                    pageBackgroundImageOpacity: pageBgOpacity,
                   })
                 }
                 className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"

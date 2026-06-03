@@ -74,7 +74,7 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "首屏就地编辑",
         description:
-          "首屏与预览一致：直接点击姓名、岗位、介绍或三条要点即可修改，停顿后自动保存；左上角小标题与形象照等在右下角「站点编辑」里。",
+          "首屏可直接编辑姓名、岗位、简介、邮箱/电话/社媒与联系二维码；修改后会自动保存。右侧展示窗也支持直接切换与编辑预览素材。",
         side: "bottom",
         align: "start",
       },
@@ -84,7 +84,7 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "站点编辑",
         description:
-          "打开后可编辑首屏完整资料、履历页与作品页的文案，以及添加作品条目等。",
+          "打开后可集中编辑首屏基础信息、履历页文案、作品页文案，并管理作品条目；这里会放置不适合就地编辑的设置项。",
         side: "top",
         align: "end",
       },

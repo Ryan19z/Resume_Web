@@ -7,11 +7,11 @@ import {
   safeBaseName,
 } from "@/lib/server/upload-asset-store";
 import { randomUUID } from "crypto";
-import fs from "fs/promises";
+import fsPromises from "fs/promises";
 import path from "path";
 import { type NextRequest, NextResponse } from "next/server";
 
-const MAX_UPLOAD_BYTES = 30 * 1024 * 1024; // 30MB
+const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1024MB
 
 export async function POST(request: NextRequest) {
   const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
@@ -85,8 +85,20 @@ export async function POST(request: NextRequest) {
 
     const finalName = `${Date.now()}-${randomUUID()}${ext}`;
     const destPath = path.join(uploadDir, finalName);
-    const buf = Buffer.from(await fileValue.arrayBuffer());
-    await fs.writeFile(destPath, buf);
+    const reader = fileValue.stream().getReader();
+    const handle = await fsPromises.open(destPath, "w");
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value && value.byteLength > 0) {
+          await handle.write(Buffer.from(value));
+        }
+      }
+    } finally {
+      await handle.close();
+      reader.releaseLock();
+    }
 
     return NextResponse.json({
       ok: true as const,
@@ -96,6 +108,20 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     console.error("[api/upload-asset] POST", e);
+    // 出错时尽量清理半截文件，避免磁盘残留损坏资源。
+    // 路径仅在成功解析后才会创建，这里用 try/catch 保持兜底安全。
+    if (
+      e &&
+      typeof e === "object" &&
+      "path" in e &&
+      typeof (e as { path?: unknown }).path === "string"
+    ) {
+      try {
+        await fsPromises.unlink((e as { path: string }).path);
+      } catch {
+        // ignore cleanup errors
+      }
+    }
     return NextResponse.json(
       { ok: false, error: "write_failed", message: "上传失败，请检查目录权限。" },
       { status: 500 },

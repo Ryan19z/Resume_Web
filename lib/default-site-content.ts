@@ -1,6 +1,5 @@
 import {
   DEMO_SAMPLE_VIDEO_MP4,
-  PAGE_BACKGROUND_DEFAULT,
   PLACEHOLDER_IMAGES,
   PORTFOLIO_LINK_PLACEHOLDER,
 } from "./media-defaults";
@@ -71,15 +70,9 @@ export const defaultSiteContent: SiteContent = {
   ],
   heroContactQrSrc: "",
   heroContactQrCaption: "扫码添加我，备注：应聘 + 姓名",
-  heroPortraitSrc: PLACEHOLDER_IMAGES.heroPortrait,
-  pageBackgroundImageSrc: PAGE_BACKGROUND_DEFAULT,
-  pageBackgroundImageOpacity: 0.18,
   heroCopy: {
     eyebrow: "Portfolio",
     swipeHint: "向下滚动 · 浏览履历与作品集",
-    portraitCaption: "当前为山水风景示意（竖版 800×1000 裁剪）；可改为证件照",
-    portraitGuidance:
-      "建议使用「肩部以上」的半身形象照，背景尽量简洁，面部清晰、光线均匀；避免全身照或过于花哨的背景，以免抢占姓名与岗位等文字信息。文件若本地上传，请控制在约 600KB 以内，或使用图床 HTTPS 链接。",
   },
   resumeCopy: {
     pageEyebrow: "Résumé",

@@ -106,8 +106,6 @@ export function IndustryTemplateSwitcher() {
                       fit: item.fit,
                       proof: item.proof,
                     })),
-                    pageBackgroundImageSrc: tpl.background.src,
-                    pageBackgroundImageOpacity: tpl.background.opacity,
                   });
                   setOpen(false);
                 }}

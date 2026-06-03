@@ -66,8 +66,6 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
     return site;
   }
 
-  const heroPortraitSrc =
-    normalizeDevAssetUrl(site.heroPortraitSrc) ?? site.heroPortraitSrc;
   const heroContactQrSrc =
     normalizeDevAssetUrl(site.heroContactQrSrc) ?? site.heroContactQrSrc;
   const heroContactQrs = Array.isArray(site.heroContactQrs)
@@ -77,14 +75,6 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
         caption: item.caption,
       }))
     : site.heroContactQrs;
-  const pageBackgroundImageSrcRaw = String(
-    site.pageBackgroundImageSrc ?? "",
-  ).trim();
-  const pageBackgroundImageSrc =
-    pageBackgroundImageSrcRaw.length > 0
-      ? (normalizeDevAssetUrl(pageBackgroundImageSrcRaw) ??
-        pageBackgroundImageSrcRaw)
-      : undefined;
   const projects = site.projects.map((p) => ({
     ...p,
     coverSrc: normalizeDevAssetUrl(p.coverSrc) ?? p.coverSrc,
@@ -112,10 +102,8 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
   })();
   return {
     ...site,
-    heroPortraitSrc,
     heroContactQrs,
     heroContactQrSrc,
-    pageBackgroundImageSrc,
     heroSpotlight,
     projects,
     experience,

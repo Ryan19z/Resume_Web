@@ -6,7 +6,7 @@ import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
 import { randomId } from "@/lib/random-id";
 import { appendResumeScopeToPath, parseClientResumeScope } from "@/lib/resume-scope";
 import { motion } from "framer-motion";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
 const DEFAULT_ROLE_FITS_ZH = [
@@ -213,8 +213,6 @@ export function HeroPage() {
   const heroCopy = site.heroCopy ?? {
     eyebrow: "",
     swipeHint: "",
-    portraitCaption: "",
-    portraitGuidance: "",
   };
 
   const [name, setName] = useState(site.name ?? "");
@@ -327,6 +325,16 @@ export function HeroPage() {
   );
   const [spotlightUploadBusy, setSpotlightUploadBusy] = useState(false);
   const [spotlightUploadMessage, setSpotlightUploadMessage] = useState("");
+  const [spotlightHdPreviewOpen, setSpotlightHdPreviewOpen] = useState(false);
+  const inlineVideoRef = useRef<HTMLVideoElement | null>(null);
+  const hdVideoRef = useRef<HTMLVideoElement | null>(null);
+  const videoResumeSnapshotRef = useRef<{
+    currentTime: number;
+    volume: number;
+    muted: boolean;
+    playbackRate: number;
+    shouldPlay: boolean;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const contactQrInputRef = useRef<HTMLInputElement | null>(null);
   const [contactQrUploadTargetId, setContactQrUploadTargetId] = useState<string>("");
@@ -606,6 +614,10 @@ export function HeroPage() {
     uploading: mode === "zh" ? "上传中..." : "Uploading...",
     uploadDone: mode === "zh" ? "上传成功，已填入链接。" : "Uploaded and URL filled.",
     uploadFail: mode === "zh" ? "上传失败，请重试。" : "Upload failed, please retry.",
+    videoUploadLimitHint:
+      mode === "zh"
+        ? "视频上传支持 0-1024MB；超大 4K 文件建议用云盘/对象存储直链。"
+        : "Video upload supports 0-1024MB; for larger 4K files, use cloud/object-storage links.",
     openDocument: mode === "zh" ? "打开文档" : "Open document",
     downloadDocument: mode === "zh" ? "下载文件" : "Download file",
     videoUnsupported:
@@ -613,6 +625,10 @@ export function HeroPage() {
         ? "当前链接不是可直接播放的视频流。B站/YouTube 网页链接会自动嵌入，其它请使用 .mp4/.webm 直链。"
         : "This URL is not a direct playable stream. Bilibili/YouTube pages are auto-embedded, otherwise use a direct .mp4/.webm URL.",
     openInNewTab: mode === "zh" ? "新窗口打开" : "Open in new tab",
+    hdPreview: mode === "zh" ? "高清预览" : "HD preview",
+    hdPreviewTitle: mode === "zh" ? "高清内容预览" : "HD content preview",
+    hdPreviewHint:
+      mode === "zh" ? "点击可全屏查看细节" : "Open full-screen detail view",
   };
   const availablePreviewKinds = useMemo(() => {
     const kinds: SpotlightKind[] = [];
@@ -685,6 +701,50 @@ export function HeroPage() {
     return heroContactQrs.filter((item) => item.src || item.caption);
   }, [heroContactQrs, canInline]);
 
+  const readVideoSnapshot = useCallback((video: HTMLVideoElement) => {
+    return {
+      currentTime: video.currentTime || 0,
+      volume: video.volume,
+      muted: video.muted,
+      playbackRate: video.playbackRate || 1,
+      shouldPlay: !video.paused && !video.ended,
+    };
+  }, []);
+
+  const applyVideoSnapshot = useCallback(
+    (video: HTMLVideoElement, snap: NonNullable<typeof videoResumeSnapshotRef.current>) => {
+      const applyState = () => {
+        try {
+          video.currentTime = Math.max(0, snap.currentTime);
+        } catch {
+          // ignore seek failure on unsupported stream
+        }
+        video.volume = snap.volume;
+        video.muted = snap.muted;
+        video.playbackRate = snap.playbackRate || 1;
+        if (snap.shouldPlay) {
+          void video.play().catch(() => {
+            // ignore autoplay rejection
+          });
+        } else {
+          video.pause();
+        }
+      };
+
+      if (video.readyState >= 1) {
+        applyState();
+        return () => undefined;
+      }
+      const onLoaded = () => {
+        video.removeEventListener("loadedmetadata", onLoaded);
+        applyState();
+      };
+      video.addEventListener("loadedmetadata", onLoaded);
+      return () => video.removeEventListener("loadedmetadata", onLoaded);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!qrZoomItem) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -693,6 +753,37 @@ export function HeroPage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [qrZoomItem]);
+
+  useEffect(() => {
+    if (!spotlightHdPreviewOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
+          videoResumeSnapshotRef.current = readVideoSnapshot(hdVideoRef.current);
+        }
+        setSpotlightHdPreviewOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [spotlightHdPreviewOpen, readVideoSnapshot, resolvedVideo?.mode]);
+
+  useEffect(() => {
+    if (!spotlightHdPreviewOpen || resolvedVideo?.mode !== "direct") return;
+    const snap = videoResumeSnapshotRef.current;
+    const hd = hdVideoRef.current;
+    if (!snap || !hd) return;
+    return applyVideoSnapshot(hd, snap);
+  }, [spotlightHdPreviewOpen, resolvedVideo?.mode, applyVideoSnapshot]);
+
+  useEffect(() => {
+    if (spotlightHdPreviewOpen || resolvedVideo?.mode !== "direct") return;
+    const snap = videoResumeSnapshotRef.current;
+    const inline = inlineVideoRef.current;
+    if (!snap || !inline) return;
+    videoResumeSnapshotRef.current = null;
+    return applyVideoSnapshot(inline, snap);
+  }, [spotlightHdPreviewOpen, resolvedVideo?.mode, applyVideoSnapshot]);
 
   async function onUploadContactQr(file: File) {
     if (!canInline) return;
@@ -1586,6 +1677,11 @@ export function HeroPage() {
                       {spotlightUploadMessage ? (
                         <p className="mt-2 text-xs text-ink-muted">{spotlightUploadMessage}</p>
                       ) : null}
+                      {spotlightKind === "video" ? (
+                        <p className="mt-1 text-xs text-ink-muted/90">
+                          {i18n.videoUploadLimitHint}
+                        </p>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -1601,6 +1697,14 @@ export function HeroPage() {
                     decoding="async"
                     referrerPolicy="no-referrer"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setSpotlightHdPreviewOpen(true)}
+                    className="mt-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                    title={i18n.hdPreviewHint}
+                  >
+                    {i18n.hdPreview}
+                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "video" &&
@@ -1618,6 +1722,14 @@ export function HeroPage() {
                       referrerPolicy="no-referrer"
                     />
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setSpotlightHdPreviewOpen(true)}
+                    className="m-2 rounded-full border border-line/70 bg-surface/90 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                    title={i18n.hdPreviewHint}
+                  >
+                    {i18n.hdPreview}
+                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "video" &&
@@ -1625,10 +1737,27 @@ export function HeroPage() {
               resolvedVideo?.mode === "direct" ? (
                 <div className="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-black/80 p-1">
                   <video
+                    ref={inlineVideoRef}
                     src={resolvedVideo.src}
                     controls
+                    preload="metadata"
+                    playsInline
                     className="h-auto max-h-[410px] w-full rounded-md object-contain"
                   />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (inlineVideoRef.current) {
+                        videoResumeSnapshotRef.current = readVideoSnapshot(inlineVideoRef.current);
+                        inlineVideoRef.current.pause();
+                      }
+                      setSpotlightHdPreviewOpen(true);
+                    }}
+                    className="mt-2 rounded-full border border-line/70 bg-surface/90 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                    title={i18n.hdPreviewHint}
+                  >
+                    {i18n.hdPreview}
+                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "video" &&
@@ -1748,6 +1877,77 @@ export function HeroPage() {
                 {qrZoomItem.caption}
               </p>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {spotlightHdPreviewOpen &&
+      (spotlightPreview.kind === "image" || spotlightPreview.kind === "video") ? (
+        <div className="fixed inset-0 z-[91] flex items-center justify-center px-3 py-6">
+          <button
+            type="button"
+            aria-label={i18n.qrZoomClose}
+            className="absolute inset-0 bg-ink/70 backdrop-blur-[2px]"
+            onClick={() => {
+              if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
+                videoResumeSnapshotRef.current = readVideoSnapshot(hdVideoRef.current);
+              }
+              setSpotlightHdPreviewOpen(false);
+            }}
+          />
+          <div className="relative z-[1] w-full max-w-6xl rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_48px_rgba(0,0,0,0.35)]">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-ink">{i18n.hdPreviewTitle}</p>
+              <button
+                type="button"
+                className="rounded-full border border-line px-3 py-1 text-xs text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
+                onClick={() => {
+                  if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
+                    videoResumeSnapshotRef.current = readVideoSnapshot(hdVideoRef.current);
+                  }
+                  setSpotlightHdPreviewOpen(false);
+                }}
+              >
+                {i18n.qrZoomClose}
+              </button>
+            </div>
+            {spotlightPreview.kind === "image" ? (
+              <div className="flex max-h-[82vh] min-h-[42vh] items-center justify-center overflow-auto rounded-xl border border-line/70 bg-black/70 p-1">
+                <img
+                  src={spotlightPreview.url}
+                  alt={spotlightTitle}
+                  className="h-auto max-h-[80vh] w-auto max-w-[95vw] object-contain"
+                  loading="eager"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+            ) : resolvedVideo?.mode === "embed" ? (
+              <div className="overflow-hidden rounded-xl border border-line/70 bg-black/85">
+                <div className="aspect-video w-full">
+                  <iframe
+                    src={resolvedVideo.src}
+                    title={spotlightTitle || "embedded video hd"}
+                    className="h-full w-full"
+                    loading="eager"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+                    allowFullScreen
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex max-h-[82vh] min-h-[42vh] items-center justify-center rounded-xl border border-line/70 bg-black/85 p-1">
+                <video
+                  ref={hdVideoRef}
+                  src={resolvedVideo?.src ?? spotlightPreview.url}
+                  controls
+                  preload="metadata"
+                  playsInline
+                  className="h-auto max-h-[80vh] w-auto max-w-[95vw] object-contain"
+                />
+              </div>
+            )}
           </div>
         </div>
       ) : null}

@@ -1,7 +1,6 @@
 import { defaultSiteContent } from "./default-site-content";
 import { isReasonableHttpUrl } from "./is-reasonable-http-url";
 import {
-  normalizeDevAssetUrl,
   normalizeSiteContentAssetUrls,
 } from "./normalize-site-asset-urls";
 import { placeholderWideByIndex } from "./media-defaults";
@@ -481,10 +480,7 @@ export function stampBundleForSave(
   return {
     ...bundle,
     savedAt: Date.now(),
-    site: {
-      ...bundle.site,
-      heroPortraitSrc: bundle.site.heroPortraitSrc ?? "",
-    },
+    site: { ...bundle.site },
   };
 }
 
@@ -509,12 +505,6 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
   try {
   const base = cloneSite();
   const s = bundle.site;
-  const heroPortraitSrc =
-    "heroPortraitSrc" in s
-      ? s.heroPortraitSrc && String(s.heroPortraitSrc).trim().length > 0
-        ? String(s.heroPortraitSrc).trim()
-        : undefined
-      : base.heroPortraitSrc;
   const heroCopy =
     s.heroCopy && typeof s.heroCopy === "object"
       ? { ...base.heroCopy, ...(s.heroCopy as SiteContent["heroCopy"]) }
@@ -613,28 +603,9 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
       ? heroContactQrCaptionRaw.trim() || undefined
       : base.heroContactQrCaption;
 
-  const rawBgSrc = (s as SiteContent).pageBackgroundImageSrc;
-  let pageBackgroundImageSrc: SiteContent["pageBackgroundImageSrc"];
-  if (!("pageBackgroundImageSrc" in s)) {
-    pageBackgroundImageSrc = base.pageBackgroundImageSrc;
-  } else if (typeof rawBgSrc === "string" && rawBgSrc.trim().length > 0) {
-    const trimmed = rawBgSrc.trim();
-    pageBackgroundImageSrc =
-      normalizeDevAssetUrl(trimmed) ?? trimmed;
-  } else {
-    pageBackgroundImageSrc = undefined;
-  }
-
-  const rawBgOp = (s as SiteContent).pageBackgroundImageOpacity;
-  const pageBackgroundImageOpacity =
-    typeof rawBgOp === "number" && Number.isFinite(rawBgOp)
-      ? Math.min(1, Math.max(0, rawBgOp))
-      : base.pageBackgroundImageOpacity;
-
   const merged: SiteContent = {
     ...base,
     ...s,
-    heroPortraitSrc,
     heroCopy,
     heroSpotlight,
     resumeCopy,
@@ -684,8 +655,6 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
             ),
           )
         : base.projects,
-    pageBackgroundImageSrc,
-    pageBackgroundImageOpacity,
   };
   return normalizeSiteContentAssetUrls(merged);
   } catch (e) {
