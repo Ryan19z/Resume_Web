@@ -12,6 +12,17 @@ export type ResumeSpaceMeta = {
 };
 
 function resumeBaseDir(): string {
+  const custom = process.env.RESUME_SPACE_PATH?.trim();
+  if (custom) {
+    return path.isAbsolute(custom) ? custom : path.join(process.cwd(), custom);
+  }
+  const publishPath = process.env.SITE_PUBLISH_PATH?.trim();
+  if (publishPath) {
+    const publishAbs = path.isAbsolute(publishPath)
+      ? publishPath
+      : path.join(process.cwd(), publishPath);
+    return path.join(path.dirname(publishAbs), "resumes");
+  }
   return path.join(process.cwd(), "data", "resumes");
 }
 
