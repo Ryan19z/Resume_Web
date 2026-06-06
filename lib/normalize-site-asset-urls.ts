@@ -105,11 +105,25 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
       : hs.mediaLinks;
     return { ...hs, media, mediaLinks };
   })();
+  const pageBackground = site.pageBackground
+    ? {
+        ...site.pageBackground,
+        ...(site.pageBackground.kind === "image" && site.pageBackground.imageUrl
+          ? {
+              imageUrl:
+                normalizeDevAssetUrl(site.pageBackground.imageUrl) ??
+                site.pageBackground.imageUrl,
+            }
+          : {}),
+      }
+    : site.pageBackground;
+
   return {
     ...site,
     heroContactQrs,
     heroContactQrSrc,
     heroSpotlight,
+    pageBackground,
     projects,
     experience,
     education,

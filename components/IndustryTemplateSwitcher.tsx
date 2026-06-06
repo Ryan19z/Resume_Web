@@ -17,6 +17,7 @@ export function IndustryTemplateSwitcher() {
     editPermissionLoaded,
     previewMode,
     updateQuickHeroFields,
+    updatePageBackground,
   } = useSiteContent();
   const { mode } = useLanguageMode();
   const { setTheme } = useTheme();
@@ -106,6 +107,14 @@ export function IndustryTemplateSwitcher() {
                       fit: item.fit,
                       proof: item.proof,
                     })),
+                  });
+                  updatePageBackground({
+                    kind: "image",
+                    imageUrl: tpl.background.src,
+                    imageStrength: Math.max(
+                      30,
+                      Math.round(tpl.background.opacity * 100),
+                    ),
                   });
                   setOpen(false);
                 }}

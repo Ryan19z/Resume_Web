@@ -529,10 +529,6 @@ export function HeroPage() {
     [highlights],
   );
   const i18n = {
-    scanHint:
-      mode === "zh"
-        ? "HR 快速扫描区：把最能证明价值的信息放在首屏"
-        : "HR quick scan: put your strongest proof on the first screen",
     highlights:
       mode === "zh"
         ? "核心亮点（建议尽量量化）"
@@ -941,10 +937,6 @@ export function HeroPage() {
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted sm:mb-4">
               {heroCopy.eyebrow}
             </p>
-
-            <div className="mb-4 inline-flex items-center rounded-full border border-[rgb(var(--selection)/0.22)] bg-[rgb(var(--selection)/0.08)] px-3 py-1 text-[11px] font-medium text-[rgb(var(--selection))]">
-              {i18n.scanHint}
-            </div>
 
             {canInline ? (
               <input

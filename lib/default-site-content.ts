@@ -3,6 +3,7 @@ import {
   PLACEHOLDER_IMAGES,
   PORTFOLIO_LINK_PLACEHOLDER,
 } from "./media-defaults";
+import { defaultPageBackground } from "./page-background";
 import type { SiteContent } from "./types";
 
 export const defaultSiteContent: SiteContent = {
@@ -74,6 +75,7 @@ export const defaultSiteContent: SiteContent = {
     eyebrow: "Portfolio",
     swipeHint: "向下滚动 · 浏览履历与作品集",
   },
+  pageBackground: defaultPageBackground,
   resumeCopy: {
     pageEyebrow: "Résumé",
     pageTitle: "履历",

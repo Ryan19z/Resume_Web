@@ -58,7 +58,7 @@ export function SiteEditorDock() {
         <span className="min-w-0 pr-0.5">
           <span className="block leading-tight">站点编辑</span>
           <span className="block text-[11px] font-normal text-ink-muted">
-            首屏 · 页面背景 · 履历与作品文案
+            首屏 · 履历与作品文案
           </span>
         </span>
       </button>

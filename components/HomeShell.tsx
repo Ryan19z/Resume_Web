@@ -44,6 +44,14 @@ const PortfolioPageCopyModal = dynamic(
   { ssr: false },
 );
 
+const PageBackgroundModal = dynamic(
+  () =>
+    import("@/components/PageBackgroundModal").then((m) => ({
+      default: m.PageBackgroundModal,
+    })),
+  { ssr: false },
+);
+
 const ResumeDetailOverlay = dynamic(
   () =>
     import("@/components/ResumeDetailOverlay").then((m) => ({
@@ -108,6 +116,7 @@ export function HomeShell() {
         <SiteFooter />
       </VerticalScrollLayout>
       <ProfileSetupModal />
+      <PageBackgroundModal />
       <ResumePageCopyModal />
       <PortfolioPageCopyModal />
       <ResumeDetailOverlay />

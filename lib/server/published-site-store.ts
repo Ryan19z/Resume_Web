@@ -190,5 +190,19 @@ export async function writePublishedBundle(
   // 避免高频自动保存在同一毫秒内写入同名临时文件导致 rename ENOENT
   const tmp = `${filePath}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`;
   await fs.writeFile(tmp, text, "utf8");
-  await fs.rename(tmp, filePath);
+  try {
+    await fs.rename(tmp, filePath);
+  } catch (e) {
+    const code =
+      e && typeof e === "object" && "code" in e
+        ? String((e as NodeJS.ErrnoException).code)
+        : "";
+    if (code === "EPERM" || code === "EACCES" || code === "EBUSY") {
+      await fs.copyFile(tmp, filePath);
+      await fs.unlink(tmp).catch(() => {});
+      return;
+    }
+    await fs.unlink(tmp).catch(() => {});
+    throw e;
+  }
 }

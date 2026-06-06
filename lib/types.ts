@@ -126,6 +126,17 @@ export type HeroContactQrItem = {
   caption?: string;
 };
 
+/** 整站页面背景：默认跟随主题纯色 */
+export type PageBackgroundKind = "theme" | "image" | "mesh";
+
+export type PageBackgroundSettings = {
+  kind: PageBackgroundKind;
+  /** 自定义图片模式：背景图 URL */
+  imageUrl?: string;
+  /** 自定义图片模式：图片可见度 5–100（越大背景图越明显） */
+  imageStrength?: number;
+};
+
 export type SiteContent = {
   name: string;
   tagline: string;
@@ -152,6 +163,8 @@ export type SiteContent = {
   /** 首屏二维码下方说明文案 */
   heroContactQrCaption?: string;
   heroCopy: HeroCopy;
+  /** 整站底层背景（首页/履历/作品共用） */
+  pageBackground?: PageBackgroundSettings;
   resumeCopy: ResumeCopy;
   portfolioCopy: PortfolioCopy;
   experience: ExperienceItem[];

@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 /**
  * 将首页、履历、作品集纵向排布，整站由外层 main 纵向滚动浏览。
- * 背景层叠在本容器底层（absolute + 负 z-index），避免与顶栏/悬浮按钮的 fixed 层级抢点击。
+ * 背景由 PageBackgroundLayer 以 fixed 铺满视口，滚动各分区时底图保持一致。
  */
 export function VerticalScrollLayout({ children }: { children: ReactNode }) {
   const { microInteractionEnabled } = useInteractionMode();

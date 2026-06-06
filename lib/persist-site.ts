@@ -4,6 +4,7 @@ import {
   normalizeSiteContentAssetUrls,
 } from "./normalize-site-asset-urls";
 import { placeholderWideByIndex } from "./media-defaults";
+import { defaultPageBackground, normalizePageBackground } from "./page-background";
 import type {
   AchievementBlock,
   EducationItem,
@@ -611,11 +612,17 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
       ? heroContactQrCaptionRaw.trim() || undefined
       : base.heroContactQrCaption;
 
+  const pageBackground = normalizePageBackground(
+    (s as SiteContent).pageBackground,
+    base.pageBackground ?? defaultPageBackground,
+  );
+
   const merged: SiteContent = {
     ...base,
     ...s,
     heroCopy,
     heroSpotlight,
+    pageBackground,
     resumeCopy,
     portfolioCopy,
     targetRole,

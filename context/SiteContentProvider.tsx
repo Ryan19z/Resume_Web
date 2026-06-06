@@ -14,10 +14,15 @@ import {
 import {
   fetchPublishedSite,
   publishBundleToServer,
+  type FetchPublishedResult,
 } from "@/lib/publish-site-client";
 import { parseClientResumeScope } from "@/lib/resume-scope";
 import { newExperienceItem } from "@/lib/experience-factory";
 import { newEducationItem } from "@/lib/education-factory";
+import {
+  defaultPageBackground,
+  normalizePageBackground,
+} from "@/lib/page-background";
 import {
   hasCompletedSiteTour,
   SITE_TOUR_FINISHED_EVENT,
@@ -28,6 +33,7 @@ import type {
   HeroCopy,
   PersistedProfile,
   PersistedSiteBundle,
+  PageBackgroundSettings,
   PortfolioCopy,
   PortfolioProject,
   ProfileSetupMeta,
@@ -39,11 +45,69 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
+
+type SiteLang = "zh" | "en";
+
+function buildFallbackSite(lang: SiteLang): SiteContent {
+  return {
+    ...defaultSiteContent,
+    heroCopy:
+      lang === "en"
+        ? {
+            ...defaultSiteContent.heroCopy,
+            eyebrow: "Portfolio",
+            swipeHint: "Scroll down to resume and portfolio",
+          }
+        : defaultSiteContent.heroCopy,
+    resumeCopy:
+      lang === "en"
+        ? {
+            ...defaultSiteContent.resumeCopy,
+            pageEyebrow: "Resume",
+            pageTitle: "Resume",
+            pageIntro:
+              "Open each card to view details, evidence and representative work.",
+            experienceSectionEyebrow: "Experience",
+            educationSectionEyebrow: "Education",
+            experienceCardCta: "View outcomes →",
+            educationCardCta: "View highlights →",
+            detailWorkEyebrow: "Work Outcomes",
+            detailCampusEyebrow: "Academic Highlights",
+            keyResultsHeading: "Key Results",
+            repProjectsHeading: "Representative Projects",
+          }
+        : defaultSiteContent.resumeCopy,
+    portfolioCopy:
+      lang === "en"
+        ? {
+            ...defaultSiteContent.portfolioCopy,
+            pageEyebrow: "Work",
+            pageTitle: "Portfolio",
+            pageIntro:
+              "Selected projects with direct links and preview assets.",
+            openLinkLabel: "Open",
+            posterThumbTitle: "Poster / Preview",
+            posterThumbCaption:
+              "Use this area to highlight context and contribution.",
+          }
+        : defaultSiteContent.portfolioCopy,
+  };
+}
+
+function hydrateFromLocalStorage(lang: SiteLang): PersistedSiteBundle {
+  const scope = parseClientResumeScope();
+  const local = loadPersistedBundle(lang, scope);
+  if (local) return local;
+  return stampBundleForSave(
+    buildBundleFromState(defaultProfile, buildFallbackSite(lang)),
+  );
+}
 
 export type ResumeDetailTarget =
   | { kind: "experience"; id: string }
@@ -95,6 +159,10 @@ type SiteContentContextValue = {
   portfolioPageCopyModalOpen: boolean;
   openPortfolioPageCopyModal: () => void;
   closePortfolioPageCopyModal: () => void;
+  updatePageBackground: (next: PageBackgroundSettings) => void;
+  pageBackgroundModalOpen: boolean;
+  openPageBackgroundModal: () => void;
+  closePageBackgroundModal: () => void;
   setupModalOpen: boolean;
   openSetupModal: () => void;
   dismissSetupModal: () => void;
@@ -164,6 +232,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [resumePageCopyModalOpen, setResumePageCopyModalOpen] =
     useState(false);
   const [portfolioPageCopyModalOpen, setPortfolioPageCopyModalOpen] =
+    useState(false);
+  const [pageBackgroundModalOpen, setPageBackgroundModalOpen] =
     useState(false);
   const [previewMode, setPreviewModeState] = useState(false);
   const [persistError, setPersistError] = useState<string | null>(null);
@@ -245,94 +315,69 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  /** 首帧前同步读本机草稿，避免等待网络导致长时间停在「正在加载简历」 */
+  useLayoutEffect(() => {
+    try {
+      applyBundle(hydrateFromLocalStorage(mode));
+    } catch (e) {
+      console.error("[SiteContentProvider] 读本机草稿失败，已回退默认内容", e);
+      applyBundle(
+        stampBundleForSave(
+          buildBundleFromState(defaultProfile, buildFallbackSite(mode)),
+        ),
+      );
+    }
+    setContentReady(true);
+  }, [applyBundle, mode]);
+
+  /** 后台拉取服务器发布版，不阻塞首屏 */
   useEffect(() => {
     let cancelled = false;
-    setContentReady(false);
     void (async () => {
       try {
-        const [publishedResult, local] = await Promise.all([
+        const publishedResult = await Promise.race([
           fetchPublishedSite(mode, resumeScopeRef.current),
-          Promise.resolve(loadPersistedBundle(mode, resumeScopeRef.current)),
+          new Promise<FetchPublishedResult>((resolve) => {
+            window.setTimeout(
+              () =>
+                resolve({
+                  status: "error",
+                  code: "read_failed",
+                  message: "读取服务器发布数据超时，已使用本机草稿。",
+                }),
+              10_000,
+            );
+          }),
         ]);
         if (cancelled) return;
 
         if (publishedResult.status === "error") {
           setSiteLoadWarning(publishedResult.message);
           publishedMetaRef.current = null;
-        } else if (publishedResult.status === "ok") {
-          publishedMetaRef.current = { updatedAt: publishedResult.updatedAt };
-        } else {
+          return;
+        }
+        if (publishedResult.status === "empty") {
           publishedMetaRef.current = null;
+          return;
         }
 
-        if (publishedResult.status === "ok") {
-          applyBundle(publishedResult.bundle);
-          savePersistedBundle(publishedResult.bundle, mode, resumeScopeRef.current);
-        } else if (local) {
-          applyBundle(local);
-        } else {
-          // 不同语言间给出独立初始内容，避免英文模式仍显示中文占位
-          const fallback = {
-            ...defaultSiteContent,
-            heroCopy:
-              mode === "en"
-                ? {
-                    ...defaultSiteContent.heroCopy,
-                    eyebrow: "Portfolio",
-                    swipeHint: "Scroll down to resume and portfolio",
-                  }
-                : defaultSiteContent.heroCopy,
-            resumeCopy:
-              mode === "en"
-                ? {
-                    ...defaultSiteContent.resumeCopy,
-                    pageEyebrow: "Resume",
-                    pageTitle: "Resume",
-                    pageIntro:
-                      "Open each card to view details, evidence and representative work.",
-                    experienceSectionEyebrow: "Experience",
-                    educationSectionEyebrow: "Education",
-                    experienceCardCta: "View outcomes →",
-                    educationCardCta: "View highlights →",
-                    detailWorkEyebrow: "Work Outcomes",
-                    detailCampusEyebrow: "Academic Highlights",
-                    keyResultsHeading: "Key Results",
-                    repProjectsHeading: "Representative Projects",
-                  }
-                : defaultSiteContent.resumeCopy,
-            portfolioCopy:
-              mode === "en"
-                ? {
-                    ...defaultSiteContent.portfolioCopy,
-                    pageEyebrow: "Work",
-                    pageTitle: "Portfolio",
-                    pageIntro:
-                      "Selected projects with direct links and preview assets.",
-                    openLinkLabel: "Open",
-                    posterThumbTitle: "Poster / Preview",
-                    posterThumbCaption:
-                      "Use this area to highlight context and contribution.",
-                  }
-                : defaultSiteContent.portfolioCopy,
-          };
-          applyBundle(
-            stampBundleForSave(
-              buildBundleFromState(defaultProfile, fallback),
-            ),
-          );
+        publishedMetaRef.current = { updatedAt: publishedResult.updatedAt };
+        const localDraft = loadPersistedBundle(mode, resumeScopeRef.current);
+        const localAt = localDraft?.savedAt ?? 0;
+        if (localDraft && localAt > publishedResult.updatedAt) {
+          return;
         }
+        applyBundle(publishedResult.bundle);
+        savePersistedBundle(
+          publishedResult.bundle,
+          mode,
+          resumeScopeRef.current,
+        );
       } catch (e) {
-        console.error("[SiteContentProvider] 初始化加载失败，已回退默认内容", e);
+        console.error("[SiteContentProvider] 后台同步发布数据失败", e);
         if (!cancelled) {
-          applyBundle(
-            stampBundleForSave(
-              buildBundleFromState(defaultProfile, defaultSiteContent),
-            ),
-          );
-          setSiteLoadWarning("加载远端数据失败，已回退到本地默认模板。");
+          setSiteLoadWarning("加载远端数据失败，已使用本机草稿。");
         }
-      } finally {
-        if (!cancelled) setContentReady(true);
       }
     })();
     return () => {
@@ -678,6 +723,29 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     setPortfolioPageCopyModalOpen(false);
   }, []);
 
+  const updatePageBackground = useCallback(
+    (next: PageBackgroundSettings) => {
+      const cur = siteRef.current;
+      commitAll(profileRef.current, {
+        ...cur,
+        pageBackground: normalizePageBackground(
+          next,
+          cur.pageBackground ?? defaultPageBackground,
+        ),
+      });
+    },
+    [commitAll],
+  );
+
+  const openPageBackgroundModal = useCallback(() => {
+    if (!canEdit) return;
+    setPageBackgroundModalOpen(true);
+  }, [canEdit]);
+
+  const closePageBackgroundModal = useCallback(() => {
+    setPageBackgroundModalOpen(false);
+  }, []);
+
   const openSetupModal = useCallback(() => {
     if (!canEdit) return;
     setSetupModalOpen(true);
@@ -769,6 +837,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       portfolioPageCopyModalOpen,
       openPortfolioPageCopyModal,
       closePortfolioPageCopyModal,
+      updatePageBackground,
+      pageBackgroundModalOpen,
+      openPageBackgroundModal,
+      closePageBackgroundModal,
       setupModalOpen,
       openSetupModal,
       dismissSetupModal,
@@ -808,6 +880,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       portfolioPageCopyModalOpen,
       openPortfolioPageCopyModal,
       closePortfolioPageCopyModal,
+      updatePageBackground,
+      pageBackgroundModalOpen,
+      openPageBackgroundModal,
+      closePageBackgroundModal,
       setupModalOpen,
       openSetupModal,
       dismissSetupModal,
