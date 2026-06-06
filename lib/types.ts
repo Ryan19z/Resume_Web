@@ -3,11 +3,13 @@ export type AchievementBlock = {
   bullets: string[];
 };
 
-/** 代表项目：点击进入可展示图片 / 视频 / 代码 */
+/** 代表项目：点击进入可展示图片 / 视频 / 代码 / 链接 / 文档 */
 export type RepresentativeProjectMedia =
   | { kind: "image"; url: string }
   | { kind: "video"; url: string }
-  | { kind: "code"; code: string; language?: string };
+  | { kind: "code"; code: string; language?: string }
+  | { kind: "link"; url: string }
+  | { kind: "document"; url: string; fileName?: string };
 
 export type RepresentativeProject = {
   id: string;

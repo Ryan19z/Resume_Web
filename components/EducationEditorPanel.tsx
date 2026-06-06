@@ -191,7 +191,7 @@ export function EducationEditorPanel({
             </div>
             <div className="mt-6">
               <RepresentativeProjectsFields
-                sectionTitle="校园成果展示（图片 / 视频 / 代码）"
+                sectionTitle="校园成果展示（图片 / 视频 / 代码 / 链接 / 文档）"
                 projects={edu.representativeProjects}
                 onChange={(list) =>
                   updateEdu(ei, { representativeProjects: list })

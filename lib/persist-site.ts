@@ -170,6 +170,14 @@ function normalizeRepProjectsArray(
         code: m.code,
         language: typeof m.language === "string" ? m.language : undefined,
       };
+    } else if (kind === "link" && typeof m.url === "string") {
+      normalizedMedia = { kind: "link", url: m.url };
+    } else if (kind === "document" && typeof m.url === "string") {
+      normalizedMedia = {
+        kind: "document",
+        url: m.url,
+        fileName: typeof m.fileName === "string" ? m.fileName : undefined,
+      };
     }
     if (!normalizedMedia) continue;
     out.push({

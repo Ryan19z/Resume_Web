@@ -106,6 +106,24 @@ export function RepresentativeProjectsFields({
                           ? rp.media.url
                           : DEMO_SAMPLE_VIDEO_MP4,
                     };
+                  else if (k === "link")
+                    media = {
+                      kind: "link",
+                      url:
+                        rp.media.kind === "link"
+                          ? rp.media.url
+                          : "https://example.com",
+                    };
+                  else if (k === "document")
+                    media = {
+                      kind: "document",
+                      url:
+                        rp.media.kind === "document"
+                          ? rp.media.url
+                          : "/uploads/your-file.pdf",
+                      fileName:
+                        rp.media.kind === "document" ? rp.media.fileName : undefined,
+                    };
                   else
                     media = {
                       kind: "code",
@@ -120,12 +138,23 @@ export function RepresentativeProjectsFields({
                 <option value="image">图片</option>
                 <option value="video">视频 URL</option>
                 <option value="code">代码</option>
+                <option value="link">外部链接</option>
+                <option value="document">文档</option>
               </select>
             </label>
-            {rp.media.kind === "image" || rp.media.kind === "video" ? (
+            {rp.media.kind === "image" ||
+            rp.media.kind === "video" ||
+            rp.media.kind === "link" ||
+            rp.media.kind === "document" ? (
               <label className="flex flex-col gap-1 text-xs">
                 <span>
-                  {rp.media.kind === "image" ? "图片地址" : "视频地址"}
+                  {rp.media.kind === "image"
+                    ? "图片地址"
+                    : rp.media.kind === "video"
+                      ? "视频地址"
+                      : rp.media.kind === "link"
+                        ? "链接地址"
+                        : "文档地址"}
                 </span>
                 <input
                   value={rp.media.url}
@@ -137,6 +166,22 @@ export function RepresentativeProjectsFields({
                   }
                   className="rounded-lg border border-line bg-surface px-2 py-1.5 font-mono text-[11px] outline-none"
                 />
+                {rp.media.kind === "document" ? (
+                  <label className="mt-2 flex flex-col gap-1 text-xs">
+                    <span>文档名（可选）</span>
+                    <input
+                      value={rp.media.fileName ?? ""}
+                      onChange={(e) =>
+                        setMedia(idx, {
+                          kind: "document",
+                          url: rp.media.kind === "document" ? rp.media.url : "",
+                          fileName: e.target.value,
+                        })
+                      }
+                      className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm outline-none"
+                    />
+                  </label>
+                ) : null}
               </label>
             ) : (
               <>

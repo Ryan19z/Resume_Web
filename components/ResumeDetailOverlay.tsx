@@ -115,6 +115,57 @@ function RepresentativeProjectOverlay({
                   <code>{project.media.code}</code>
                 </pre>
               ) : null}
+              {project.media.kind === "link" ? (
+                <div className="mx-auto w-full max-w-3xl rounded-2xl border border-dashed border-line/80 bg-surface p-6 text-center">
+                  <p className="mb-3 text-sm text-ink-muted">外部链接</p>
+                  <a
+                    href={project.media.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex rounded-full border border-line px-4 py-2 text-sm font-medium text-ink hover:border-ink/20"
+                  >
+                    打开链接
+                  </a>
+                  <p className="mt-3 break-all text-xs text-ink-muted">
+                    {project.media.url}
+                  </p>
+                </div>
+              ) : null}
+              {project.media.kind === "document" ? (
+                <div className="mx-auto w-full max-w-5xl space-y-3">
+                  {project.media.url.toLowerCase().endsWith(".pdf") ? (
+                    <div className="overflow-hidden rounded-2xl border border-line/60 bg-surface/40">
+                      <iframe
+                        src={project.media.url}
+                        title={project.media.fileName || project.title || "document"}
+                        className="h-[72vh] w-full"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="rounded-2xl border border-dashed border-line/80 bg-surface px-4 py-4 text-sm text-ink">
+                    <p className="font-medium">
+                      {project.media.fileName || project.media.url.split("/").pop()}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={project.media.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                      >
+                        打开文档
+                      </a>
+                      <a
+                        href={`${project.media.url}${project.media.url.includes("?") ? "&" : "?"}download=1`}
+                        download={project.media.fileName || true}
+                        className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                      >
+                        下载文档
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </motion.div>
         </motion.div>
@@ -283,7 +334,11 @@ export function ResumeDetailOverlay() {
                                 ? "图片"
                                 : p.media.kind === "video"
                                   ? "视频"
-                                  : "代码"}{" "}
+                                  : p.media.kind === "code"
+                                    ? "代码"
+                                    : p.media.kind === "link"
+                                      ? "链接"
+                                      : "文档"}{" "}
                               →
                             </p>
                           </button>
@@ -327,7 +382,11 @@ export function ResumeDetailOverlay() {
                                 ? "图片"
                                 : p.media.kind === "video"
                                   ? "视频"
-                                  : "代码"}{" "}
+                                  : p.media.kind === "code"
+                                    ? "代码"
+                                    : p.media.kind === "link"
+                                      ? "链接"
+                                      : "文档"}{" "}
                               →
                             </p>
                           </button>

@@ -37,7 +37,12 @@ export function normalizeDevAssetUrl(
 
 function normalizeRepProject(p: RepresentativeProject): RepresentativeProject {
   const media = p.media;
-  if (media.kind === "image" || media.kind === "video") {
+  if (
+    media.kind === "image" ||
+    media.kind === "video" ||
+    media.kind === "link" ||
+    media.kind === "document"
+  ) {
     const url = normalizeDevAssetUrl(media.url) ?? media.url;
     return { ...p, media: { ...media, url } };
   }
