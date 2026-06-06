@@ -141,8 +141,8 @@ export function ExperienceEditorModal({
                   onChange={(e) =>
                     setDraft({ ...draft, summary: e.target.value })
                   }
-                  rows={2}
-                  className="resize-none rounded-xl border border-line bg-paper px-3 py-2.5 outline-none focus:border-ink/20"
+                  rows={5}
+                  className="resize-y rounded-xl border border-line bg-paper px-3 py-2.5 outline-none focus:border-ink/20"
                 />
               </label>
               <div>

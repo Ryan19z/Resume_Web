@@ -285,7 +285,7 @@ export function ResumeDetailOverlay() {
               {payload.kind === "experience" ? (
                 <>
                   {payload.intro ? (
-                    <p className="mb-8 max-w-2xl text-base leading-relaxed text-ink/85">
+                    <p className="mb-8 max-w-2xl whitespace-pre-wrap text-base leading-relaxed text-ink/85">
                       {payload.intro}
                     </p>
                   ) : null}
@@ -324,7 +324,7 @@ export function ResumeDetailOverlay() {
                               {p.title}
                             </p>
                             {p.description ? (
-                              <p className="mt-1 text-sm text-ink-muted">
+                              <p className="mt-1 whitespace-pre-wrap text-sm text-ink-muted">
                                 {p.description}
                               </p>
                             ) : null}
@@ -350,7 +350,7 @@ export function ResumeDetailOverlay() {
               ) : (
                 <>
                   {payload.intro ? (
-                    <p className="mb-8 max-w-2xl text-base leading-relaxed text-ink/85">
+                    <p className="mb-8 max-w-2xl whitespace-pre-wrap text-base leading-relaxed text-ink/85">
                       {payload.intro}
                     </p>
                   ) : null}
@@ -372,7 +372,7 @@ export function ResumeDetailOverlay() {
                               {p.title}
                             </p>
                             {p.description ? (
-                              <p className="mt-1 text-sm text-ink-muted">
+                              <p className="mt-1 whitespace-pre-wrap text-sm text-ink-muted">
                                 {p.description}
                               </p>
                             ) : null}

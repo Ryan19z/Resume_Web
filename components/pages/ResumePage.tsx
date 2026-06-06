@@ -90,7 +90,7 @@ function ExperienceSection({
                 </div>
                 <p className="mt-1 text-sm text-ink-muted">{c.subtitle}</p>
                 {c.summary ? (
-                  <p className="mt-3 text-sm leading-relaxed text-ink/85">
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
                     {c.summary}
                   </p>
                 ) : null}
