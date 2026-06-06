@@ -1,9 +1,14 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { parseClientResumeScope } from "@/lib/resume-scope";
 
 export function EditNetworkBanner() {
   const { canEdit, editPermissionLoaded, editPermissionHint } = useSiteContent();
+  const scope = parseClientResumeScope();
+
+  /** HR 只读链接（ViewURL）：仅有 viewToken、无 editToken，不展示编辑权限技术提示 */
+  if (scope.viewToken && !scope.editToken) return null;
 
   if (!editPermissionLoaded || canEdit) return null;
 
