@@ -315,20 +315,36 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  /** 首帧前同步读本机草稿，避免等待网络导致长时间停在「正在加载简历」 */
+  /** 首帧即结束加载态，避免客户端水合失败或本机草稿过大时长期卡在「正在加载简历」 */
   useLayoutEffect(() => {
+    setContentReady(true);
+  }, []);
+
+  /** 读本机草稿；与 contentReady 解耦，大体积 localStorage 解析不会阻塞首屏 */
+  useEffect(() => {
+    let cancelled = false;
     try {
       applyBundle(hydrateFromLocalStorage(mode));
     } catch (e) {
       console.error("[SiteContentProvider] 读本机草稿失败，已回退默认内容", e);
-      applyBundle(
-        stampBundleForSave(
-          buildBundleFromState(defaultProfile, buildFallbackSite(mode)),
-        ),
-      );
+      if (!cancelled) {
+        applyBundle(
+          stampBundleForSave(
+            buildBundleFromState(defaultProfile, buildFallbackSite(mode)),
+          ),
+        );
+      }
     }
-    setContentReady(true);
+    return () => {
+      cancelled = true;
+    };
   }, [applyBundle, mode]);
+
+  /** 水合异常时的兜底：确保最多约 1.5s 后也能进入页面 */
+  useEffect(() => {
+    const timer = window.setTimeout(() => setContentReady(true), 1500);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   /** 后台拉取服务器发布版，不阻塞首屏 */
   useEffect(() => {

@@ -19,27 +19,27 @@ export function PageBackgroundLayer() {
   );
 
   const shellClass =
-    "pointer-events-none fixed inset-0 z-0 overflow-hidden print:hidden";
+    "pointer-events-none fixed inset-0 z-0 h-[100dvh] w-screen overflow-hidden print:hidden";
 
   if (bg.kind === "image") {
     const imageUrl = bg.imageUrl?.trim() || DEFAULT_PAGE_BACKGROUND_IMAGE;
     const strength = bg.imageStrength ?? 32;
-    const overlayOpacity = imageOverlayOpacity(strength);
+    const overlayOpacity = Math.max(
+      0.22,
+      imageOverlayOpacity(strength) * 0.88,
+    );
 
     return (
       <div className={shellClass} aria-hidden>
         <div className="absolute inset-0 bg-paper" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt=""
-          className="absolute inset-0 h-full w-full object-contain object-center"
-        />
+        <img src={imageUrl} alt="" className="page-bg-cover" />
+        <div className="page-bg-vignette" />
         <div
           className="absolute inset-0 bg-paper"
           style={{ opacity: overlayOpacity }}
         />
-        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(var(--color-paper)/0.05)_0%,rgb(var(--color-paper)/0.42)_50%,rgb(var(--color-paper)/0.72)_100%)]" />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgb(var(--color-paper)/0.03)_0%,rgb(var(--color-paper)/0.28)_52%,rgb(var(--color-paper)/0.58)_100%)]" />
       </div>
     );
   }

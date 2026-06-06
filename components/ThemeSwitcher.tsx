@@ -53,7 +53,7 @@ export function ThemeSwitcher() {
     bgImage:
       mode === "zh" ? "自定义图片" : "Custom image",
     bgImageHint:
-      mode === "zh" ? "完整展示整张图片，不裁剪" : "Full image shown without cropping",
+      mode === "zh" ? "自适应铺满，主图完整居中" : "Adaptive fill with full image centered",
     bgMesh:
       mode === "zh" ? "轻柔流光" : "Soft gradient",
     bgMeshHint:

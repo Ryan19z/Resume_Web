@@ -256,3 +256,26 @@ html[data-theme="ocean"] {
     animation: none !important;
   }
 }
+
+/* 自定义图片背景：铺满视口，消除左右留白 */
+.page-bg-cover {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: center;
+  transform: scale(1.04);
+}
+
+.page-bg-vignette {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 118% 96% at 50% 44%,
+    transparent 42%,
+    rgb(var(--color-paper) / 0.12) 78%,
+    rgb(var(--color-paper) / 0.22) 100%
+  );
+}

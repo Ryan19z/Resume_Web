@@ -24,8 +24,8 @@ const MODE_OPTIONS: Array<{
   },
   {
     kind: "image",
-    zh: { title: "自定义图片", desc: "完整展示整张图片（不裁剪），建议 1920×1080 横图" },
-    en: { title: "Custom image", desc: "Shows the full image without cropping; 1920×1080 wide recommended" },
+    zh: { title: "自定义图片", desc: "自适应铺满屏幕，主图完整居中，建议 1920×1080 横图" },
+    en: { title: "Custom image", desc: "Fills the screen adaptively with the full image centered; 1920×1080 wide recommended" },
   },
   {
     kind: "mesh",
