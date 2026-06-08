@@ -6,7 +6,6 @@ import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
-import { IndustryTemplateSwitcher } from "@/components/IndustryTemplateSwitcher";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
 import { SiteEditorDock } from "@/components/SiteEditorDock";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -88,7 +87,6 @@ export function HomeShell() {
       <SiteTourListener />
       <SiteTourAutoStart />
       <TourReadonlySentinels />
-      <IndustryTemplateSwitcher />
       <ThemeSwitcher />
       <TopUtilityBar />
       <EditNetworkBanner />

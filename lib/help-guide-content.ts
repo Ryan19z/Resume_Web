@@ -3,8 +3,8 @@ export const HELP_GUIDE_TEXT = {
   zh: `
 【首次进入，请按这 6 步操作】
 1) 先看顶部导航：HOME（首页）/ RESUME（履历）/ WORK（作品）。
-2) 打开左下「行业模板」，先选与你最接近的职业模板。
-3) 回到 HOME，补全姓名、意向岗位、一句话介绍与 2-4 条亮点。
+2) 回到 HOME，补全姓名、意向岗位、一句话介绍与 2-4 条亮点。
+3) 左下「主题」可切换配色与页面背景（纯色 / 图片 / 轻柔流光）。
 4) 进入 RESUME，完善工作经历与教育（支持新增 / 编辑 / 删除）。
 5) 进入 WORK，至少添加 2 个代表作品（封面 + 外链）。
 6) 点右上「分享」，复制链接或发邮件给 HR/客户。
@@ -30,8 +30,8 @@ export const HELP_GUIDE_TEXT = {
   en: `
 [First-time quick start: follow these 6 steps]
 1) Use top navigation: HOME / RESUME / WORK.
-2) Open "Industry template" at bottom-left and pick the closest profile.
-3) Go to HOME and complete name, target role, one-line intro, and 2-4 highlights.
+2) Go to HOME and complete name, target role, one-line intro, and 2-4 highlights.
+3) Use bottom-left "Theme" for colors and page background (solid / image / mesh).
 4) Go to RESUME and finish experience + education (add / edit / delete supported).
 5) Go to WORK and add at least 2 representative projects (cover + link).
 6) Click "Share" on top-right to copy link or send by email.

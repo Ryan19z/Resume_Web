@@ -135,13 +135,26 @@ function parseContactEntries(raw: string): ContactEntry[] {
     .map((x) => x.trim())
     .filter(Boolean)
     .map((part) => {
-      const [left, ...rest] = part.split(":");
-      const platform = left?.trim() || "";
-      const account = rest.join(":").trim();
-      if (platform && account) return { platform, account };
-      return { platform: "Contact", account: part };
+      const cleaned = part.replace(/^contact\s*[-–—:：]\s*/i, "").trim();
+      const colonIdx = cleaned.search(/[:：]/);
+      if (colonIdx > 0) {
+        const platform = cleaned.slice(0, colonIdx).trim();
+        const account = cleaned.slice(colonIdx + 1).trim();
+        if (platform && account) return { platform, account };
+      }
+      return { platform: "", account: cleaned || part };
     })
     .filter((x) => x.account);
+}
+
+function formatContactEntryDisplay(entry: ContactEntry): string {
+  const platform = entry.platform.trim();
+  let account = entry.account.trim();
+  account = account.replace(/^[-–—]\s*/, "").replace(/^contact\s*[-–—:：]\s*/i, "").trim();
+  if (!platform || /^contact$/i.test(platform)) return account;
+  const platformClean = platform.replace(/^contact\s*[-–—:：]\s*/i, "").trim();
+  if (!platformClean) return account;
+  return `${platformClean}: ${account}`;
 }
 
 function extractYouTubeId(url: URL): string | null {
@@ -697,6 +710,10 @@ export function HeroPage() {
     if (canInline) return heroContactQrs;
     return heroContactQrs.filter((item) => item.src || item.caption);
   }, [heroContactQrs, canInline]);
+  const visitorContactQrs = useMemo(
+    () => displayContactQrs.filter((item) => item.src),
+    [displayContactQrs],
+  );
 
   const readVideoSnapshot = useCallback((video: HTMLVideoElement) => {
     return {
@@ -987,12 +1004,14 @@ export function HeroPage() {
               </p>
             )}
 
-            <div className="mt-5 max-w-3xl space-y-3">
+            <div className="mt-5">
+              <div className="flex w-fit max-w-full flex-wrap items-start gap-4 sm:gap-5">
+                <div className="space-y-3">
               <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                   {i18n.emailLabel}
                 </p>
-                {canInline ? (
+            {canInline ? (
                   <input
                     type="email"
                     value={contactEmail}
@@ -1029,8 +1048,8 @@ export function HeroPage() {
                 )}
               </div>
 
-              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-start gap-2">
-                <p className="pt-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                   {i18n.socialLabel}
                 </p>
                 {canInline ? (
@@ -1042,24 +1061,46 @@ export function HeroPage() {
                     placeholder={i18n.socialHint}
                   />
                 ) : contactEntries.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {contactEntries.map((item, idx) => (
-                      <span
-                        key={`${item.platform}-${item.account}-${idx}`}
-                        className="rounded-full border border-line/75 bg-surface/72 px-3 py-1.5 text-xs text-ink"
-                      >
-                        <span className="font-semibold text-ink/85">{item.platform}</span>
-                        <span className="mx-1 text-ink-muted">·</span>
-                        <span className="text-ink-muted">{item.account}</span>
-                      </span>
-                    ))}
-                  </div>
+                  <p className="inline-flex w-fit text-sm text-ink">
+                    {contactEntries.map(formatContactEntryDisplay).join(" | ")}
+                  </p>
                 ) : (
-                  <p className="pt-1 text-sm leading-relaxed text-ink-muted">{i18n.noContact}</p>
+                  <p className="text-sm text-ink-muted">—</p>
                 )}
               </div>
+                </div>
 
-              <div className="micro-card inline-block w-fit max-w-full rounded-2xl border border-line/80 bg-surface/76 p-3 shadow-[0_2px_10px_-8px_rgba(0,0,0,0.25)]">
+                {!canInline && visitorContactQrs.length > 0 ? (
+                  <div className="flex shrink-0 flex-wrap items-start gap-3 self-center sm:self-start sm:pt-1">
+                    {visitorContactQrs.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="cursor-zoom-in"
+                        title={i18n.qrZoomHint}
+                        onDoubleClick={() =>
+                          setQrZoomItem({
+                            src: item.src,
+                            caption: item.caption || "",
+                          })
+                        }
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={item.src}
+                          alt={item.caption || i18n.qrLabel}
+                          className="h-24 w-24 object-contain"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+
+              {canInline ? (
+              <div className="micro-card mt-4 inline-block w-fit max-w-full rounded-2xl border border-line/80 bg-surface/76 p-3 shadow-[0_2px_10px_-8px_rgba(0,0,0,0.25)]">
                 <input
                   ref={contactQrInputRef}
                   type="file"
@@ -1078,15 +1119,7 @@ export function HeroPage() {
                       className="rounded-xl border border-line/75 bg-surface/72 p-2"
                     >
                       <div
-                        className={`${canInline ? "h-20 w-20" : "h-24 w-24 cursor-zoom-in"} overflow-hidden rounded-lg border border-line/70 bg-paper/70`}
-                        title={!canInline ? i18n.qrZoomHint : undefined}
-                        onDoubleClick={() => {
-                          if (canInline || !item.src) return;
-                          setQrZoomItem({
-                            src: item.src,
-                            caption: item.caption || "",
-                          });
-                        }}
+                        className="h-20 w-20 overflow-hidden rounded-lg border border-line/70 bg-paper/70"
                       >
                         {item.src ? (
                           <>
@@ -1106,8 +1139,7 @@ export function HeroPage() {
                         )}
                       </div>
 
-                      {canInline ? (
-                        <div className={`${canInline ? "w-20" : "w-24"} mt-2 space-y-1.5`}>
+                        <div className="w-20 mt-2 space-y-1.5">
                           <input
                             value={item.src}
                             onChange={(e) =>
@@ -1162,24 +1194,9 @@ export function HeroPage() {
                             </button>
                           </div>
                         </div>
-                      ) : (
-                        <div className={`${canInline ? "w-20" : "w-24"} mt-1.5 text-center`}>
-                          <p className={`${canInline ? "text-[10px]" : "text-[11px]"} leading-relaxed text-ink-muted`}>
-                            {item.caption || i18n.qrCaptionHint}
-                          </p>
-                          {!canInline ? (
-                            <p className="mt-0.5 text-[10px] text-ink-muted/80">
-                              {i18n.qrZoomHint}
-                            </p>
-                          ) : null}
-                        </div>
-                      )}
                     </div>
                   ))}
                 </div>
-                {!canInline && displayContactQrs.length === 0 ? (
-                  <p className="text-xs text-ink-muted">{i18n.qrHint}</p>
-                ) : null}
                 {canInline ? (
                   <button
                     type="button"
@@ -1198,6 +1215,7 @@ export function HeroPage() {
                   <p className="mt-2 text-xs text-ink-muted">{contactQrUploadMessage}</p>
                 ) : null}
               </div>
+              ) : null}
             </div>
 
             <div className="mt-6">
@@ -1215,9 +1233,9 @@ export function HeroPage() {
                     </p>
                     {canInline ? (
                       <div className="mt-1 space-y-2">
-                        <input
-                          type="text"
-                          title="点击修改，停顿后自动保存"
+                  <input
+                    type="text"
+                    title="点击修改，停顿后自动保存"
                           value={line}
                           onChange={(e) => {
                             const v = e.target.value;
@@ -1228,7 +1246,7 @@ export function HeroPage() {
                             });
                           }}
                           placeholder={i18n.highlightPlaceholder}
-                          maxLength={120}
+                    maxLength={120}
                           className={`${SEAMLESS_INPUT} text-sm leading-relaxed`}
                         />
                         <button
@@ -1735,9 +1753,9 @@ export function HeroPage() {
                     alt={spotlightTitle}
                     className="h-auto w-full rounded-md object-contain"
                     loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                  />
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
                   <button
                     type="button"
                     onClick={() => setSpotlightHdPreviewOpen(true)}
@@ -1867,8 +1885,8 @@ export function HeroPage() {
                       >
                         {i18n.downloadDocument}
                       </a>
-                    </div>
-                  </div>
+                </div>
+            </div>
                 </div>
               ) : null}
               {spotlightPreview.kind !== "code" &&
@@ -1919,7 +1937,7 @@ export function HeroPage() {
               </p>
             ) : null}
           </div>
-        </div>
+      </div>
       ) : null}
 
       {spotlightHdPreviewOpen &&
