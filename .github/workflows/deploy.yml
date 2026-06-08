@@ -112,22 +112,46 @@ jobs:
             fi
             [ -f "${DEPLOY_PATH}/.env.local" ] && ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local" || true
             export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
+            echo "[deploy] 同步部署脚本（若仓库存在）..."
+            if [ -d "${DEPLOY_PATH}/.git" ]; then
+              cd "${DEPLOY_PATH}"
+              git fetch --depth=1 origin main 2>/dev/null && git checkout -f origin/main -- scripts/ 2>/dev/null || true
+            fi
             echo "[deploy] 重启 PM2（加载 .env.local 白名单）..."
             export PATH="$PATH:/usr/local/bin:/usr/bin:/bin:/home/${{ secrets.SSH_USER }}/.npm-global/bin"
             if ! command -v pm2 >/dev/null 2>&1; then
               echo "[deploy] 未找到 pm2，尝试全局安装..."
               npm install -g pm2
             fi
-            cd "${RELEASE_DIR}"
-            export HOSTNAME=0.0.0.0
-            export PORT=3000
-            export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
-            if pm2 describe resume-web >/dev/null 2>&1; then
-              pm2 restart resume-web --update-env
+            if [ -x "${DEPLOY_PATH}/scripts/pm2-start-release.sh" ]; then
+              bash "${DEPLOY_PATH}/scripts/pm2-start-release.sh" "${DEPLOY_PATH}"
             else
-              pm2 start server.js --name resume-web
+              cd "${RELEASE_DIR}"
+              export HOSTNAME=0.0.0.0
+              export PORT=3000
+              export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
+              pm2 delete resume-web 2>/dev/null || true
+              pm2 start server.js --name resume-web --update-env
+              pm2 save 2>/dev/null || true
             fi
-            pm2 save 2>/dev/null || true
             pm2 list
+            echo "[deploy] 重启 HTTPS 反代（若存在）..."
+            if command -v systemctl >/dev/null 2>&1; then
+              systemctl restart caddy 2>/dev/null || systemctl reload nginx 2>/dev/null || true
+            fi
             echo "[deploy] 健康检查..."
-            curl -fsS --connect-timeout 5 --max-time 15 "http://127.0.0.1:3000" -o /dev/null && echo "HTTP OK" || echo "HTTP 检查未通过（站点可能仍在启动）"
+            ok=0
+            for i in 1 2 3 4 5 6; do
+              if curl -fsS --connect-timeout 3 --max-time 12 "http://127.0.0.1:3000/api/health" >/dev/null; then
+                ok=1
+                break
+              fi
+              echo "[deploy] 等待应用就绪 (${i}/6)..."
+              sleep 3
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "❌ 本机健康检查失败，请登录服务器执行: bash scripts/server-fix-online.sh"
+              pm2 logs resume-web --lines 40 --nostream 2>/dev/null || true
+              exit 1
+            fi
+            echo "HTTP OK"

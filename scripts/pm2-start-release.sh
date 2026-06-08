@@ -50,10 +50,9 @@ export SITE_PUBLISH_PATH="${SITE_PUBLISH_PATH:-${DEPLOY_PATH}/data/published-sit
 
 cd "${RELEASE_DIR}"
 if pm2 describe resume-web >/dev/null 2>&1; then
-  pm2 restart resume-web --update-env
-else
-  pm2 start server.js --name resume-web
+  pm2 delete resume-web 2>/dev/null || true
 fi
+pm2 start server.js --name resume-web --update-env
 pm2 save 2>/dev/null || true
 pm2 list
 echo ""
