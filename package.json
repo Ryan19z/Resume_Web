@@ -15,9 +15,12 @@
     "share:cf:quic": "cloudflared tunnel --url http://127.0.0.1:3000"
   },
   "dependencies": {
+    "docx-preview": "^0.3.7",
     "driver.js": "^1.4.0",
     "framer-motion": "^11.11.17",
+    "jszip": "^3.10.1",
     "next": "^15.1.0",
+    "pptx-preview": "^1.0.7",
     "qrcode.react": "^4.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

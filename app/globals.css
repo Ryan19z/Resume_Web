@@ -279,3 +279,17 @@ html[data-theme="ocean"] {
     rgb(var(--color-paper) / 0.22) 100%
   );
 }
+
+.docx-pptx-preview-host .docx-preview-root {
+  width: 100%;
+  max-width: 100%;
+}
+
+.docx-pptx-preview-host .docx-wrapper {
+  margin: 0 auto;
+  background: rgb(var(--color-surface));
+}
+
+.docx-pptx-preview-host section.pptx-preview-wrapper {
+  margin: 0 auto;
+}

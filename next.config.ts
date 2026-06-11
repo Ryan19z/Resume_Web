@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["framer-motion"],
   },
+  transpilePackages: ["docx-preview", "pptx-preview"],
   /** 默认演示图已改为 `public/placeholders` 同域资源；若后续对远程图使用 `next/image`，在此补充 `remotePatterns`。 */
   /**
    * 不再在 dev 下强制 `cache: false`：在 Windows 上并发请求（例如快速刷新）

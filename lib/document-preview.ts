@@ -1,14 +1,7 @@
 import { OFFICE_DOC_EXTS } from "@/lib/upload-mime";
 
-const OFFICE_INLINE_EXTS = new Set([
-  ".doc",
-  ".docx",
-  ".ppt",
-  ".pptx",
-  ".pptm",
-  ".pps",
-  ".ppsx",
-]);
+const PPTX_INLINE_EXTS = new Set([".pptx", ".ppsx", ".pptm"]);
+const LEGACY_OFFICE_EXTS = new Set([".doc", ".ppt", ".pps"]);
 
 export function documentExtFromSource(url: string, fileName?: string): string {
   const sources = [fileName ?? "", url.split("?")[0] ?? ""];
@@ -27,32 +20,21 @@ export function documentExtFromSource(url: string, fileName?: string): string {
   return "";
 }
 
-export type DocumentPreviewKind = "pdf" | "office" | "unsupported";
+export type DocumentPreviewKind =
+  | "pdf"
+  | "docx"
+  | "pptx"
+  | "legacy-office"
+  | "unsupported";
 
-export function resolveDocumentPreview(
+export function classifyDocumentPreview(
   url: string,
-  options?: { fileName?: string; origin?: string },
-): { kind: DocumentPreviewKind; embedSrc: string | null } {
-  const trimmed = url.trim();
-  if (!trimmed) return { kind: "unsupported", embedSrc: null };
-
-  const ext = documentExtFromSource(trimmed, options?.fileName);
-  if (ext === ".pdf") {
-    return { kind: "pdf", embedSrc: trimmed };
-  }
-
-  if (OFFICE_INLINE_EXTS.has(ext)) {
-    const origin =
-      options?.origin ??
-      (typeof window !== "undefined" ? window.location.origin : "");
-    const absolute = trimmed.startsWith("http")
-      ? trimmed
-      : `${origin}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
-    return {
-      kind: "office",
-      embedSrc: `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absolute)}`,
-    };
-  }
-
-  return { kind: "unsupported", embedSrc: null };
+  fileName?: string,
+): DocumentPreviewKind {
+  const ext = documentExtFromSource(url, fileName);
+  if (ext === ".pdf") return "pdf";
+  if (ext === ".docx") return "docx";
+  if (PPTX_INLINE_EXTS.has(ext)) return "pptx";
+  if (LEGACY_OFFICE_EXTS.has(ext)) return "legacy-office";
+  return "unsupported";
 }
