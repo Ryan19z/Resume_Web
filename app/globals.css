@@ -280,16 +280,50 @@ html[data-theme="ocean"] {
   );
 }
 
-.docx-pptx-preview-host .docx-preview-root {
+.preview-viewport {
+  overscroll-behavior: contain;
+}
+
+.preview-stage-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.preview-stage {
+  transition: zoom 120ms ease-out;
+}
+
+.docx-pptx-preview-host {
   width: 100%;
   max-width: 100%;
 }
 
+.docx-pptx-preview-host .docx-preview-root,
 .docx-pptx-preview-host .docx-wrapper {
+  width: 100% !important;
+  max-width: 100% !important;
   margin: 0 auto;
-  background: rgb(var(--color-surface));
+  box-sizing: border-box;
 }
 
-.docx-pptx-preview-host section.pptx-preview-wrapper {
+.docx-pptx-preview-host .docx-wrapper {
+  background: rgb(var(--color-surface));
+  box-shadow: 0 1px 0 rgb(var(--color-line) / 0.65);
+}
+
+.docx-pptx-preview-host section.docx {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.docx-pptx-preview-host .pptx-preview-wrapper,
+.docx-pptx-preview-host .pptx-preview-slide,
+.docx-pptx-preview-host canvas,
+.docx-pptx-preview-host svg {
+  max-width: 100%;
+}
+
+.docx-pptx-preview-host .pptx-preview-wrapper {
   margin: 0 auto;
+  overflow: hidden;
 }
