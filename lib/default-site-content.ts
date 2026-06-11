@@ -59,8 +59,8 @@ export const defaultSiteContent: SiteContent = {
     },
     documentName: "",
   },
-  contactEmail: "hertz.hou719@gmail.com",
-  contactPhone: "",
+  contactEmail: "you@example.com",
+  contactPhone: "13800000000",
   contactExtra: "Instagram: your_id | LinkedIn: your_id",
   heroContactQrs: [
     {

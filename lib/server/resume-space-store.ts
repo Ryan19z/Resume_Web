@@ -1,4 +1,6 @@
+import { buildNewCustomerDefaultBundle } from "@/lib/persist-site";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
+import { writePublishedBundle } from "@/lib/server/published-site-store";
 import { randomBytes } from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -98,6 +100,11 @@ export async function createResumeSpace(): Promise<ResumeSpaceMeta> {
   const dir = resumeDir(resumeId);
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(metaPath(resumeId), JSON.stringify(meta), "utf8");
+
+  const starterBundle = buildNewCustomerDefaultBundle(meta.createdAt);
+  await writePublishedBundle(starterBundle, "zh", resumeId);
+  await writePublishedBundle(starterBundle, "en", resumeId);
+
   return meta;
 }
 

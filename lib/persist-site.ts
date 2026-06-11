@@ -684,3 +684,26 @@ export function buildBundleFromState(
 ): PersistedSiteBundle {
   return { version: 2, profile, site };
 }
+
+/** 新客户独立链接的空白模板（示例邮箱/电话，勿用站长个人信息） */
+export function buildNewCustomerDefaultBundle(
+  savedAt = Date.now(),
+): PersistedSiteBundle {
+  const profile: PersistedProfile = {
+    name: defaultSiteContent.name,
+    tagline: defaultSiteContent.tagline,
+    setupDismissed: false,
+  };
+  const site = mergeInitialSite({
+    version: 2,
+    profile,
+    site: cloneSite(),
+    savedAt,
+  });
+  return {
+    version: 2,
+    profile,
+    site,
+    savedAt,
+  };
+}
