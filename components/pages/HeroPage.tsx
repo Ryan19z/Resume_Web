@@ -5,6 +5,9 @@ import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
 import { randomId } from "@/lib/random-id";
 import { appendResumeScopeToPath, parseClientResumeScope } from "@/lib/resume-scope";
+import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
+import { ensureUploadFileName } from "@/lib/upload-asset-client";
+import { documentAcceptList } from "@/lib/upload-mime";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -254,8 +257,8 @@ export function HeroPage() {
     return [{ id: randomId("qr-"), src: "", caption: "" }];
   });
   const [highlights, setHighlights] = useState<string[]>(hp);
-  const [skills, setSkills] = useState<string[]>(
-    Array.isArray(site.transferableSkills) && site.transferableSkills.length > 0
+  const [skills, setSkills] = useState<string[]>(() =>
+    Array.isArray(site.transferableSkills)
       ? site.transferableSkills
       : buildSkillTags(site.targetRole ?? ""),
   );
@@ -401,10 +404,9 @@ export function HeroPage() {
     }
     const cleanLines = lines.map((x) => String(x ?? "").trim()).filter(Boolean);
     setHighlights(cleanLines);
-    const nextSkills =
-      Array.isArray(s.transferableSkills) && s.transferableSkills.length > 0
-        ? s.transferableSkills
-        : buildSkillTags(s.targetRole ?? "");
+    const nextSkills = Array.isArray(s.transferableSkills)
+      ? s.transferableSkills
+      : buildSkillTags(s.targetRole ?? "");
     setSkills(nextSkills);
     const proofs = extractProofLines(
       (Array.isArray(s.experience) ? s.experience : [])
@@ -536,7 +538,7 @@ export function HeroPage() {
   const visitorLines = highlights;
   const roleCards =
     roleFits.length > 0 ? roleFits : buildDefaultRoleFits(mode, heroProofDefaults);
-  const skillTags = skills.length > 0 ? skills : buildSkillTags(site.targetRole ?? "");
+  const skillTags = skills;
   const highlightsForCards = useMemo(
     () => (highlights.length > 0 ? highlights : ["", "", ""]).slice(0, 10),
     [highlights],
@@ -701,7 +703,7 @@ export function HeroPage() {
       ? "image/*"
       : spotlightKind === "video"
         ? "video/*"
-        : ".pdf,.doc,.docx,.ppt,.pptx";
+        : documentAcceptList();
   const contactEntries = useMemo(
     () => parseContactEntries(contactExtra),
     [contactExtra],
@@ -876,7 +878,7 @@ export function HeroPage() {
     setContactQrUploadMessage("");
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", ensureUploadFileName(file));
       const clientScope = parseClientResumeScope();
       const uploadUrl = appendResumeScopeToPath(
         "/api/upload-asset",
@@ -906,7 +908,7 @@ export function HeroPage() {
     setSpotlightUploadMessage("");
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", ensureUploadFileName(file));
       const clientScope = parseClientResumeScope();
       const uploadUrl = appendResumeScopeToPath(
         "/api/upload-asset",
@@ -1854,15 +1856,12 @@ export function HeroPage() {
               ) : null}
               {spotlightPreview.kind === "document" && spotlightPreview.url ? (
                 <div className="space-y-3">
-                  {spotlightPreview.url.toLowerCase().endsWith(".pdf") ? (
-                    <div className="overflow-hidden rounded-lg border border-line/60 bg-surface/40">
-                      <iframe
-                        src={spotlightPreview.url}
-                        title={spotlightPreview.fileName || spotlightTitle || "document"}
-                        className="h-[420px] w-full"
-                      />
-                    </div>
-                  ) : null}
+                  <DocumentEmbedPreview
+                    url={spotlightPreview.url}
+                    fileName={spotlightPreview.fileName}
+                    title={spotlightPreview.fileName || spotlightTitle || "document"}
+                    locale={mode}
+                  />
                   <div className="rounded-lg border border-dashed border-line/80 bg-surface px-4 py-4 text-sm text-ink">
                     <p className="font-medium">
                       {spotlightPreview.fileName || spotlightPreview.url.split("/").pop()}

@@ -1,5 +1,6 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
+import { recordVisitorView } from "@/lib/server/view-log-store";
 import {
   MAX_PUBLISH_BYTES,
   parsePersistedBundlePayload,
@@ -17,6 +18,20 @@ type SiteLang = "zh" | "en";
 function parseLang(request: NextRequest): SiteLang {
   const raw = request.nextUrl.searchParams.get("lang");
   return raw === "en" ? "en" : "zh";
+}
+
+async function maybeRecordVisitorView(
+  request: NextRequest,
+  resumeId?: string,
+  editToken?: string,
+): Promise<void> {
+  if (resumeId) {
+    if (editToken && (await canEditByToken(resumeId, editToken))) return;
+  } else {
+    const auth = resolveCanEdit(request.headers);
+    if (auth.canEdit) return;
+  }
+  await recordVisitorView(request.headers, resumeId);
 }
 
 /** 访客与站长读取已发布到服务器的简历快照 */
@@ -53,6 +68,9 @@ export async function GET(request: NextRequest) {
     });
   }
   if (result.status === "ok") {
+    void maybeRecordVisitorView(request, resumeId, editToken).catch((e) =>
+      console.error("[api/site] view-log", e),
+    );
     return NextResponse.json({
       ok: true as const,
       published: true,

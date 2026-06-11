@@ -18,6 +18,7 @@ import { HeroPage } from "@/components/pages/HeroPage";
 import { PortfolioPage } from "@/components/pages/PortfolioPage";
 import { ResumePage } from "@/components/pages/ResumePage";
 import dynamic from "next/dynamic";
+import { useState } from "react";
 
 const ProfileSetupModal = dynamic(
   () =>
@@ -59,9 +60,18 @@ const ResumeDetailOverlay = dynamic(
   { ssr: false },
 );
 
+const ViewLogModal = dynamic(
+  () =>
+    import("@/components/ViewLogModal").then((m) => ({
+      default: m.ViewLogModal,
+    })),
+  { ssr: false },
+);
+
 export function HomeShell() {
   const { contentReady } = useSiteContent();
   const { mode } = useLanguageMode();
+  const [viewLogOpen, setViewLogOpen] = useState(false);
 
   if (!contentReady) {
     return (
@@ -118,7 +128,8 @@ export function HomeShell() {
       <ResumePageCopyModal />
       <PortfolioPageCopyModal />
       <ResumeDetailOverlay />
-      <SiteEditorDock />
+      <SiteEditorDock onOpenViewLog={() => setViewLogOpen(true)} />
+      <ViewLogModal open={viewLogOpen} onClose={() => setViewLogOpen(false)} />
     </>
   );
 }

@@ -8,7 +8,11 @@ import { useEffect, useId, useRef, useState } from "react";
  * 将各页的「编辑」入口收拢到右下角一处，与左下角主题切换对称，
  * 避免每屏角落重复出现悬浮按钮。
  */
-export function SiteEditorDock() {
+type SiteEditorDockProps = {
+  onOpenViewLog?: () => void;
+};
+
+export function SiteEditorDock({ onOpenViewLog }: SiteEditorDockProps) {
   const {
     canEdit,
     editPermissionLoaded,
@@ -119,6 +123,25 @@ export function SiteEditorDock() {
                 标题、说明与卡片上的引导文字
               </span>
             </button>
+            {onOpenViewLog ? (
+              <>
+                <div className="mx-3 h-px bg-line/80" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    onOpenViewLog();
+                  }}
+                  className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-ink/[0.04]"
+                >
+                  <span className="font-medium text-ink">链接访问记录</span>
+                  <span className="text-[11px] leading-snug text-ink-muted">
+                    查看只读链接何时被打开、来自哪里
+                  </span>
+                </button>
+              </>
+            ) : null}
           </motion.div>
         ) : null}
       </AnimatePresence>

@@ -1,6 +1,22 @@
 import { appendResumeScopeToPath, parseClientResumeScope } from "@/lib/resume-scope";
+import {
+  documentAcceptList,
+  extFromFileName,
+  resolveExtFromNameAndMime,
+} from "@/lib/upload-mime";
 
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
+export function ensureUploadFileName(file: File): File {
+  const ext = resolveExtFromNameAndMime(file.name || "upload", file.type);
+  if (!ext) return file;
+  if (extFromFileName(file.name || "")) return file;
+
+  return new File([file], `upload${ext}`, {
+    type: file.type,
+    lastModified: file.lastModified,
+  });
+}
 
 export type UploadAssetResult = {
   ok?: boolean;
@@ -14,7 +30,7 @@ export function mediaAcceptForKind(
 ): string {
   if (kind === "image") return "image/*";
   if (kind === "video") return "video/*";
-  return ".pdf,.doc,.docx,.ppt,.pptx";
+  return documentAcceptList();
 }
 
 async function parseUploadResponse(
@@ -61,8 +77,9 @@ export async function uploadAssetFile(
   options?: { locale?: "zh" | "en" },
 ): Promise<UploadAssetResult> {
   const locale = options?.locale ?? "zh";
+  const uploadFile = ensureUploadFileName(file);
   const form = new FormData();
-  form.append("file", file);
+  form.append("file", uploadFile);
   const clientScope = parseClientResumeScope();
   const uploadUrl = appendResumeScopeToPath("/api/upload-asset", clientScope, {
     includeEditToken: true,

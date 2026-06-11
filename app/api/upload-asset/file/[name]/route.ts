@@ -36,6 +36,10 @@ function contentTypeForExt(ext: string): string {
       return "application/vnd.ms-powerpoint";
     case ".pptx":
       return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    case ".pps":
+      return "application/vnd.ms-powerpoint";
+    case ".ppsx":
+      return "application/vnd.openxmlformats-officedocument.presentationml.slideshow";
     default:
       return "application/octet-stream";
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import type { AchievementBlock, RepresentativeProject } from "@/lib/types";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
@@ -133,15 +134,13 @@ function RepresentativeProjectOverlay({
               ) : null}
               {project.media.kind === "document" ? (
                 <div className="mx-auto w-full max-w-5xl space-y-3">
-                  {project.media.url.toLowerCase().endsWith(".pdf") ? (
-                    <div className="overflow-hidden rounded-2xl border border-line/60 bg-surface/40">
-                      <iframe
-                        src={project.media.url}
-                        title={project.media.fileName || project.title || "document"}
-                        className="h-[72vh] w-full"
-                      />
-                    </div>
-                  ) : null}
+                  <DocumentEmbedPreview
+                    url={project.media.url}
+                    fileName={project.media.fileName}
+                    title={project.media.fileName || project.title || "document"}
+                    heightClassName="h-[72vh]"
+                    className="rounded-2xl"
+                  />
                   <div className="rounded-2xl border border-dashed border-line/80 bg-surface px-4 py-4 text-sm text-ink">
                     <p className="font-medium">
                       {project.media.fileName || project.media.url.split("/").pop()}

@@ -1,29 +1,33 @@
+import {
+  isAllowedUploadExt,
+  resolveExtFromNameAndMime,
+} from "@/lib/upload-mime";
 import fs from "fs/promises";
 import path from "path";
 
-const ALLOWED_EXT = new Set([
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".webp",
-  ".gif",
-  ".mp4",
-  ".webm",
-  ".mov",
-  ".pdf",
-  ".doc",
-  ".docx",
-  ".ppt",
-  ".pptx",
-]);
+export { isAllowedUploadExt } from "@/lib/upload-mime";
 
-export function isAllowedUploadExt(ext: string): boolean {
-  return ALLOWED_EXT.has(ext.toLowerCase());
+export function resolveUploadExtension(
+  fileName: string,
+  mimeType = "",
+): string | null {
+  const resolved = resolveExtFromNameAndMime(fileName, mimeType);
+  if (resolved) return resolved;
+
+  const fromCleaned = path.extname(safeBaseName(fileName || "")).toLowerCase();
+  if (fromCleaned && isAllowedUploadExt(fromCleaned)) {
+    return fromCleaned;
+  }
+
+  return null;
 }
 
 export function safeBaseName(name: string): string {
   const base = path.basename(name).replace(/\s+/g, "-");
-  return base.replace(/[^a-zA-Z0-9._-]/g, "");
+  const ext = path.extname(base).toLowerCase();
+  let stem = path.basename(base, ext).replace(/[^a-zA-Z0-9._-]/g, "");
+  if (!stem) stem = "upload";
+  return `${stem}${ext}`;
 }
 
 export function resolveUploadBaseDir(): string {
@@ -91,4 +95,3 @@ export async function resolveExistingUploadFilePath(
   }
   return null;
 }
-

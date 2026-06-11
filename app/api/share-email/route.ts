@@ -1,4 +1,8 @@
 import { isReasonableHttpUrl } from "@/lib/is-reasonable-http-url";
+import {
+  composeShareEmailText,
+  normalizeShareEmailMessageInput,
+} from "@/lib/share-email-compose";
 import { type NextRequest, NextResponse } from "next/server";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -10,15 +14,22 @@ export async function GET() {
 }
 
 /**
- * POST JSON: `{ "to": "user@mail.com", "link": "https://..." }`
+ * POST JSON: `{ "to": "user@mail.com", "link": "https://...", "message": "可选正文" }`
  * 若配置 `RESEND_API_KEY`（及可选 `RESEND_FROM`），通过 Resend 投递邮件；
  * 否则返回 501，前端可改用 mailto 兜底。
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as { to?: unknown; link?: unknown };
+    const body = (await request.json()) as {
+      to?: unknown;
+      link?: unknown;
+      message?: unknown;
+      lang?: unknown;
+    };
     const to = typeof body.to === "string" ? body.to.trim() : "";
     const link = typeof body.link === "string" ? body.link.trim() : "";
+    const message = normalizeShareEmailMessageInput(body.message);
+    const lang = body.lang === "en" ? "en" : "zh";
     if (!EMAIL_RE.test(to)) {
       return NextResponse.json(
         { ok: false, error: "invalid_email", message: "邮箱格式不正确。" },
@@ -48,8 +59,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const subject = "你的在线简历链接";
-    const text = `你好，\n\n这是你要保存的在线简历页面链接：\n${link}\n\n（由网站「分享」功能发出）\n`;
+    const subject =
+      lang === "en" ? "Your online resume link" : "你的在线简历链接";
+    const text = composeShareEmailText(message, link, lang);
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",

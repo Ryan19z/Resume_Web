@@ -3,7 +3,7 @@ import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { canEditByToken } from "@/lib/server/resume-space-store";
 import {
   ensureUploadDir,
-  isAllowedUploadExt,
+  resolveUploadExtension,
   safeBaseName,
 } from "@/lib/server/upload-asset-store";
 import { randomUUID } from "crypto";
@@ -68,9 +68,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const cleanedName = safeBaseName(fileValue.name || "upload.bin");
-    const ext = path.extname(cleanedName).toLowerCase();
-    if (!isAllowedUploadExt(ext)) {
+    const ext = resolveUploadExtension(
+      fileValue.name || "upload.bin",
+      fileValue.type || "",
+    );
+    if (!ext) {
       return NextResponse.json(
         {
           ok: false,
@@ -99,6 +101,8 @@ export async function POST(request: NextRequest) {
       await handle.close();
       reader.releaseLock();
     }
+
+    const cleanedName = safeBaseName(fileValue.name || `upload${ext}`);
 
     return NextResponse.json({
       ok: true as const,

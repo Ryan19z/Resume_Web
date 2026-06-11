@@ -5,10 +5,16 @@ import { useSiteContent } from "@/context/SiteContentProvider";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import {
+  composeShareEmailText,
+  defaultShareEmailMessage,
+} from "@/lib/share-email-compose";
 import { useCallback, useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 
 type Sheet = "menu" | "email" | "qr";
+
+const SHARE_EMAIL_BODY_KEY = "share-email-body-v1";
 
 function isValidEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -32,6 +38,7 @@ export function ShareResumeControl() {
   const [pageUrl, setPageUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [emailTo, setEmailTo] = useState("");
+  const [emailBody, setEmailBody] = useState("");
   const [sendState, setSendState] = useState<"idle" | "sending" | "ok" | "err">(
     "idle",
   );
@@ -41,6 +48,32 @@ export function ShareResumeControl() {
   const qrTitleId = useId();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = `${SHARE_EMAIL_BODY_KEY}-${mode}`;
+    try {
+      const saved = window.localStorage.getItem(key);
+      setEmailBody(
+        saved != null ? saved : defaultShareEmailMessage(mode, site.name),
+      );
+    } catch {
+      setEmailBody(defaultShareEmailMessage(mode, site.name));
+    }
+  }, [mode, site.name]);
+
+  const persistEmailBody = useCallback(
+    (value: string) => {
+      if (typeof window === "undefined") return;
+      const key = `${SHARE_EMAIL_BODY_KEY}-${mode}`;
+      try {
+        window.localStorage.setItem(key, value);
+      } catch {
+        /* 存储满时忽略 */
+      }
+    },
+    [mode],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -93,13 +126,10 @@ export function ShareResumeControl() {
     if (!shareUrl || !isValidEmail(emailTo)) return;
     const to = emailTo.trim();
     const subject = `${site.name || (mode === "zh" ? "在线简历" : "Online resume")} · ${mode === "zh" ? "链接" : "Link"}`;
-    const body =
-      mode === "zh"
-        ? `你好，\n\n这是我的在线简历页面：\n${shareUrl}\n\n（由网页「分享」生成）`
-        : `Hi,\n\nHere is my online resume page:\n${shareUrl}\n\n(Generated from website Share panel)`;
+    const body = composeShareEmailText(emailBody, shareUrl, mode, site.name);
     const href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = href;
-  }, [shareUrl, site.name, emailTo, mode]);
+  }, [shareUrl, site.name, emailTo, emailBody, mode]);
 
   const sendEmail = useCallback(async () => {
     if (!shareUrl || !isValidEmail(emailTo)) return;
@@ -109,7 +139,12 @@ export function ShareResumeControl() {
       const r = await fetch("/api/share-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: emailTo.trim(), link: shareUrl }),
+        body: JSON.stringify({
+          to: emailTo.trim(),
+          link: shareUrl,
+          message: emailBody,
+          lang: mode,
+        }),
       });
       const data = (await r.json().catch(() => ({}))) as {
         ok?: boolean;
@@ -147,7 +182,7 @@ export function ShareResumeControl() {
       setSendState("err");
       setSendMsg(mode === "zh" ? "网络错误，请稍后重试。" : "Network error. Please try again.");
     }
-  }, [emailTo, shareUrl, openMailtoSelf, mode]);
+  }, [emailTo, emailBody, shareUrl, openMailtoSelf, mode]);
 
   const portalRoot = mounted && typeof document !== "undefined" ? document.body : null;
 
@@ -175,7 +210,7 @@ export function ShareResumeControl() {
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 380, damping: 34 }}
-          className="relative z-[200001] mx-auto w-full max-w-[min(100vw-1.5rem,440px)] overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl sm:rounded-3xl"
+          className="relative z-[200001] mx-auto max-h-[min(92dvh,720px)] w-full max-w-[min(100vw-1.5rem,440px)] overflow-y-auto rounded-2xl border border-line bg-surface shadow-2xl sm:rounded-3xl"
         >
           {sheet === "menu" ? (
             <>
@@ -292,8 +327,8 @@ export function ShareResumeControl() {
                 </h2>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
                   {mode === "zh"
-                    ? "填写您的邮箱。若服务器已配置 Resend（RESEND_API_KEY），将代发投递；未配置时点击「发送」会改为打开您电脑上的邮件客户端，由本机发出。"
-                    : "Enter your email. If RESEND is configured, the server sends it directly; otherwise it opens your local mail client."}
+                    ? "填写收件邮箱与邮件正文；发送时会在正文末尾自动附上简历链接。"
+                    : "Enter recipient email and message body; the resume link is appended when sending."}
                 </p>
               </div>
               <div className="px-5 py-4 sm:px-6">
@@ -313,6 +348,34 @@ export function ShareResumeControl() {
                   onChange={(e) => setEmailTo(e.target.value)}
                   className="mt-1.5 w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-sm text-ink outline-none transition-shadow focus:border-ink/25 focus:shadow-[0_0_0_3px_rgb(0_0_0/0.06)]"
                 />
+                <label
+                  className="mt-4 block text-[11px] font-medium text-ink-muted"
+                  htmlFor="share-email-body"
+                >
+                  {mode === "zh" ? "邮件正文" : "Email message"}
+                </label>
+                <textarea
+                  id="share-email-body"
+                  rows={6}
+                  maxLength={2000}
+                  value={emailBody}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setEmailBody(value);
+                    persistEmailBody(value);
+                  }}
+                  placeholder={
+                    mode === "zh"
+                      ? "您好，\n\n感谢查看我的在线简历……"
+                      : "Hi,\n\nThank you for viewing my resume……"
+                  }
+                  className="mt-1.5 w-full resize-y rounded-xl border border-line bg-paper px-3 py-2.5 text-sm leading-relaxed text-ink outline-none transition-shadow focus:border-ink/25 focus:shadow-[0_0_0_3px_rgb(0_0_0/0.06)]"
+                />
+                <p className="mt-1.5 text-[11px] leading-relaxed text-ink-muted">
+                  {mode === "zh"
+                    ? "正文会原样发给对方；简历链接自动加在末尾。内容会保存在本浏览器，下次打开仍保留。"
+                    : "Your text is sent as-is; the resume link is added at the end. Saved in this browser for next time."}
+                </p>
                 {sendMsg ? (
                   <p
                     className={`mt-2 text-xs leading-relaxed ${
