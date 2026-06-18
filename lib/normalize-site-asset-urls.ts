@@ -86,17 +86,33 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
     posterSrc: normalizeDevAssetUrl(p.posterSrc) ?? p.posterSrc,
   }));
   const experience = site.experience.map(normalizeExperience);
+  const projectExperience = Array.isArray(site.projectExperience)
+    ? site.projectExperience.map(normalizeExperience)
+    : [];
   const education = site.education.map(normalizeEducation);
   const heroSpotlight = (() => {
     const hs = site.heroSpotlight;
     if (!hs) return hs;
     const media =
-      "url" in hs.media
-        ? { ...hs.media, url: normalizeDevAssetUrl(hs.media.url) ?? hs.media.url }
-        : hs.media;
+      hs.media.kind === "gallery"
+        ? {
+            ...hs.media,
+            urls: hs.media.urls.map(
+              (u) => normalizeDevAssetUrl(u) ?? u,
+            ),
+          }
+        : "url" in hs.media
+          ? {
+              ...hs.media,
+              url: normalizeDevAssetUrl(hs.media.url) ?? hs.media.url,
+            }
+          : hs.media;
     const mediaLinks = hs.mediaLinks
       ? {
           image: normalizeDevAssetUrl(hs.mediaLinks.image) ?? hs.mediaLinks.image,
+          gallery: hs.mediaLinks.gallery?.map(
+            (u) => normalizeDevAssetUrl(u) ?? u,
+          ),
           video: normalizeDevAssetUrl(hs.mediaLinks.video) ?? hs.mediaLinks.video,
           link: normalizeDevAssetUrl(hs.mediaLinks.link) ?? hs.mediaLinks.link,
           document:
@@ -126,6 +142,7 @@ export function normalizeSiteContentAssetUrls(site: SiteContent): SiteContent {
     pageBackground,
     projects,
     experience,
+    projectExperience,
     education,
   };
 }

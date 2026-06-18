@@ -19,7 +19,7 @@ export function TopUtilityBar() {
     previewMode,
     setPreviewMode,
   } = useSiteContent();
-  const { mode, toggleMode } = useLanguageMode();
+  const { mode, toggleMode, langSwitchLocked } = useLanguageMode();
   const [helpOpen, setHelpOpen] = useState(false);
   const titleId = useId();
 
@@ -33,6 +33,9 @@ export function TopUtilityBar() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [helpOpen]);
+
+  const showLangSwitch =
+    !langSwitchLocked || (editPermissionLoaded && canEdit);
 
   return (
     <>
@@ -62,13 +65,15 @@ export function TopUtilityBar() {
                 : "Preview"}
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={toggleMode}
-          className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
-        >
-          {mode === "zh" ? "EN" : "中文"}
-        </button>
+        {showLangSwitch ? (
+          <button
+            type="button"
+            onClick={toggleMode}
+            className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
+          >
+            {mode === "zh" ? "EN" : "中文"}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={() => {

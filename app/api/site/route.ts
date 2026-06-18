@@ -1,8 +1,8 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { recordVisitorView } from "@/lib/server/view-log-store";
+import { MAX_PUBLISH_BYTES } from "@/lib/publish-limits";
 import {
-  MAX_PUBLISH_BYTES,
   parsePersistedBundlePayload,
   readPublishedSite,
   writePublishedBundle,
@@ -31,7 +31,9 @@ async function maybeRecordVisitorView(
     const auth = resolveCanEdit(request.headers);
     if (auth.canEdit) return;
   }
-  await recordVisitorView(request.headers, resumeId);
+  void recordVisitorView(request.headers, resumeId).catch((e) =>
+    console.error("[api/site] view-log write", e),
+  );
 }
 
 /** 访客与站长读取已发布到服务器的简历快照 */

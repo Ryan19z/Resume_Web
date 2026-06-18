@@ -10,7 +10,7 @@ const DEFAULT_REL = path.join("data", "published-site.json");
 const EN_REL = path.join("data", "published-site.en.json");
 type SiteLang = "zh" | "en";
 /** 发布快照最大约 5MB（含 Base64 图时仍建议用外链） */
-export const MAX_PUBLISH_BYTES = 5 * 1024 * 1024;
+import { MAX_PUBLISH_BYTES } from "@/lib/publish-limits";
 
 type PublishedSiteFileV1 = {
   fileVersion: 1;

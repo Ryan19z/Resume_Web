@@ -14,26 +14,33 @@ const SPACER_STYLE = {
 /**
  * 长页极简锚点：固定顶栏 + 占位，配合 html.scroll-smooth 平滑滚动。
  */
-export function SectionAnchorNav() {
+export function SectionAnchorNav({
+  showResume = true,
+  showPortfolio = true,
+}: {
+  showResume?: boolean;
+  showPortfolio?: boolean;
+}) {
   const { mode } = useLanguageMode();
-  const links =
+  const links = (
     mode === "zh"
       ? [
-          { href: "#intro", label: "首页" },
-          { href: "#resume", label: "履历" },
-          { href: "#portfolio", label: "作品" },
+          { href: "#intro", label: "首页", visible: true },
+          { href: "#resume", label: "履历", visible: showResume },
+          { href: "#portfolio", label: "作品", visible: showPortfolio },
         ]
       : [
-          { href: "#intro", label: "Home" },
-          { href: "#resume", label: "Resume" },
-          { href: "#portfolio", label: "Work" },
-        ];
+          { href: "#intro", label: "Home", visible: true },
+          { href: "#resume", label: "Resume", visible: showResume },
+          { href: "#portfolio", label: "Work", visible: showPortfolio },
+        ]
+  ).filter((l) => l.visible);
   return (
     <>
       <nav
         id="tour-anchors"
         aria-label={mode === "zh" ? "页面分区" : "Sections"}
-        className={`${NAV_CLASS} relative`}
+        className={NAV_CLASS}
       >
         <div className="flex max-w-xl flex-wrap items-center justify-center gap-0.5 px-14 sm:gap-1 sm:px-24">
           {links.map(({ href, label }, i) => (

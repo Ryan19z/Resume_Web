@@ -5,7 +5,7 @@ import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useEffect, useState } from "react";
 
 export function SiteFooter() {
-  const { site } = useSiteContent();
+  const { site, canEdit, editPermissionLoaded, previewMode } = useSiteContent();
   const { mode } = useLanguageMode();
   const [qrZoomItem, setQrZoomItem] = useState<{
     src: string;
@@ -32,10 +32,15 @@ export function SiteFooter() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [qrZoomItem]);
 
-  if (!email && !phone && footerQrs.length === 0) return null;
+  const showPrivacyNote =
+    editPermissionLoaded && !canEdit && !previewMode;
+  const hasContact = Boolean(email || phone || footerQrs.length > 0);
+
+  if (!hasContact && !showPrivacyNote) return null;
 
   return (
     <footer className="border-t border-line/70 bg-paper px-6 py-8 text-left sm:px-12">
+      {hasContact ? (
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-muted">
@@ -124,6 +129,16 @@ export function SiteFooter() {
           </div>
         ) : null}
       </div>
+      ) : null}
+      {showPrivacyNote ? (
+        <p
+          className={`text-[11px] leading-relaxed text-ink-muted/80 ${hasContact ? "mt-6 border-t border-line/50 pt-4" : ""}`}
+        >
+          {mode === "zh"
+            ? "本页会匿名记录是否被打开及大致地区，帮助候选人确认简历已送达；不保存访问者 IP 明文，也无法识别具体身份。"
+            : "This page anonymously logs opens and approximate region so the candidate knows the resume was seen. No raw IP or personal identity is stored."}
+        </p>
+      ) : null}
       {qrZoomItem ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 py-8">
           <button

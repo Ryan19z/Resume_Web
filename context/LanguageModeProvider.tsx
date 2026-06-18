@@ -1,18 +1,36 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  isLangSwitchLocked,
+  parseLangFromSearchParams,
+  type ShareSiteLang,
+} from "@/lib/share-url";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from "react";
 
-export type LanguageMode = "zh" | "en";
+export type LanguageMode = ShareSiteLang;
 
 type LanguageModeContextValue = {
   mode: LanguageMode;
   setMode: (next: LanguageMode) => void;
   toggleMode: () => void;
+  /** 分享链接带 lockLang=1 时为 true，访客不可切换语言 */
+  langSwitchLocked: boolean;
+  /** 当前语言是否由 URL ?lang= 固定（分享链） */
+  urlLangPinned: boolean;
 };
 
 const STORAGE_KEY = "resume-language-mode-v1";
 
-const LanguageModeContext = createContext<LanguageModeContextValue | null>(null);
+const LanguageModeContext = createContext<LanguageModeContextValue | null>(
+  null,
+);
 
 function readStoredMode(): LanguageMode | null {
   if (typeof window === "undefined") return null;
@@ -24,36 +42,70 @@ function readStoredMode(): LanguageMode | null {
   }
 }
 
+function readUrlLanguageState(): {
+  mode: LanguageMode;
+  langSwitchLocked: boolean;
+  urlLangPinned: boolean;
+} {
+  if (typeof window === "undefined") {
+    return { mode: "zh", langSwitchLocked: false, urlLangPinned: false };
+  }
+  const params = new URLSearchParams(window.location.search);
+  const urlLang = parseLangFromSearchParams(params);
+  const locked = isLangSwitchLocked(params);
+  if (urlLang) {
+    return { mode: urlLang, langSwitchLocked: locked, urlLangPinned: true };
+  }
+  return {
+    mode: readStoredMode() ?? "zh",
+    langSwitchLocked: locked,
+    urlLangPinned: false,
+  };
+}
+
 export function LanguageModeProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const [mode, setModeState] = useState<LanguageMode>("zh");
+  const [langSwitchLocked, setLangSwitchLocked] = useState(false);
+  const [urlLangPinned, setUrlLangPinned] = useState(false);
 
-  useEffect(() => {
-    const stored = readStoredMode();
-    if (stored) setModeState(stored);
+  useLayoutEffect(() => {
+    const sync = () => {
+      const next = readUrlLanguageState();
+      setModeState(next.mode);
+      setLangSwitchLocked(next.langSwitchLocked);
+      setUrlLangPinned(next.urlLangPinned);
+    };
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
   }, []);
 
-  const setMode = (next: LanguageMode) => {
+  const setMode = useCallback((next: LanguageMode) => {
     setModeState(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
       // ignore storage errors
     }
-  };
+  }, []);
 
-  const toggleMode = () => setMode(mode === "zh" ? "en" : "zh");
+  const toggleMode = useCallback(() => {
+    setMode(mode === "zh" ? "en" : "zh");
+  }, [mode, setMode]);
 
   const value = useMemo(
     () => ({
       mode,
       setMode,
       toggleMode,
+      langSwitchLocked,
+      urlLangPinned,
     }),
-    [mode],
+    [mode, setMode, toggleMode, langSwitchLocked, urlLangPinned],
   );
 
   return (
@@ -70,4 +122,3 @@ export function useLanguageMode() {
   }
   return ctx;
 }
-

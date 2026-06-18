@@ -14,16 +14,23 @@ function cloneExp(e: ExperienceItem): ExperienceItem {
 type Props = {
   open: boolean;
   experienceId: string | null;
+  section?: "experience" | "projectExperience";
   onClose: () => void;
 };
 
 export function ExperienceEditorModal({
   open,
   experienceId,
+  section = "experience",
   onClose,
 }: Props) {
-  const { site, updateExperienceItem, canEdit, editPermissionLoaded } =
-    useSiteContent();
+  const {
+    site,
+    updateExperienceItem,
+    updateProjectExperienceItem,
+    canEdit,
+    editPermissionLoaded,
+  } = useSiteContent();
 
   useEffect(() => {
     if (editPermissionLoaded && !canEdit) onClose();
@@ -31,9 +38,14 @@ export function ExperienceEditorModal({
   const titleId = useId();
   const [draft, setDraft] = useState<ExperienceItem | null>(null);
 
-  const experienceList = Array.isArray(site.experience)
-    ? site.experience
-    : [];
+  const experienceList =
+    section === "projectExperience"
+      ? Array.isArray(site.projectExperience)
+        ? site.projectExperience
+        : []
+      : Array.isArray(site.experience)
+        ? site.experience
+        : [];
 
   const source = useMemo(() => {
     if (!experienceId) return null;
@@ -63,7 +75,11 @@ export function ExperienceEditorModal({
 
   const save = () => {
     if (!draft || !experienceId) return;
-    updateExperienceItem(experienceId, draft);
+    if (section === "projectExperience") {
+      updateProjectExperienceItem(experienceId, draft);
+    } else {
+      updateExperienceItem(experienceId, draft);
+    }
     onClose();
   };
 
@@ -97,7 +113,7 @@ export function ExperienceEditorModal({
                 id={titleId}
                 className="text-lg font-semibold tracking-[-0.02em]"
               >
-                编辑工作经历
+                {section === "projectExperience" ? "编辑项目经历" : "编辑工作经历"}
               </h2>
               <p className="mt-1 text-xs text-ink-muted">
                 保存后写入本机浏览器。代表项目可在履历详情中点击查看媒体。

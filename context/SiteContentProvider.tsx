@@ -16,7 +16,15 @@ import {
   publishBundleToServer,
   type FetchPublishedResult,
 } from "@/lib/publish-site-client";
+import {
+  auditPublishPayload,
+  shouldShowAssetHint,
+} from "@/lib/publish-payload-audit";
 import { parseClientResumeScope } from "@/lib/resume-scope";
+import {
+  applyMappedImportToSite,
+  type MappedResumeImport,
+} from "@/lib/resume-parse-mapper";
 import { newExperienceItem } from "@/lib/experience-factory";
 import { newEducationItem } from "@/lib/education-factory";
 import {
@@ -45,7 +53,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -74,6 +81,7 @@ function buildFallbackSite(lang: SiteLang): SiteContent {
             pageIntro:
               "Open each card to view details, evidence and representative work.",
             experienceSectionEyebrow: "Experience",
+            projectExperienceSectionEyebrow: "Projects",
             educationSectionEyebrow: "Education",
             experienceCardCta: "View outcomes →",
             educationCardCta: "View highlights →",
@@ -138,6 +146,8 @@ type SiteContentContextValue = {
         | "transferableSkills"
         | "roleFitEntries"
         | "heroSpotlight"
+        | "heroAsideMode"
+        | "heroPortrait"
         | "contactEmail"
         | "contactPhone"
         | "contactExtra"
@@ -149,6 +159,8 @@ type SiteContentContextValue = {
   ) => void;
   addExperienceItem: () => string;
   removeExperienceItem: (id: string) => void;
+  addProjectExperienceItem: () => string;
+  removeProjectExperienceItem: (id: string) => void;
   addEducationItem: () => string;
   removeEducationItem: (id: string) => void;
   updateResumeCopy: (patch: Partial<ResumeCopy>) => void;
@@ -171,16 +183,24 @@ type SiteContentContextValue = {
   openEducationDetail: (id: string) => void;
   closeResumeDetail: () => void;
   updateExperienceItem: (id: string, item: ExperienceItem) => void;
+  updateProjectExperienceItem: (id: string, item: ExperienceItem) => void;
   updateEducationItems: (items: EducationItem[]) => void;
   addPortfolioProject: (project: PortfolioProject) => void;
   removePortfolioProject: (id: string) => void;
   persistError: string | null;
   dismissPersistError: () => void;
+  /** 内嵌图片 / 发布体积提示（仅编辑权限下展示） */
+  assetHint: string | null;
+  dismissAssetHint: () => void;
   /** 首屏数据（本机 + 服务器）加载完成前为 false，用于避免闪默认示例站 */
   contentReady: boolean;
   /** 读取服务器发布文件失败或损坏时的提示（访客可见） */
   siteLoadWarning: string | null;
   dismissSiteLoadWarning: () => void;
+  resumeImportModalOpen: boolean;
+  openResumeImportModal: () => void;
+  closeResumeImportModal: () => void;
+  applyImportedResume: (mapped: MappedResumeImport) => void;
 };
 
 const defaultProfile: PersistedProfile = {
@@ -215,7 +235,7 @@ const SiteContentContext = createContext<SiteContentContextValue | null>(null);
 
 export function SiteContentProvider({ children }: { children: ReactNode }) {
   const { mode } = useLanguageMode();
-  const [contentReady, setContentReady] = useState(false);
+  const [contentReady, setContentReady] = useState(true);
   const [siteLoadWarning, setSiteLoadWarning] = useState<string | null>(null);
   const publishedMetaRef = useRef<{ updatedAt: number } | null>(null);
   const [profile, setProfile] = useState<PersistedProfile>(defaultProfile);
@@ -235,8 +255,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     useState(false);
   const [pageBackgroundModalOpen, setPageBackgroundModalOpen] =
     useState(false);
+  const [resumeImportModalOpen, setResumeImportModalOpen] = useState(false);
   const [previewMode, setPreviewModeState] = useState(false);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [assetHint, setAssetHint] = useState<string | null>(null);
   const persistErrorTimerRef = useRef<number | null>(null);
   const resumeScopeRef = useRef(parseClientResumeScope());
   resumeScopeRef.current = parseClientResumeScope();
@@ -269,6 +291,31 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const dismissAssetHint = useCallback(() => {
+    setAssetHint(null);
+  }, []);
+
+  const applyPublishAudit = useCallback(
+    (stamped: PersistedSiteBundle): boolean => {
+      const audit = auditPublishPayload(stamped);
+      if (shouldShowAssetHint(audit)) {
+        setAssetHint(mode === "zh" ? audit.summaryZh : audit.summaryEn);
+      } else {
+        setAssetHint(null);
+      }
+      if (audit.exceedsPublishLimit) {
+        showPersistError(
+          mode === "zh"
+            ? audit.summaryZh
+            : audit.summaryEn,
+        );
+        return false;
+      }
+      return true;
+    },
+    [mode, showPersistError],
+  );
+
   const applyBundle = useCallback((bundle: PersistedSiteBundle) => {
     setProfile(bundle.profile);
     setSite(mergeInitialSite(bundle));
@@ -294,6 +341,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      if (!applyPublishAudit(stamped)) return;
+
       void publishBundleToServer(stamped, mode, resumeScopeRef.current).then((res) => {
         if (!res.ok) {
           showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
@@ -303,7 +352,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         if (localOk) dismissPersistError();
       });
     },
-    [dismissPersistError, showPersistError, mode],
+    [dismissPersistError, showPersistError, mode, applyPublishAudit],
   );
 
   useEffect(
@@ -315,36 +364,29 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  /** 首帧即结束加载态，避免客户端水合失败或本机草稿过大时长期卡在「正在加载简历」 */
-  useLayoutEffect(() => {
-    setContentReady(true);
-  }, []);
-
-  /** 读本机草稿；与 contentReady 解耦，大体积 localStorage 解析不会阻塞首屏 */
+  /** 读本机草稿；不阻塞首屏渲染（避免 SSR/水合失败时长期停在加载页） */
   useEffect(() => {
     let cancelled = false;
-    try {
-      applyBundle(hydrateFromLocalStorage(mode));
-    } catch (e) {
-      console.error("[SiteContentProvider] 读本机草稿失败，已回退默认内容", e);
-      if (!cancelled) {
-        applyBundle(
-          stampBundleForSave(
-            buildBundleFromState(defaultProfile, buildFallbackSite(mode)),
-          ),
-        );
+    const timer = window.setTimeout(() => {
+      try {
+        if (cancelled) return;
+        applyBundle(hydrateFromLocalStorage(mode));
+      } catch (e) {
+        console.error("[SiteContentProvider] 读本机草稿失败，已回退默认内容", e);
+        if (!cancelled) {
+          applyBundle(
+            stampBundleForSave(
+              buildBundleFromState(defaultProfile, buildFallbackSite(mode)),
+            ),
+          );
+        }
       }
-    }
+    }, 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
   }, [applyBundle, mode]);
-
-  /** 水合异常时的兜底：确保最多约 1.5s 后也能进入页面 */
-  useEffect(() => {
-    const timer = window.setTimeout(() => setContentReady(true), 1500);
-    return () => window.clearTimeout(timer);
-  }, []);
 
   /** 后台拉取服务器发布版，不阻塞首屏 */
   useEffect(() => {
@@ -422,6 +464,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     );
     savePersistedBundle(stamped, mode, resumeScopeRef.current);
 
+    if (!applyPublishAudit(stamped)) return;
+
     void publishBundleToServer(stamped, mode, resumeScopeRef.current).then((res) => {
       if (!res.ok) {
         showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
@@ -436,6 +480,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     applyBundle,
     showPersistError,
     mode,
+    applyPublishAudit,
   ]);
 
   /**
@@ -550,6 +595,15 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         const x = meta.contactExtra.trim();
         s.contactExtra = x.length ? x : undefined;
       }
+      if (meta?.heroAsideMode !== undefined) {
+        s.heroAsideMode = meta.heroAsideMode;
+      }
+      if (meta?.heroPortrait !== undefined) {
+        s.heroPortrait = {
+          url: meta.heroPortrait.url.trim(),
+          caption: meta.heroPortrait.caption?.trim() || undefined,
+        };
+      }
       commitAll(p, s);
       setSetupModalOpen(false);
     },
@@ -568,6 +622,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           | "transferableSkills"
           | "roleFitEntries"
           | "heroSpotlight"
+          | "heroAsideMode"
+          | "heroPortrait"
           | "contactEmail"
           | "contactPhone"
           | "contactExtra"
@@ -614,6 +670,15 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       }
       if (patch.heroSpotlight !== undefined) {
         s.heroSpotlight = patch.heroSpotlight;
+      }
+      if (patch.heroAsideMode !== undefined) {
+        s.heroAsideMode = patch.heroAsideMode;
+      }
+      if (patch.heroPortrait !== undefined) {
+        s.heroPortrait = {
+          url: patch.heroPortrait.url.trim(),
+          caption: patch.heroPortrait.caption?.trim() || undefined,
+        };
       }
       if (patch.contactEmail !== undefined) {
         const e = patch.contactEmail.trim();
@@ -671,6 +736,27 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       commitAll(profileRef.current, {
         ...s,
         experience: s.experience.filter((e) => e.id !== id),
+      });
+    },
+    [commitAll],
+  );
+
+  const addProjectExperienceItem = useCallback(() => {
+    const s = siteRef.current;
+    const item = newExperienceItem();
+    commitAll(profileRef.current, {
+      ...s,
+      projectExperience: [item, ...(s.projectExperience ?? [])],
+    });
+    return item.id;
+  }, [commitAll]);
+
+  const removeProjectExperienceItem = useCallback(
+    (id: string) => {
+      const s = siteRef.current;
+      commitAll(profileRef.current, {
+        ...s,
+        projectExperience: (s.projectExperience ?? []).filter((e) => e.id !== id),
       });
     },
     [commitAll],
@@ -800,6 +886,20 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     [commitAll],
   );
 
+  const updateProjectExperienceItem = useCallback(
+    (id: string, item: ExperienceItem) => {
+      const s = siteRef.current;
+      const next: SiteContent = {
+        ...s,
+        projectExperience: (s.projectExperience ?? []).map((e) =>
+          e.id === id ? item : e,
+        ),
+      };
+      commitAll(profileRef.current, next);
+    },
+    [commitAll],
+  );
+
   const updateEducationItems = useCallback(
     (items: EducationItem[]) => {
       const s = siteRef.current;
@@ -830,6 +930,30 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     [commitAll],
   );
 
+  const openResumeImportModal = useCallback(() => {
+    if (!canEdit) return;
+    setResumeImportModalOpen(true);
+  }, [canEdit]);
+
+  const closeResumeImportModal = useCallback(() => {
+    setResumeImportModalOpen(false);
+  }, []);
+
+  const applyImportedResume = useCallback(
+    (mapped: MappedResumeImport) => {
+      const cur = siteRef.current;
+      const nextSite = applyMappedImportToSite(cur, mapped);
+      const p: PersistedProfile = {
+        ...profileRef.current,
+        name: mapped.profilePatch.name,
+        tagline: mapped.profilePatch.tagline,
+        setupDismissed: true,
+      };
+      commitAll(p, nextSite);
+    },
+    [commitAll],
+  );
+
   const value = useMemo(
     () => ({
       site,
@@ -843,6 +967,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       updateQuickHeroFields,
       addExperienceItem,
       removeExperienceItem,
+      addProjectExperienceItem,
+      removeProjectExperienceItem,
       addEducationItem,
       removeEducationItem,
       updateResumeCopy,
@@ -865,14 +991,21 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       openEducationDetail,
       closeResumeDetail,
       updateExperienceItem,
+      updateProjectExperienceItem,
       updateEducationItems,
       addPortfolioProject,
       removePortfolioProject,
       persistError,
       dismissPersistError,
+      assetHint,
+      dismissAssetHint,
       contentReady,
       siteLoadWarning,
       dismissSiteLoadWarning,
+      resumeImportModalOpen,
+      openResumeImportModal,
+      closeResumeImportModal,
+      applyImportedResume,
     }),
     [
       site,
@@ -886,6 +1019,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       updateQuickHeroFields,
       addExperienceItem,
       removeExperienceItem,
+      addProjectExperienceItem,
+      removeProjectExperienceItem,
       addEducationItem,
       removeEducationItem,
       updateResumeCopy,
@@ -908,14 +1043,21 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       openEducationDetail,
       closeResumeDetail,
       updateExperienceItem,
+      updateProjectExperienceItem,
       updateEducationItems,
       addPortfolioProject,
       removePortfolioProject,
       persistError,
       dismissPersistError,
+      assetHint,
+      dismissAssetHint,
       contentReady,
       siteLoadWarning,
       dismissSiteLoadWarning,
+      resumeImportModalOpen,
+      openResumeImportModal,
+      closeResumeImportModal,
+      applyImportedResume,
     ],
   );
 

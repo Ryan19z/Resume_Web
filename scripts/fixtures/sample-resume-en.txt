@@ -1,0 +1,29 @@
+Jake Ryan
+123-456-7890 | jake@su.edu | linkedin.com/in/jake
+
+Summary
+Computer science graduate with experience in full-stack development and AI research.
+
+Technical Skills
+Java, Python, JavaScript, React, Node.js, Flask, FastAPI, PostgreSQL, Docker, Git
+
+Experience
+June 2020 - Present  Texas A&M University  Undergraduate Research Assistant
+- Developed a REST API using FastAPI and PostgreSQL
+- Developed a full-stack web application using Flask, React, PostgreSQL and Docker
+
+Sep. 2018 - Present  Southwestern University  Information Technology Support Specialist
+- Communicate with managers to set up campus computers
+- Assess and troubleshoot computer problems
+
+May 2019 - July 2019  Southwestern University  Artificial Intelligence Research Assistant
+- Explored methods to generate video game dungeons
+- Developed a game in Java to test the generated dungeons
+
+Education
+Aug. 2018 - May 2021  Southwestern University  Bachelor of Arts in Computer Science
+Aug. 2014 - May 2018  Blinn College  Associate's in Liberal Arts
+
+Projects
+Gitlytics — Python, Flask, React, PostgreSQL, Docker
+Simple Paintball — Java, Spigot API, Maven

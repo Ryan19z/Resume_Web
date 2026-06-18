@@ -9,12 +9,18 @@ import {
   composeShareEmailText,
   defaultShareEmailMessage,
 } from "@/lib/share-email-compose";
-import { useCallback, useEffect, useId, useState } from "react";
+import {
+  appendResumeScopeToPath,
+  parseClientResumeScope,
+} from "@/lib/resume-scope";
+import { buildShareLink } from "@/lib/share-url";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 type Sheet = "menu" | "email" | "qr";
 
 const SHARE_EMAIL_BODY_KEY = "share-email-body-v1";
+const SHARE_LOCK_LANG_KEY = "share-lock-lang-v1";
 
 function isValidEmail(v: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
@@ -31,7 +37,7 @@ function isLocalDevPageUrl(href: string): boolean {
 
 export function ShareResumeControl() {
   const { mode } = useLanguageMode();
-  const { site } = useSiteContent();
+  const { site, canEdit, editPermissionLoaded } = useSiteContent();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [sheet, setSheet] = useState<Sheet>("menu");
@@ -43,11 +49,29 @@ export function ShareResumeControl() {
     "idle",
   );
   const [sendMsg, setSendMsg] = useState("");
+  const [lockLangOnShare, setLockLangOnShare] = useState(false);
   const menuTitleId = useId();
   const emailTitleId = useId();
   const qrTitleId = useId();
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    try {
+      setLockLangOnShare(window.localStorage.getItem(SHARE_LOCK_LANG_KEY) === "1");
+    } catch {
+      setLockLangOnShare(false);
+    }
+  }, []);
+
+  const persistLockLangPref = useCallback((checked: boolean) => {
+    setLockLangOnShare(checked);
+    try {
+      window.localStorage.setItem(SHARE_LOCK_LANG_KEY, checked ? "1" : "0");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -83,22 +107,14 @@ export function ShareResumeControl() {
     setSendMsg("");
   }, [open]);
 
-  const shareUrl = (() => {
+  const shareUrl = useMemo(() => {
     if (!pageUrl) return "";
-    try {
-      const u = new URL(pageUrl);
-      const resumeId = u.searchParams.get("resumeId");
-      const viewToken = u.searchParams.get("viewToken");
-      if (!resumeId || !viewToken) return pageUrl;
-      const view = new URL(u.origin + u.pathname);
-      view.searchParams.set("resumeId", resumeId);
-      view.searchParams.set("viewToken", viewToken);
-      if (u.hash) view.hash = u.hash;
-      return view.toString();
-    } catch {
-      return pageUrl;
-    }
-  })();
+    return buildShareLink(pageUrl, {
+      lang: mode,
+      lockLang: lockLangOnShare,
+      stripEditSecrets: editPermissionLoaded && canEdit,
+    });
+  }, [pageUrl, mode, lockLangOnShare, editPermissionLoaded, canEdit]);
 
   useBodyScrollLock(open);
 
@@ -136,7 +152,11 @@ export function ShareResumeControl() {
     setSendState("sending");
     setSendMsg("");
     try {
-      const r = await fetch("/api/share-email", {
+      const path = appendResumeScopeToPath("/api/share-email", parseClientResumeScope(), {
+        includeEditToken: true,
+        includeViewToken: false,
+      });
+      const r = await fetch(path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -260,7 +280,34 @@ export function ShareResumeControl() {
                 <p className="text-[11px] font-medium text-ink-muted">
                   {mode === "zh" ? "页面链接" : "Page URL"}
                 </p>
-                <div className="mt-1.5 rounded-xl border border-line bg-paper/90 px-3 py-2.5">
+                <p className="mt-1 text-[10px] leading-relaxed text-ink-muted/90">
+                  {mode === "zh"
+                    ? `链接已固定为中文版（?lang=zh）${lockLangOnShare ? "，且访客无法切换语言" : "。"}`
+                    : `Link opens the English version (?lang=en)${
+                        lockLangOnShare ? "; language switch hidden for visitors." : "."
+                      }`}
+                </p>
+                <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-line/80 bg-paper/60 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={lockLangOnShare}
+                    onChange={(e) => persistLockLangPref(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-line accent-[rgb(var(--selection))]"
+                  />
+                  <span className="min-w-0 text-[11px] leading-relaxed text-ink">
+                    <span className="font-medium">
+                      {mode === "zh"
+                        ? "隐藏语言切换（推荐给 HR）"
+                        : "Hide language switch (recommended for recruiters)"}
+                    </span>
+                    <span className="mt-0.5 block text-ink-muted">
+                      {mode === "zh"
+                        ? "访客只能看当前语言版本，避免误切到另一套简历。"
+                        : "Visitors only see this language; they cannot switch to the other resume."}
+                    </span>
+                  </span>
+                </label>
+                <div className="mt-2 rounded-xl border border-line bg-paper/90 px-3 py-2.5">
                   <p className="break-all font-mono text-[11px] leading-relaxed text-ink/90">
                     {shareUrl || (mode === "zh" ? "加载中…" : "Loading...")}
                   </p>
@@ -279,13 +326,15 @@ export function ShareResumeControl() {
                         ? "复制链接"
                         : "Copy link"}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setSheet("email")}
-                    className="w-full rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink/20 sm:flex-1"
-                  >
-                    {mode === "zh" ? "发送到邮箱" : "Send via email"}
-                  </button>
+                  {editPermissionLoaded && canEdit ? (
+                    <button
+                      type="button"
+                      onClick={() => setSheet("email")}
+                      className="w-full rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink/20 sm:flex-1"
+                    >
+                      {mode === "zh" ? "发送到邮箱" : "Send via email"}
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     onClick={() => setSheet("qr")}

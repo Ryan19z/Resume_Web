@@ -164,8 +164,8 @@ export function ViewLogModal({ open, onClose }: Props) {
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-ink-muted">
             {mode === "zh"
-              ? "统计只读链接被打开的次数与独立访客。无法识别具体公司名或 HR 姓名，仅按网络与地区估算。"
-              : "Counts read-only link opens and unique visitors. Cannot identify company names or people—network/region only."}
+              ? "统计只读链接被打开的次数与独立访客。无法识别具体公司名或 HR 姓名，仅按网络与地区估算，不保存 IP 明文。"
+              : "Counts read-only link opens and unique visitors. Cannot identify company names or people—network/region only, no raw IP stored."}
           </p>
           {!empty ? (
             <div className="mt-3 grid grid-cols-2 gap-2">

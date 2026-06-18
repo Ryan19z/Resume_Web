@@ -32,6 +32,52 @@ function ProjectCard({
   mode: "zh" | "en";
 }) {
   const poster = project.posterSrc ?? project.coverSrc;
+  const hasCover = Boolean(project.coverSrc?.trim());
+  if (!hasCover) {
+    return (
+      <motion.article
+        initial={false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 260,
+          damping: 28,
+          mass: 0.88,
+          delay: index * 0.05,
+        }}
+        className="micro-card group relative flex flex-col rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(0,0,0,0.08)] print:break-inside-avoid"
+      >
+        {canEdit ? (
+          <button
+            type="button"
+            aria-label={mode === "zh" ? "删除作品" : "Delete project"}
+            onClick={() => onRemove(project.id)}
+            className="absolute right-3 top-3 z-[2] rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm transition-colors hover:bg-black/60 print:hidden"
+          >
+            {mode === "zh" ? "删除" : "Delete"}
+          </button>
+        ) : null}
+        <h3 className="pr-16 text-lg font-bold tracking-[-0.02em] text-ink">
+          {project.title}
+        </h3>
+        {project.description ? (
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
+            {project.description}
+          </p>
+        ) : null}
+        {project.href && project.href !== "#" && isReasonableHttpUrl(project.href) ? (
+          <a
+            href={project.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-flex text-sm font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline"
+          >
+            {pageCopy.openLinkLabel}
+          </a>
+        ) : null}
+      </motion.article>
+    );
+  }
   return (
     <motion.article
       initial={false}

@@ -7,6 +7,7 @@ import { useSiteContent } from "@/context/SiteContentProvider";
 import { defaultSiteContent } from "@/lib/default-site-content";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
 import type { EducationItem, ExperienceItem } from "@/lib/types";
+import { resolveEducationDisplay } from "@/lib/education-display";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -68,6 +69,13 @@ function ExperienceSection({
         animate="show"
       >
         {items.map((c) => (
+          (() => {
+            const cardSummary =
+              c.summary?.trim() ||
+              (Array.isArray(c.keyResults) && c.keyResults.length > 0
+                ? c.keyResults[0]
+                : "");
+            return (
           <motion.li
             key={c.id}
             role="listitem"
@@ -84,14 +92,14 @@ function ExperienceSection({
                   <h3 className="text-base font-semibold tracking-[-0.01em]">
                     {c.title}
                   </h3>
-                  <span className="text-[13px] tabular-nums text-ink-muted">
+                  <span className="shrink-0 whitespace-nowrap pl-3 text-[13px] tabular-nums text-ink-muted">
                     {c.period}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-ink-muted">{c.subtitle}</p>
-                {c.summary ? (
+                {cardSummary ? (
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
-                    {c.summary}
+                    {cardSummary}
                   </p>
                 ) : null}
                 <p className="mt-4 text-[13px] font-medium text-ink-muted">
@@ -118,6 +126,8 @@ function ExperienceSection({
               ) : null}
             </div>
           </motion.li>
+            );
+          })()
         ))}
       </motion.ul>
     </div>
@@ -142,7 +152,9 @@ function EducationSection({
         initial="show"
         animate="show"
       >
-        {items.map((c) => (
+        {items.map((c) => {
+          const { school, major } = resolveEducationDisplay(c);
+          return (
           <motion.li
             key={c.id}
             role="listitem"
@@ -156,19 +168,20 @@ function EducationSection({
             >
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <h3 className="text-base font-semibold tracking-[-0.01em]">
-                  {c.title}
+                  {school}
                 </h3>
                 <span className="text-[13px] tabular-nums text-ink-muted">
                   {c.period}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-ink-muted">{c.subtitle}</p>
+              <p className="mt-1 text-sm text-ink-muted">{major}</p>
               <p className="mt-4 text-[13px] font-medium text-ink-muted">
                 {cardCta}
               </p>
             </button>
           </motion.li>
-        ))}
+        );
+        })}
       </motion.ul>
     </div>
   );
@@ -184,6 +197,8 @@ export function ResumePage() {
     previewMode,
     addExperienceItem,
     removeExperienceItem,
+    addProjectExperienceItem,
+    removeProjectExperienceItem,
     updateEducationItems,
     addEducationItem,
     removeEducationItem,
@@ -194,17 +209,28 @@ export function ResumePage() {
   const experience = Array.isArray(site.experience)
     ? site.experience
     : defaultSiteContent.experience;
+  const projectExperience = Array.isArray(site.projectExperience)
+    ? site.projectExperience
+    : defaultSiteContent.projectExperience;
   const education = Array.isArray(site.education)
     ? site.education
     : defaultSiteContent.education;
   const [expEditorId, setExpEditorId] = useState<string | null>(null);
+  const [expEditorSection, setExpEditorSection] = useState<
+    "experience" | "projectExperience"
+  >("experience");
   const [eduEditing, setEduEditing] = useState(false);
   const showAuthorTools = canEdit && !previewMode;
   const canInline = editPermissionLoaded && canEdit && !previewMode;
+  const showWorkSection = showAuthorTools || !previewMode || experience.length > 0;
+  const showProjectSection =
+    showAuthorTools || !previewMode || projectExperience.length > 0;
+  const showEducationSection = showAuthorTools || !previewMode || education.length > 0;
   const i18n = {
     edit: mode === "zh" ? "编辑" : "Edit",
     remove: mode === "zh" ? "删除" : "Delete",
     addExp: mode === "zh" ? "+ 添加工作经历" : "+ Add experience",
+    addProjectExp: mode === "zh" ? "+ 添加项目经历" : "+ Add project",
     addEdu: mode === "zh" ? "+ 添加教育经历" : "+ Add education",
     closeEdit: mode === "zh" ? "关闭编辑" : "Close editor",
     editSave: mode === "zh" ? "编辑 / 保存" : "Edit / Save",
@@ -212,6 +238,10 @@ export function ResumePage() {
       mode === "zh"
         ? "确认删除这条工作经历吗？删除后无法自动恢复。"
         : "Delete this experience item?",
+    confirmDeleteProjectExp:
+      mode === "zh"
+        ? "确认删除这条项目经历吗？删除后无法自动恢复。"
+        : "Delete this project item?",
   };
 
   const [pageEyebrow, setPageEyebrow] = useState(() => rc.pageEyebrow ?? "");
@@ -322,50 +352,115 @@ export function ResumePage() {
         )}
       </header>
 
-      <ExperienceSection
-        items={experience}
-        onOpen={openExperienceDetail}
-        showExpEdit={showAuthorTools}
-        onEdit={(id) => setExpEditorId(id)}
-        onDelete={(id) => {
-          if (!window.confirm(i18n.confirmDeleteExp)) return;
-          removeExperienceItem(id);
-          if (expEditorId === id) setExpEditorId(null);
-        }}
-        editLabel={i18n.edit}
-        deleteLabel={i18n.remove}
-        sectionEyebrow={
-          canInline ? (
-            <input
-              type="text"
-              name="resume-exp-section-eyebrow"
-              title="点击修改，停顿后自动保存"
-              value={expSectionEyebrow}
-              onChange={(e) => setExpSectionEyebrow(e.target.value)}
-              maxLength={48}
-              className={`${SEAMLESS_INPUT} w-full text-[13px] font-medium uppercase tracking-[0.2em] text-ink-muted`}
-            />
-          ) : (
-            rc.experienceSectionEyebrow
-          )
-        }
-        cardCta={canInline ? expCardCta : rc.experienceCardCta}
-        headerExtra={
-          showAuthorTools ? (
+      {showWorkSection ? (
+        <ExperienceSection
+          items={experience}
+          onOpen={openExperienceDetail}
+          showExpEdit={showAuthorTools}
+          onEdit={(id) => {
+            setExpEditorSection("experience");
+            setExpEditorId(id);
+          }}
+          onDelete={(id) => {
+            if (!window.confirm(i18n.confirmDeleteExp)) return;
+            removeExperienceItem(id);
+            if (expEditorId === id) setExpEditorId(null);
+          }}
+          editLabel={i18n.edit}
+          deleteLabel={i18n.remove}
+          sectionEyebrow={
+            canInline ? (
+              <input
+                type="text"
+                name="resume-exp-section-eyebrow"
+                title="点击修改，停顿后自动保存"
+                value={expSectionEyebrow}
+                onChange={(e) => setExpSectionEyebrow(e.target.value)}
+                maxLength={48}
+                className={`${SEAMLESS_INPUT} w-full text-[13px] font-medium uppercase tracking-[0.2em] text-ink-muted`}
+              />
+            ) : (
+              rc.experienceSectionEyebrow
+            )
+          }
+          cardCta={canInline ? expCardCta : rc.experienceCardCta}
+          headerExtra={
+            showAuthorTools ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const id = addExperienceItem();
+                  setExpEditorSection("experience");
+                  setExpEditorId(id);
+                }}
+                className="rounded-full border border-dashed border-ink/20 bg-surface/90 px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
+              >
+                {i18n.addExp}
+              </button>
+            ) : null
+          }
+        />
+      ) : null}
+
+      {showProjectSection && projectExperience.length > 0 ? (
+        <ExperienceSection
+          items={projectExperience}
+          onOpen={openExperienceDetail}
+          showExpEdit={showAuthorTools}
+          onEdit={(id) => {
+            setExpEditorSection("projectExperience");
+            setExpEditorId(id);
+          }}
+          onDelete={(id) => {
+            if (!window.confirm(i18n.confirmDeleteProjectExp)) return;
+            removeProjectExperienceItem(id);
+            if (expEditorId === id) setExpEditorId(null);
+          }}
+          editLabel={i18n.edit}
+          deleteLabel={i18n.remove}
+          sectionEyebrow={
+            <span>{rc.projectExperienceSectionEyebrow ?? "项目经历"}</span>
+          }
+          cardCta={mode === "zh" ? "查看项目详情 →" : "View project →"}
+          headerExtra={
+            showAuthorTools ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const id = addProjectExperienceItem();
+                  setExpEditorSection("projectExperience");
+                  setExpEditorId(id);
+                }}
+                className="rounded-full border border-dashed border-ink/20 bg-surface/90 px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
+              >
+                {i18n.addProjectExp}
+              </button>
+            ) : null
+          }
+        />
+      ) : null}
+      {projectExperience.length === 0 && showAuthorTools ? (
+        <div className="mb-14">
+          <div className="mb-5 flex items-end justify-between gap-3">
+            <div className="text-[13px] font-medium uppercase tracking-[0.2em] text-ink-muted">
+              {rc.projectExperienceSectionEyebrow ?? "项目经历"}
+            </div>
             <button
               type="button"
               onClick={() => {
-                const id = addExperienceItem();
+                const id = addProjectExperienceItem();
+                setExpEditorSection("projectExperience");
                 setExpEditorId(id);
               }}
               className="rounded-full border border-dashed border-ink/20 bg-surface/90 px-4 py-2 text-xs font-medium text-ink-muted transition-colors hover:border-ink/30 hover:text-ink"
             >
-              {i18n.addExp}
+              {i18n.addProjectExp}
             </button>
-          ) : null
-        }
-      />
+          </div>
+        </div>
+      ) : null}
 
+      {showEducationSection ? (
       <div className="mb-14">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           {canInline ? (
@@ -426,10 +521,12 @@ export function ResumePage() {
           />
         )}
       </div>
+      ) : null}
 
       <ExperienceEditorModal
         open={Boolean(expEditorId)}
         experienceId={expEditorId}
+        section={expEditorSection}
         onClose={() => setExpEditorId(null)}
       />
     </div>

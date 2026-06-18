@@ -1,4 +1,8 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+} from "@/lib/server/rate-limit";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { canEditByToken } from "@/lib/server/resume-space-store";
 import {
@@ -14,6 +18,19 @@ import { type NextRequest, NextResponse } from "next/server";
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1024MB
 
 export async function POST(request: NextRequest) {
+  const limited = checkRateLimit(
+    request.headers,
+    "upload-asset",
+    40,
+    15 * 60 * 1000,
+  );
+  if (!limited.ok) {
+    return NextResponse.json(rateLimitResponse(limited.retryAfterSec), {
+      status: 429,
+      headers: { "Retry-After": String(limited.retryAfterSec) },
+    });
+  }
+
   const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
   const editToken = sanitizeResumeToken(
     request.nextUrl.searchParams.get("editToken"),

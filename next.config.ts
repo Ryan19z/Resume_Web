@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * 切勿在开发环境设置 `allowedDevOrigins`：一旦设置，Next 会进入 **block** 模式，
@@ -10,6 +14,8 @@ import type { NextConfig } from "next";
  * no-cors 分支，故已移除；请勿在环境变量中开启该开关。
  */
 const nextConfig: NextConfig = {
+  /** 避免父目录 package-lock 被误判为 monorepo 根，导致 dev 下 CSS/chunk 路径错乱 */
+  outputFileTracingRoot: appRoot,
   /**
    * 在 GitHub Actions 构建 standalone 包，服务器无需 npm install / next build（轻量机易超时）。
    */
@@ -19,6 +25,45 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["framer-motion"],
   },
   transpilePackages: ["docx-preview", "pptx-preview"],
+  serverExternalPackages: ["pdf-parse", "mammoth"],
+  async headers() {
+    if (process.env.NODE_ENV === "development") {
+      return [
+        {
+          source: "/",
+          headers: [
+            {
+              key: "Cache-Control",
+              value: "no-store, no-cache, must-revalidate, max-age=0",
+            },
+          ],
+        },
+        {
+          source: "/_next/static/:path*",
+          headers: [
+            {
+              key: "Cache-Control",
+              value: "no-store, no-cache, must-revalidate, max-age=0",
+            },
+          ],
+        },
+      ];
+    }
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
+          },
+        ],
+      },
+    ];
+  },
   /** 默认演示图已改为 `public/placeholders` 同域资源；若后续对远程图使用 `next/image`，在此补充 `remotePatterns`。 */
   /**
    * 不再在 dev 下强制 `cache: false`：在 Windows 上并发请求（例如快速刷新）
@@ -46,33 +91,6 @@ const nextConfig: NextConfig = {
 if (process.env.SKIP_BUILD_CHECKS === "1") {
   nextConfig.typescript = { ignoreBuildErrors: true };
   nextConfig.eslint = { ignoreDuringBuilds: true };
-}
-
-if (process.env.NODE_ENV === "development") {
-  /**
-   * 首页与 dev 静态资源禁用强缓存，降低经隧道访问时「HTML 与 CSS 指纹不一致」
-   * 导致 layout.css 404、整页无 Tailwind 的概率。
-   */
-  nextConfig.headers = async () => [
-    {
-      source: "/",
-      headers: [
-        {
-          key: "Cache-Control",
-          value: "no-store, no-cache, must-revalidate, max-age=0",
-        },
-      ],
-    },
-    {
-      source: "/_next/static/:path*",
-      headers: [
-        {
-          key: "Cache-Control",
-          value: "no-store, no-cache, must-revalidate, max-age=0",
-        },
-      ],
-    },
-  ];
 }
 
 export default nextConfig;

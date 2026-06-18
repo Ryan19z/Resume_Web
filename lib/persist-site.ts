@@ -10,6 +10,8 @@ import type {
   EducationItem,
   ExperienceItem,
   HeroSpotlight,
+  HeroAsideMode,
+  HeroPortrait,
   PersistedProfile,
   PersistedSiteBundle,
   PortfolioProject,
@@ -87,8 +89,11 @@ function normalizeRoleFitEntries(
   raw: unknown,
   fallback: RoleFitEntry[],
 ): RoleFitEntry[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
+  if (!Array.isArray(raw)) {
     return fallback.map((x) => ({ ...x }));
+  }
+  if (raw.length === 0) {
+    return [];
   }
   const out: RoleFitEntry[] = [];
   for (let i = 0; i < raw.length; i++) {
@@ -116,7 +121,7 @@ function normalizeRoleFitEntries(
       proof: proofRaw || undefined,
     });
   }
-  return out.length > 0 ? out.slice(0, 12) : fallback.map((x) => ({ ...x }));
+  return out.length > 0 ? out.slice(0, 12) : [];
 }
 
 function normalizeHeroContactQrs(
@@ -214,10 +219,18 @@ function normalizeHeroSpotlight(
       : null;
   const normalizeLink = (v: unknown): string | undefined =>
     typeof v === "string" ? v.trim() : undefined;
+  const normalizeGallery = (v: unknown): string[] | undefined => {
+    if (!Array.isArray(v)) return undefined;
+    const urls = v
+      .map((item) => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+    return urls.length > 0 ? urls : undefined;
+  };
   const mediaLinks: HeroSpotlight["mediaLinks"] =
     linksObj
       ? {
           image: normalizeLink(linksObj.image),
+          gallery: normalizeGallery(linksObj.gallery),
           video: normalizeLink(linksObj.video),
           link: normalizeLink(linksObj.link),
           document: normalizeLink(linksObj.document),
@@ -243,6 +256,23 @@ function normalizeHeroSpotlight(
     const url = typeof m.url === "string" ? m.url.trim() : "";
     if (url.length > 0) {
       return { title, summary, media: { kind, url }, mediaLinks, documentName };
+    }
+  }
+  if (kind === "gallery") {
+    const urlsRaw = m.urls;
+    const urls = Array.isArray(urlsRaw)
+      ? urlsRaw
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean)
+      : [];
+    if (urls.length > 0) {
+      return {
+        title,
+        summary,
+        media: { kind: "gallery", urls },
+        mediaLinks,
+        documentName,
+      };
     }
   }
   if (kind === "document") {
@@ -288,6 +318,20 @@ function normalizeHeroSpotlight(
     mediaLinks,
     documentName,
   };
+}
+
+function normalizeHeroAsideMode(raw: unknown, fallback: HeroAsideMode): HeroAsideMode {
+  return raw === "portrait" || raw === "hidden" ? raw : fallback;
+}
+
+function normalizeHeroPortrait(raw: unknown, fallback: HeroPortrait): HeroPortrait {
+  if (!raw || typeof raw !== "object") return fallback;
+  const o = raw as Record<string, unknown>;
+  const url = typeof o.url === "string" ? o.url.trim() : fallback.url;
+  const captionRaw = o.caption;
+  const caption =
+    typeof captionRaw === "string" ? captionRaw.trim() || undefined : fallback.caption;
+  return { url, caption };
 }
 
 function migrateExperienceItem(
@@ -541,8 +585,7 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
         .filter(Boolean)
         .slice(0, 10)
     : [...base.heroPreviewLines];
-  const normalizedHeroPreviewLines =
-    heroPreviewLines.length > 0 ? heroPreviewLines : [...base.heroPreviewLines];
+  const normalizedHeroPreviewLines = heroPreviewLines;
 
   const rawSkills = (s as SiteContent).transferableSkills;
   const transferableSkills = Array.isArray(rawSkills)
@@ -617,11 +660,22 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     base.pageBackground ?? defaultPageBackground,
   );
 
+  const heroAsideMode = normalizeHeroAsideMode(
+    (s as SiteContent).heroAsideMode,
+    base.heroAsideMode ?? "showcase",
+  );
+  const heroPortrait = normalizeHeroPortrait(
+    (s as SiteContent).heroPortrait,
+    base.heroPortrait ?? { url: "", caption: "" },
+  );
+
   const merged: SiteContent = {
     ...base,
     ...s,
     heroCopy,
     heroSpotlight,
+    heroAsideMode,
+    heroPortrait,
     pageBackground,
     resumeCopy,
     portfolioCopy,
@@ -648,6 +702,16 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
             ),
           )
         : base.experience,
+    projectExperience:
+      Array.isArray(s.projectExperience)
+        ? s.projectExperience.map((item, i) =>
+            migrateExperienceItem(
+              item,
+              base.projectExperience[i] ??
+                defaultSiteContent.experience[0],
+            ),
+          )
+        : base.projectExperience ?? defaultSiteContent.projectExperience,
     education:
       Array.isArray(s.education) && s.education.length > 0
         ? s.education.map((item, i) =>

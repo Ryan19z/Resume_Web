@@ -4,7 +4,7 @@ import {
   PORTFOLIO_LINK_PLACEHOLDER,
 } from "./media-defaults";
 import { defaultPageBackground } from "./page-background";
-import type { SiteContent } from "./types";
+import type { HeroSpotlight, SiteContent } from "./types";
 
 export const defaultSiteContent: SiteContent = {
   name: "你的名字",
@@ -46,7 +46,7 @@ export const defaultSiteContent: SiteContent = {
   heroSpotlight: {
     title: "个人核心优势展示窗",
     summary:
-      "可展示你最拿得出手的一项成果：代码片段、摄影作品、Vlog、广告案例、小程序链接或项目网址。",
+      "可展示你最拿得出手的一项成果：代码片段、摄影作品（支持多图）、Vlog、广告案例、小程序链接或项目网址。",
     media: {
       kind: "image",
       url: PLACEHOLDER_IMAGES.wide3,
@@ -58,6 +58,11 @@ export const defaultSiteContent: SiteContent = {
       document: "",
     },
     documentName: "",
+  },
+  heroAsideMode: "showcase",
+  heroPortrait: {
+    url: "",
+    caption: "",
   },
   contactEmail: "you@example.com",
   contactPhone: "13800000000",
@@ -82,6 +87,7 @@ export const defaultSiteContent: SiteContent = {
     pageIntro:
       "点击卡片查看详情；代表项目内可打开图片、视频或代码。若当前网络 IP 已授权，可编辑经历与教育信息。",
     experienceSectionEyebrow: "工作经历",
+    projectExperienceSectionEyebrow: "项目经历",
     educationSectionEyebrow: "教育背景",
     experienceCardCta: "查看工作成果 →",
     educationCardCta: "查看校园成果 →",
@@ -158,6 +164,7 @@ export const defaultSiteContent: SiteContent = {
       ],
     },
   ],
+  projectExperience: [],
   education: [
     {
       id: "edu-1",
@@ -248,3 +255,33 @@ export const defaultSiteContent: SiteContent = {
     },
   ],
 };
+
+/** 简历导入时重置「个人核心优势展示窗」，清空上一份上传的媒体 */
+export function emptyHeroSpotlightForImport(): HeroSpotlight {
+  const base = defaultSiteContent.heroSpotlight;
+  return {
+    title: base.title,
+    summary: base.summary,
+    media: { kind: "image", url: "" },
+    mediaLinks: { image: "", gallery: [], video: "", link: "", document: "" },
+    documentName: "",
+  };
+}
+
+/** 简历导入时重置首页右侧展示（证件照 / 联系二维码等），避免沿用上一份简历 */
+export function resetHeroPersonalDisplayForImport(): Pick<
+  SiteContent,
+  | "heroAsideMode"
+  | "heroPortrait"
+  | "heroContactQrs"
+  | "heroContactQrSrc"
+  | "heroContactQrCaption"
+> {
+  return {
+    heroAsideMode: "hidden",
+    heroPortrait: { url: "", caption: undefined },
+    heroContactQrs: [{ id: "qr-1", src: "", caption: undefined }],
+    heroContactQrSrc: undefined,
+    heroContactQrCaption: undefined,
+  };
+}

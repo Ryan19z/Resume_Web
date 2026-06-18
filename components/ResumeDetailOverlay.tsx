@@ -2,6 +2,7 @@
 
 import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { resolveEducationDisplay } from "@/lib/education-display";
 import type { AchievementBlock, RepresentativeProject } from "@/lib/types";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { AnimatePresence, motion } from "framer-motion";
@@ -187,10 +188,17 @@ export function ResumeDetailOverlay() {
     if (!resumeDetail) return;
     const exists =
       resumeDetail.kind === "experience"
-        ? site.experience.some((e) => e.id === resumeDetail.id)
+        ? site.experience.some((e) => e.id === resumeDetail.id) ||
+          (site.projectExperience ?? []).some((e) => e.id === resumeDetail.id)
         : site.education.some((e) => e.id === resumeDetail.id);
     if (!exists) closeResumeDetail();
-  }, [resumeDetail, site.experience, site.education, closeResumeDetail]);
+  }, [
+    resumeDetail,
+    site.experience,
+    site.projectExperience,
+    site.education,
+    closeResumeDetail,
+  ]);
 
   useBodyScrollLock(Boolean(resumeDetail));
 
@@ -198,11 +206,16 @@ export function ResumeDetailOverlay() {
     if (!resumeDetail) return null;
     const rc = site.resumeCopy;
     if (resumeDetail.kind === "experience") {
-      const item = site.experience.find((e) => e.id === resumeDetail.id);
+      const item =
+        site.experience.find((e) => e.id === resumeDetail.id) ??
+        site.projectExperience?.find((e) => e.id === resumeDetail.id);
       if (!item) return null;
+      const isProjectItem = (site.projectExperience ?? []).some(
+        (e) => e.id === item.id,
+      );
       return {
         kind: "experience" as const,
-        eyebrow: rc.detailWorkEyebrow,
+        eyebrow: isProjectItem ? "项目详情" : rc.detailWorkEyebrow,
         title: item.title,
         meta: `${item.subtitle} · ${item.period}`,
         intro: item.summary,
@@ -212,16 +225,17 @@ export function ResumeDetailOverlay() {
     }
     const item = site.education.find((e) => e.id === resumeDetail.id);
     if (!item) return null;
+    const { school, major } = resolveEducationDisplay(item);
     return {
       kind: "education" as const,
       eyebrow: rc.detailCampusEyebrow,
-      title: item.title,
-      meta: `${item.subtitle} · ${item.period}`,
+      title: school,
+      meta: `${major} · ${item.period}`,
       intro: item.summary,
       blocks: item.campusHighlights,
       representativeProjects: item.representativeProjects,
     };
-  }, [resumeDetail, site.education, site.experience, site.resumeCopy]);
+  }, [resumeDetail, site.education, site.experience, site.projectExperience, site.resumeCopy]);
 
   useEffect(() => {
     if (!resumeDetail) return;
@@ -292,19 +306,25 @@ export function ResumeDetailOverlay() {
                     <h3 className="mb-3 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-muted">
                       {site.resumeCopy.keyResultsHeading}
                     </h3>
-                    <ul className="flex flex-col gap-3">
-                      {(Array.isArray(payload.keyResults)
-                        ? payload.keyResults
-                        : []
-                      ).map((line, i) => (
-                        <li
-                          key={i}
-                          className="micro-card rounded-xl border border-line bg-surface px-5 py-4 text-[15px] leading-relaxed text-ink/90 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
-                        >
-                          {line}
-                        </li>
-                      ))}
-                    </ul>
+                    {(Array.isArray(payload.keyResults)
+                      ? payload.keyResults
+                      : []
+                    ).length > 0 ? (
+                      <ul className="flex flex-col gap-3">
+                        {payload.keyResults.map((line, i) => (
+                          <li
+                            key={i}
+                            className="micro-card rounded-xl border border-line bg-surface px-5 py-4 text-[15px] leading-relaxed text-ink/90 shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
+                          >
+                            {line}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm leading-relaxed text-ink-muted">
+                        暂无详细描述。可在「站点编辑」中补充项目要点或成果。
+                      </p>
+                    )}
                   </section>
                   {payload.representativeProjects.length > 0 ? (
                     <section>

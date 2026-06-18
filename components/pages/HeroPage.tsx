@@ -1,11 +1,34 @@
 "use client";
 
-import { useSiteContent } from "@/context/SiteContentProvider";
+import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
+import { HeroSpotlightModals } from "@/components/hero/HeroSpotlightModals";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
+import { useSiteContent } from "@/context/SiteContentProvider";
+import {
+  buildDefaultRoleFits,
+  buildSkillTags,
+  extractProofLines,
+  formatContactEntryDisplay,
+  parseContactEntries,
+  resolveHeroAsideMode,
+  resolveVisitorAside,
+  hasShowcaseContent,
+  hasPortraitContent,
+  type ContactQrDraft,
+  type RoleFitDraft,
+  type SpotlightKind,
+  type SpotlightMediaLinks,
+  type VisitorAsideView,
+} from "@/lib/hero-page-utils";
+import type { HeroAsideMode } from "@/lib/types";
+import {
+  applyVideoSnapshot,
+  readVideoSnapshot,
+} from "@/lib/hero-video-utils";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
 import { randomId } from "@/lib/random-id";
+import { resolveVideoPreview } from "@/lib/resolve-video-preview";
 import { appendResumeScopeToPath, parseClientResumeScope } from "@/lib/resume-scope";
-import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
 import { ensureUploadFileName } from "@/lib/upload-asset-client";
 import { documentAcceptList } from "@/lib/upload-mime";
 import { motion } from "framer-motion";
@@ -13,203 +36,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
-const DEFAULT_ROLE_FITS_ZH = [
-  {
-    title: "摄影",
-    fit: "具备视觉叙事与成片交付能力，能围绕业务目标输出可传播画面。",
-  },
-  {
-    title: "设计",
-    fit: "能把抽象需求转成信息结构与界面细节，兼顾审美与可用性。",
-  },
-  {
-    title: "软件工程",
-    fit: "可独立推进从需求拆解、实现到上线的完整交付闭环。",
-  },
-  {
-    title: "数据工程",
-    fit: "善于把业务问题量化，搭建指标与分析链路支持决策。",
-  },
-  {
-    title: "销售",
-    fit: "擅长提炼价值卖点，用案例与结果驱动客户沟通和转化。",
-  },
-] as const;
 
-const DEFAULT_ROLE_FITS_EN = [
-  {
-    title: "Photography",
-    fit: "Strong in visual storytelling and delivery, producing assets that support business goals.",
-  },
-  {
-    title: "Design",
-    fit: "Able to turn abstract requirements into clear information architecture and UI details.",
-  },
-  {
-    title: "Software Engineering",
-    fit: "Capable of driving the full lifecycle from requirement breakdown to production delivery.",
-  },
-  {
-    title: "Data Engineering",
-    fit: "Comfortable quantifying business questions and building metrics pipelines for decisions.",
-  },
-  {
-    title: "Sales",
-    fit: "Skilled at converting product value into client language and outcome-focused communication.",
-  },
-] as const;
-
-function extractProofLines(lines: string[], mode: "zh" | "en"): string[] {
-  const cleaned = lines.map((x) => x.trim()).filter(Boolean);
-  if (cleaned.length === 0) {
-    return [
-      mode === "zh"
-        ? "可基于你的项目经历补充可量化结果。"
-        : "Add measurable outcomes from your real project work.",
-    ];
-  }
-  return cleaned;
-}
-
-function buildSkillTags(targetRole: string): string[] {
-  const fromRole = targetRole
-    .split(/[、,，/|·\s]+/)
-    .map((x) => x.trim())
-    .filter((x) => x.length >= 2 && x.length <= 10);
-  const base = [
-    "结果导向",
-    "跨团队协作",
-    "结构化表达",
-    "方案落地",
-    "数据复盘",
-    "用户洞察",
-  ];
-  return Array.from(new Set([...fromRole, ...base])).slice(0, 8);
-}
-
-function buildDefaultRoleFits(
-  mode: "zh" | "en",
-  proofs: string[],
-): RoleFitDraft[] {
-  const roleBase = mode === "zh" ? DEFAULT_ROLE_FITS_ZH : DEFAULT_ROLE_FITS_EN;
-  return roleBase.map((item, i) => ({
-    id: `rf-${mode}-${i + 1}`,
-    title: item.title,
-    fit: item.fit,
-    proof: proofs[i % proofs.length],
-  }));
-}
-
-type ResolvedVideoPreview =
-  | { mode: "direct"; src: string }
-  | { mode: "embed"; src: string }
-  | { mode: "unknown"; src: string };
-
-type SpotlightKind = "image" | "video" | "code" | "link" | "document";
-
-type SpotlightMediaLinks = {
-  image: string;
-  video: string;
-  link: string;
-  document: string;
-};
-
-type RoleFitDraft = {
-  id: string;
-  title: string;
-  fit: string;
-  proof?: string;
-};
-
-type ContactEntry = {
-  platform: string;
-  account: string;
-};
-
-type ContactQrDraft = {
-  id: string;
-  src: string;
-  caption: string;
-};
-
-function parseContactEntries(raw: string): ContactEntry[] {
-  return raw
-    .split(/[\n|；;]+/)
-    .map((x) => x.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const cleaned = part.replace(/^contact\s*[-–—:：]\s*/i, "").trim();
-      const colonIdx = cleaned.search(/[:：]/);
-      if (colonIdx > 0) {
-        const platform = cleaned.slice(0, colonIdx).trim();
-        const account = cleaned.slice(colonIdx + 1).trim();
-        if (platform && account) return { platform, account };
-      }
-      return { platform: "", account: cleaned || part };
-    })
-    .filter((x) => x.account);
-}
-
-function formatContactEntryDisplay(entry: ContactEntry): string {
-  const platform = entry.platform.trim();
-  let account = entry.account.trim();
-  account = account.replace(/^[-–—]\s*/, "").replace(/^contact\s*[-–—:：]\s*/i, "").trim();
-  if (!platform || /^contact$/i.test(platform)) return account;
-  const platformClean = platform.replace(/^contact\s*[-–—:：]\s*/i, "").trim();
-  if (!platformClean) return account;
-  return `${platformClean}: ${account}`;
-}
-
-function extractYouTubeId(url: URL): string | null {
-  const host = url.hostname.toLowerCase();
-  const pathParts = url.pathname.split("/").filter(Boolean);
-  if (host === "youtu.be") return pathParts[0] ?? null;
-  if (!host.includes("youtube.com")) return null;
-  if (url.pathname.startsWith("/watch")) return url.searchParams.get("v");
-  if (url.pathname.startsWith("/shorts/")) return pathParts[1] ?? null;
-  if (url.pathname.startsWith("/embed/")) return pathParts[1] ?? null;
-  return null;
-}
-
-function resolveVideoPreview(urlText: string): ResolvedVideoPreview {
-  const src = urlText.trim();
-  if (!src) return { mode: "unknown", src: "" };
-  if (/\.(mp4|webm|ogg|mov|m3u8)(\?.*)?$/i.test(src)) {
-    return { mode: "direct", src };
-  }
-  try {
-    const url = new URL(src);
-    const host = url.hostname.toLowerCase();
-
-    const youtubeId = extractYouTubeId(url);
-    if (youtubeId) {
-      return { mode: "embed", src: `https://www.youtube.com/embed/${youtubeId}` };
-    }
-
-    if (host.includes("bilibili.com")) {
-      const path = url.pathname;
-      const bvMatch = path.match(/\/video\/(BV[0-9A-Za-z]+)/i);
-      if (bvMatch) {
-        return {
-          mode: "embed",
-          src: `https://player.bilibili.com/player.html?bvid=${bvMatch[1]}&page=1`,
-        };
-      }
-      const avMatch = path.match(/\/video\/av(\d+)/i);
-      if (avMatch) {
-        return {
-          mode: "embed",
-          src: `https://player.bilibili.com/player.html?aid=${avMatch[1]}&page=1`,
-        };
-      }
-      if (host.includes("player.bilibili.com")) {
-        return { mode: "embed", src };
-      }
-    }
-  } catch {
-    // ignore invalid URL and fall through
-  }
-  return { mode: "unknown", src };
+function parsePeriodStartScore(period?: string): number {
+  const raw = (period ?? "").trim();
+  if (!raw || raw === "起止时间") return -1;
+  const m = raw.match(/(19|20)\d{2}(?:[.\-/年]\s*(\d{1,2}))?/);
+  if (!m) return -1;
+  const year = parseInt(m[0].slice(0, 4), 10);
+  const month = m[2] ? Math.min(12, Math.max(1, parseInt(m[2], 10))) : 1;
+  return year * 100 + month;
 }
 
 export function HeroPage() {
@@ -286,8 +121,8 @@ export function HeroPage() {
         : "Core strength showcase",
     summary:
       mode === "zh"
-        ? "可展示代码、摄影作品、Vlog、广告、小程序或网址。"
-        : "Show your best proof: code, photography, vlog, ads, mini-program or links.",
+        ? "可展示代码、摄影作品（支持多图）、Vlog、广告、小程序或网址。"
+        : "Show your best proof: code, photo gallery, vlog, ads, mini-program or links.",
     media: { kind: "image" as const, url: "" },
   };
   const [spotlightTitle, setSpotlightTitle] = useState(
@@ -297,13 +132,7 @@ export function HeroPage() {
     site.heroSpotlight?.summary ?? fallbackSpotlight.summary,
   );
   const [spotlightKind, setSpotlightKind] = useState<SpotlightKind>(
-    (site.heroSpotlight?.media?.kind as
-      | "image"
-      | "video"
-      | "code"
-      | "link"
-      | "document"
-      | undefined) ?? "image",
+    (site.heroSpotlight?.media?.kind as SpotlightKind | undefined) ?? "image",
   );
   const [spotlightMediaLinks, setSpotlightMediaLinks] = useState<SpotlightMediaLinks>(() => {
     const media = site.heroSpotlight?.media;
@@ -312,6 +141,9 @@ export function HeroPage() {
       image:
         site.heroSpotlight?.mediaLinks?.image ??
         (media?.kind === "image" ? mediaUrl : ""),
+      gallery:
+        site.heroSpotlight?.mediaLinks?.gallery ??
+        (media?.kind === "gallery" ? media.urls : []),
       video:
         site.heroSpotlight?.mediaLinks?.video ??
         (media?.kind === "video" ? mediaUrl : ""),
@@ -334,6 +166,9 @@ export function HeroPage() {
       : "",
   );
   const [visitorPreviewKind, setVisitorPreviewKind] = useState<SpotlightKind | null>(null);
+  const [visitorAsideView, setVisitorAsideView] = useState<VisitorAsideView | null>(
+    null,
+  );
   const [spotlightDocName, setSpotlightDocName] = useState(
     site.heroSpotlight?.documentName ??
       (site.heroSpotlight?.media?.kind === "document"
@@ -343,6 +178,17 @@ export function HeroPage() {
   const [spotlightUploadBusy, setSpotlightUploadBusy] = useState(false);
   const [spotlightUploadMessage, setSpotlightUploadMessage] = useState("");
   const [spotlightHdPreviewOpen, setSpotlightHdPreviewOpen] = useState(false);
+  const [portraitHdPreviewOpen, setPortraitHdPreviewOpen] = useState(false);
+  const [heroAsideMode, setHeroAsideMode] = useState<HeroAsideMode>(() =>
+    resolveHeroAsideMode(site.heroAsideMode),
+  );
+  const [portraitUrl, setPortraitUrl] = useState(site.heroPortrait?.url ?? "");
+  const [portraitCaption, setPortraitCaption] = useState(
+    site.heroPortrait?.caption ?? "",
+  );
+  const [portraitUploadBusy, setPortraitUploadBusy] = useState(false);
+  const [portraitUploadMessage, setPortraitUploadMessage] = useState("");
+  const [gallerySlideIndex, setGallerySlideIndex] = useState(0);
   const inlineVideoRef = useRef<HTMLVideoElement | null>(null);
   const hdVideoRef = useRef<HTMLVideoElement | null>(null);
   const videoResumeSnapshotRef = useRef<{
@@ -353,6 +199,7 @@ export function HeroPage() {
     shouldPlay: boolean;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const portraitInputRef = useRef<HTMLInputElement | null>(null);
   const contactQrInputRef = useRef<HTMLInputElement | null>(null);
   const [contactQrUploadTargetId, setContactQrUploadTargetId] = useState<string>("");
   const [contactQrUploadBusy, setContactQrUploadBusy] = useState(false);
@@ -365,11 +212,12 @@ export function HeroPage() {
     site.roleFitEntries ?? [],
   )}|${JSON.stringify(
     site.heroSpotlight ?? null,
-  )}`;
+  )}|${site.heroAsideMode ?? "showcase"}|${JSON.stringify(site.heroPortrait ?? null)}`;
   const siteRef = useRef(site);
   siteRef.current = site;
 
   useEffect(() => {
+    skipAutoSaveRef.current = true;
     const s = siteRef.current;
     const lines = Array.isArray(s.heroPreviewLines)
       ? s.heroPreviewLines
@@ -436,6 +284,9 @@ export function HeroPage() {
       image:
         sp.mediaLinks?.image ??
         (media?.kind === "image" ? mediaUrl : ""),
+      gallery:
+        sp.mediaLinks?.gallery ??
+        (media?.kind === "gallery" ? media.urls : []),
       video:
         sp.mediaLinks?.video ??
         (media?.kind === "video" ? mediaUrl : ""),
@@ -446,6 +297,7 @@ export function HeroPage() {
         sp.mediaLinks?.document ??
         (media?.kind === "document" ? mediaUrl : ""),
     });
+    setGallerySlideIndex(0);
     setSpotlightCode(sp.media?.kind === "code" ? sp.media.code : "");
     setSpotlightCodeLang(sp.media?.kind === "code" ? (sp.media.language ?? "") : "");
     setSpotlightDocName(
@@ -454,6 +306,10 @@ export function HeroPage() {
     );
     setVisitorPreviewKind(null);
     setSpotlightUploadMessage("");
+    setHeroAsideMode(resolveHeroAsideMode(s.heroAsideMode));
+    setPortraitUrl(s.heroPortrait?.url ?? "");
+    setPortraitCaption(s.heroPortrait?.caption ?? "");
+    setPortraitUploadMessage("");
     setContactQrUploadTargetId("");
     setContactQrUploadMessage("");
   }, [siteSnap]);
@@ -499,17 +355,32 @@ export function HeroPage() {
                     url: spotlightMediaLinks.document.trim(),
                     fileName: spotlightDocName.trim() || undefined,
                   }
-              : {
-                  kind: spotlightKind,
-                  url: spotlightMediaLinks[spotlightKind].trim(),
-                },
+                : spotlightKind === "gallery"
+                  ? {
+                      kind: "gallery",
+                      urls: spotlightMediaLinks.gallery
+                        .map((u) => u.trim())
+                        .filter(Boolean),
+                    }
+                  : {
+                      kind: spotlightKind,
+                      url: spotlightMediaLinks[spotlightKind].trim(),
+                    },
           mediaLinks: {
             image: spotlightMediaLinks.image.trim(),
+            gallery: spotlightMediaLinks.gallery
+              .map((u) => u.trim())
+              .filter(Boolean),
             video: spotlightMediaLinks.video.trim(),
             link: spotlightMediaLinks.link.trim(),
             document: spotlightMediaLinks.document.trim(),
           },
           documentName: spotlightDocName.trim() || undefined,
+        },
+        heroAsideMode,
+        heroPortrait: {
+          url: portraitUrl.trim(),
+          caption: portraitCaption.trim() || undefined,
         },
       });
     }, DEBOUNCE_MS);
@@ -532,10 +403,21 @@ export function HeroPage() {
     spotlightCode,
     spotlightCodeLang,
     spotlightDocName,
+    heroAsideMode,
+    portraitUrl,
+    portraitCaption,
     canInline,
   ]);
 
   const visitorLines = highlights;
+  const recentExperiences = useMemo(() => {
+    return [...experiences]
+      .sort(
+        (a, b) =>
+          parsePeriodStartScore(b.period) - parsePeriodStartScore(a.period),
+      )
+      .slice(0, 3);
+  }, [experiences]);
   const roleCards =
     roleFits.length > 0 ? roleFits : buildDefaultRoleFits(mode, heroProofDefaults);
   const skillTags = skills;
@@ -546,8 +428,8 @@ export function HeroPage() {
   const i18n = {
     highlights:
       mode === "zh"
-        ? "核心亮点（建议尽量量化）"
-        : "Core highlights (quantify whenever possible)",
+        ? "核心亮点"
+        : "Core highlights",
     highlightPlaceholder:
       mode === "zh"
         ? "例如：推动转化率提升 18%"
@@ -558,8 +440,8 @@ export function HeroPage() {
     expRecent: mode === "zh" ? "近期经历" : "Recent experience",
     roleFit:
       mode === "zh"
-        ? "岗位适配说明（面向不同岗位投递）"
-        : "Role-fit matrix (for different applications)",
+        ? "岗位适配说明"
+        : "Role-fit summary",
     roleTitlePlaceholder: mode === "zh" ? "岗位名（如：产品经理）" : "Role title",
     roleFitPlaceholder:
       mode === "zh" ? "为什么你适配这个岗位" : "Why you fit this role",
@@ -617,7 +499,8 @@ export function HeroPage() {
     spotlightCodeLang: mode === "zh" ? "代码语言" : "Language",
     spotlightDocumentName: mode === "zh" ? "文件名（可选）" : "Document name (optional)",
     spotlightOpenLink: mode === "zh" ? "打开链接" : "Open link",
-    mediaImage: mode === "zh" ? "图片" : "Image",
+    mediaImage: mode === "zh" ? "图片（单张）" : "Image (single)",
+    mediaGallery: mode === "zh" ? "图片组（摄影）" : "Photo gallery",
     mediaVideo: mode === "zh" ? "视频" : "Video",
     mediaCode: mode === "zh" ? "代码" : "Code",
     mediaLink: mode === "zh" ? "网址 / 小程序" : "Link / Mini-program",
@@ -641,20 +524,106 @@ export function HeroPage() {
     hdPreviewTitle: mode === "zh" ? "高清内容预览" : "HD content preview",
     hdPreviewHint:
       mode === "zh" ? "点击可全屏查看细节" : "Open full-screen detail view",
+    galleryUploadHint:
+      mode === "zh"
+        ? "可一次选择多张照片，支持多次追加与删除。"
+        : "Select multiple photos at once; add more or remove anytime.",
+    galleryRemove: mode === "zh" ? "移除" : "Remove",
+    galleryPrev: mode === "zh" ? "上一张" : "Previous",
+    galleryNext: mode === "zh" ? "下一张" : "Next",
+    galleryCount: (current: number, total: number) =>
+      mode === "zh" ? `第 ${current} / ${total} 张` : `${current} / ${total}`,
+    asideModeLabel: mode === "zh" ? "右侧展示" : "Right panel",
+    asideModeShowcase: mode === "zh" ? "重点展示" : "Showcase",
+    asideModePortrait: mode === "zh" ? "证件照" : "Portrait",
+    asideModeHidden: mode === "zh" ? "不展示" : "Hidden",
+    asideHiddenHint:
+      mode === "zh"
+        ? "访客与预览模式下不会显示右侧区域。可随时切回「重点展示」或「证件照」。"
+        : "Hidden from visitors and preview. Switch back anytime.",
+    portraitTitle: mode === "zh" ? "个人形象照" : "Portrait photo",
+    portraitCaptionLabel: mode === "zh" ? "照片说明（可选）" : "Caption (optional)",
+    portraitCaptionPlaceholder:
+      mode === "zh" ? "例如：正式证件照 · 2025" : "e.g. Professional headshot · 2025",
+    portraitUpload: mode === "zh" ? "上传证件照" : "Upload portrait",
+    portraitUrlPlaceholder: mode === "zh" ? "图片链接或上传本地照片" : "Image URL or upload",
+    portraitEmptyHint:
+      mode === "zh"
+        ? "上传证件照后，访客将在首屏右侧看到你的形象照。"
+        : "Upload a portrait to show it on the right side of your hero section.",
+    portraitAlt: mode === "zh" ? "个人形象照" : "Portrait photo",
+    asideViewSwitch: mode === "zh" ? "查看内容" : "View content",
+    asideDualContentHint:
+      mode === "zh"
+        ? "预览与分享时，若两项均有内容，访客可在「重点展示 / 证件照」间切换。"
+        : "When both sections have content, visitors can switch between them in preview and shared links.",
   };
+  const visitorAside = useMemo(
+    () =>
+      resolveVisitorAside({
+        mode: heroAsideMode,
+        spotlightTitle,
+        spotlightSummary,
+        mediaLinks: spotlightMediaLinks,
+        spotlightCode,
+        portraitUrl,
+      }),
+    [
+      heroAsideMode,
+      spotlightTitle,
+      spotlightSummary,
+      spotlightMediaLinks,
+      spotlightCode,
+      portraitUrl,
+    ],
+  );
+  const showAside = useMemo(
+    () => (canInline ? true : visitorAside.show),
+    [canInline, visitorAside.show],
+  );
+  const effectiveAsidePanel = useMemo((): HeroAsideMode => {
+    if (canInline) return heroAsideMode;
+    if (!visitorAside.show || !visitorAside.defaultView) return "hidden";
+    if (visitorAsideView && visitorAside.views.includes(visitorAsideView)) {
+      return visitorAsideView;
+    }
+    return visitorAside.defaultView;
+  }, [canInline, heroAsideMode, visitorAside, visitorAsideView]);
+  const asideEyebrow =
+    effectiveAsidePanel === "portrait"
+      ? i18n.portraitTitle
+      : effectiveAsidePanel === "hidden"
+        ? i18n.asideModeHidden
+        : i18n.spotlightTitle;
+  useEffect(() => {
+    if (canInline) {
+      setVisitorAsideView(null);
+      return;
+    }
+    setVisitorAsideView((prev) => {
+      if (prev && visitorAside.views.includes(prev)) return prev;
+      return null;
+    });
+  }, [canInline, visitorAside.views, visitorAside.defaultView]);
+
   const availablePreviewKinds = useMemo(() => {
     const kinds: SpotlightKind[] = [];
     if (spotlightMediaLinks.image.trim()) kinds.push("image");
+    if (spotlightMediaLinks.gallery.length > 0) kinds.push("gallery");
     if (spotlightMediaLinks.video.trim()) kinds.push("video");
     if (spotlightMediaLinks.link.trim()) kinds.push("link");
     if (spotlightMediaLinks.document.trim()) kinds.push("document");
     if (spotlightCode.trim()) kinds.push("code");
     // 兜底：如果当前 kind 有值但不在 links 中，也允许展示当前 kind
     if (!kinds.includes(spotlightKind)) {
-      if (
-        (spotlightKind === "code" && spotlightCode.trim()) ||
-        (spotlightKind !== "code" &&
-          spotlightMediaLinks[spotlightKind]?.trim())
+      if (spotlightKind === "code" && spotlightCode.trim()) {
+        kinds.push(spotlightKind);
+      } else if (spotlightKind === "gallery" && spotlightMediaLinks.gallery.length > 0) {
+        kinds.push(spotlightKind);
+      } else if (
+        spotlightKind !== "code" &&
+        spotlightKind !== "gallery" &&
+        spotlightMediaLinks[spotlightKind]?.trim()
       ) {
         kinds.push(spotlightKind);
       }
@@ -689,17 +658,29 @@ export function HeroPage() {
         fileName: spotlightDocName.trim(),
       };
     }
+    if (activePreviewKind === "gallery") {
+      return {
+        kind: "gallery" as const,
+        urls: spotlightMediaLinks.gallery.map((u) => u.trim()).filter(Boolean),
+      };
+    }
     return {
       kind: activePreviewKind,
       url: spotlightMediaLinks[activePreviewKind].trim(),
     };
   })();
+  const galleryUrls =
+    spotlightPreview.kind === "gallery" ? spotlightPreview.urls : [];
+  const activeGalleryUrl =
+    galleryUrls.length > 0
+      ? galleryUrls[Math.min(gallerySlideIndex, galleryUrls.length - 1)]
+      : "";
   const resolvedVideo =
     spotlightPreview.kind === "video"
       ? resolveVideoPreview(spotlightPreview.url)
       : null;
   const mediaAccept =
-    spotlightKind === "image"
+    spotlightKind === "image" || spotlightKind === "gallery"
       ? "image/*"
       : spotlightKind === "video"
         ? "video/*"
@@ -717,80 +698,34 @@ export function HeroPage() {
     [displayContactQrs],
   );
 
-  const readVideoSnapshot = useCallback((video: HTMLVideoElement) => {
-    return {
-      currentTime: video.currentTime || 0,
-      volume: video.volume,
-      muted: video.muted,
-      playbackRate: video.playbackRate || 1,
-      shouldPlay: !video.paused && !video.ended,
-    };
-  }, []);
+  const readVideoSnapshotFn = useCallback(
+    (video: HTMLVideoElement) => readVideoSnapshot(video),
+    [],
+  );
 
-  const applyVideoSnapshot = useCallback(
-    (video: HTMLVideoElement, snap: NonNullable<typeof videoResumeSnapshotRef.current>) => {
-      const applyState = () => {
-        try {
-          video.currentTime = Math.max(0, snap.currentTime);
-        } catch {
-          // ignore seek failure on unsupported stream
-        }
-        video.volume = snap.volume;
-        video.muted = snap.muted;
-        video.playbackRate = snap.playbackRate || 1;
-        if (snap.shouldPlay) {
-          void video.play().catch(() => {
-            // ignore autoplay rejection
-          });
-        } else {
-          video.pause();
-        }
-      };
-
-      if (video.readyState >= 1) {
-        applyState();
-        return () => undefined;
-      }
-      const onLoaded = () => {
-        video.removeEventListener("loadedmetadata", onLoaded);
-        applyState();
-      };
-      video.addEventListener("loadedmetadata", onLoaded);
-      return () => video.removeEventListener("loadedmetadata", onLoaded);
-    },
+  const applyVideoSnapshotFn = useCallback(
+    (
+      video: HTMLVideoElement,
+      snap: NonNullable<typeof videoResumeSnapshotRef.current>,
+    ) => applyVideoSnapshot(video, snap),
     [],
   );
 
   useEffect(() => {
-    if (!qrZoomItem) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setQrZoomItem(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [qrZoomItem]);
-
-  useEffect(() => {
-    if (!spotlightHdPreviewOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
-          videoResumeSnapshotRef.current = readVideoSnapshot(hdVideoRef.current);
-        }
-        setSpotlightHdPreviewOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [spotlightHdPreviewOpen, readVideoSnapshot, resolvedVideo?.mode]);
+    if (galleryUrls.length === 0) {
+      setGallerySlideIndex(0);
+      return;
+    }
+    setGallerySlideIndex((idx) => Math.min(idx, galleryUrls.length - 1));
+  }, [galleryUrls.length]);
 
   useEffect(() => {
     if (!spotlightHdPreviewOpen || resolvedVideo?.mode !== "direct") return;
     const snap = videoResumeSnapshotRef.current;
     const hd = hdVideoRef.current;
     if (!snap || !hd) return;
-    return applyVideoSnapshot(hd, snap);
-  }, [spotlightHdPreviewOpen, resolvedVideo?.mode, applyVideoSnapshot]);
+    return applyVideoSnapshotFn(hd, snap);
+  }, [spotlightHdPreviewOpen, resolvedVideo?.mode, applyVideoSnapshotFn]);
 
   useEffect(() => {
     if (spotlightHdPreviewOpen || resolvedVideo?.mode !== "direct") return;
@@ -798,8 +733,20 @@ export function HeroPage() {
     const inline = inlineVideoRef.current;
     if (!snap || !inline) return;
     videoResumeSnapshotRef.current = null;
-    return applyVideoSnapshot(inline, snap);
-  }, [spotlightHdPreviewOpen, resolvedVideo?.mode, applyVideoSnapshot]);
+    return applyVideoSnapshotFn(inline, snap);
+  }, [spotlightHdPreviewOpen, resolvedVideo?.mode, applyVideoSnapshotFn]);
+
+  const onCloseQrZoom = useCallback(() => setQrZoomItem(null), []);
+  const onCloseHdPreview = useCallback(() => setSpotlightHdPreviewOpen(false), []);
+  const onClosePortraitHdPreview = useCallback(
+    () => setPortraitHdPreviewOpen(false),
+    [],
+  );
+  const onBeforeCloseHdPreview = useCallback(() => {
+    if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
+      videoResumeSnapshotRef.current = readVideoSnapshotFn(hdVideoRef.current);
+    }
+  }, [resolvedVideo?.mode, readVideoSnapshotFn]);
 
   async function parseUploadResponse(resp: Response): Promise<{
     ok?: boolean;
@@ -922,6 +869,13 @@ export function HeroPage() {
         setSpotlightDocName(data.fileName ?? file.name);
       } else if (spotlightKind === "image") {
         setSpotlightMediaLinks((prev) => ({ ...prev, image: data.url ?? "" }));
+      } else if (spotlightKind === "gallery") {
+        if (data.url) {
+          setSpotlightMediaLinks((prev) => ({
+            ...prev,
+            gallery: [...prev.gallery, data.url ?? ""],
+          }));
+        }
       } else if (spotlightKind === "video") {
         setSpotlightMediaLinks((prev) => ({ ...prev, video: data.url ?? "" }));
       } else if (spotlightKind === "link") {
@@ -938,10 +892,78 @@ export function HeroPage() {
     }
   }
 
+  async function onUploadSpotlightGalleryFiles(files: FileList | File[]) {
+    if (!canInline || spotlightKind !== "gallery") return;
+    const list = Array.from(files);
+    if (list.length === 0) return;
+    setSpotlightUploadBusy(true);
+    setSpotlightUploadMessage("");
+    try {
+      const clientScope = parseClientResumeScope();
+      const uploadUrl = appendResumeScopeToPath(
+        "/api/upload-asset",
+        clientScope,
+        { includeEditToken: true, includeViewToken: false },
+      );
+      const uploaded: string[] = [];
+      for (const file of list) {
+        const form = new FormData();
+        form.append("file", ensureUploadFileName(file));
+        const data = await uploadFileWithTimeout(uploadUrl, form);
+        if (data.url) uploaded.push(data.url);
+      }
+      if (uploaded.length > 0) {
+        setSpotlightMediaLinks((prev) => ({
+          ...prev,
+          gallery: [...prev.gallery, ...uploaded],
+        }));
+      }
+      setSpotlightUploadMessage(i18n.uploadDone);
+    } catch (e) {
+      setSpotlightUploadMessage(
+        e instanceof Error && e.message ? e.message : i18n.uploadFail,
+      );
+    } finally {
+      setSpotlightUploadBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function onUploadPortraitFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    setPortraitUploadBusy(true);
+    setPortraitUploadMessage("");
+    try {
+      const scope = parseClientResumeScope();
+      const form = new FormData();
+      form.append("file", ensureUploadFileName(file));
+      const resp = await fetch(appendResumeScopeToPath("/api/upload-asset", scope), {
+        method: "POST",
+        body: form,
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+      });
+      const data = await parseUploadResponse(resp);
+      if (!data.ok || !data.url) {
+        throw new Error(data.message || "upload failed");
+      }
+      setPortraitUrl(data.url);
+      setPortraitUploadMessage(i18n.uploadDone);
+    } catch {
+      setPortraitUploadMessage(i18n.uploadFail);
+    } finally {
+      setPortraitUploadBusy(false);
+      if (portraitInputRef.current) portraitInputRef.current.value = "";
+    }
+  }
+
   return (
     <div className="relative min-h-[min(100svh,880px)] px-6 py-16 sm:px-10 sm:py-20 md:px-14 lg:px-16">
-      <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 lg:grid-cols-12 lg:items-start lg:gap-10">
-        <div className="flex min-w-0 flex-col lg:col-span-7">
+      <div
+        className={`mx-auto grid max-w-6xl grid-cols-1 gap-10 ${
+          showAside ? "lg:grid-cols-12 lg:items-start lg:gap-10" : ""
+        }`}
+      >
+        <div className={`flex min-w-0 flex-col ${showAside ? "lg:col-span-7" : ""}`}>
           <motion.div
             id="tour-hero-edit"
             initial={false}
@@ -1369,13 +1391,13 @@ export function HeroPage() {
             </div>
           </motion.div>
 
-          {experiences.length > 0 ? (
+          {recentExperiences.length > 0 ? (
             <div className="mt-8 border-t border-line/60 pt-6">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                 {i18n.expRecent}
               </p>
               <ul className="space-y-2">
-                {experiences.slice(0, 3).map((e) => (
+                {recentExperiences.map((e) => (
                   <li key={e.id}>
                     <a
                       href="#resume"
@@ -1539,6 +1561,7 @@ export function HeroPage() {
           </motion.p>
         </div>
 
+        {showAside ? (
         <motion.aside
           className="min-w-0 lg:col-span-5 lg:pt-2"
           initial={false}
@@ -1551,9 +1574,178 @@ export function HeroPage() {
           }}
         >
           <div className="rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_12px_24px_-20px_rgba(0,0,0,0.28)]">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
-              {i18n.spotlightTitle}
-            </p>
+            {canInline ? (
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  {i18n.asideModeLabel}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["showcase", i18n.asideModeShowcase],
+                      ["portrait", i18n.asideModePortrait],
+                      ["hidden", i18n.asideModeHidden],
+                    ] as const
+                  ).map(([value, label]) => {
+                    const active = heroAsideMode === value;
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setHeroAsideMode(value)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "border-[rgb(var(--selection)/0.35)] bg-[rgb(var(--selection)/0.12)] text-[rgb(var(--selection))]"
+                            : "border-line bg-surface text-ink-muted hover:border-ink/20 hover:text-ink"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {heroAsideMode !== "hidden" &&
+                hasShowcaseContent(
+                  spotlightTitle,
+                  spotlightSummary,
+                  spotlightMediaLinks,
+                  spotlightCode,
+                ) &&
+                hasPortraitContent(portraitUrl) ? (
+                  <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
+                    {i18n.asideDualContentHint}
+                  </p>
+                ) : null}
+              </div>
+            ) : visitorAside.views.length > 1 ? (
+              <div className="mb-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                  {i18n.asideViewSwitch}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {visitorAside.views.map((view) => {
+                    const active = effectiveAsidePanel === view;
+                    const label =
+                      view === "showcase"
+                        ? i18n.asideModeShowcase
+                        : i18n.asideModePortrait;
+                    return (
+                      <button
+                        key={`visitor-aside-${view}`}
+                        type="button"
+                        onClick={() => setVisitorAsideView(view)}
+                        className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          active
+                            ? "border-[rgb(var(--selection)/0.35)] bg-[rgb(var(--selection)/0.12)] text-[rgb(var(--selection))]"
+                            : "border-line bg-surface text-ink-muted hover:border-ink/20 hover:text-ink"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                {asideEyebrow}
+              </p>
+            )}
+
+            {heroAsideMode === "hidden" && canInline ? (
+              <p className="mt-3 rounded-xl border border-dashed border-line/80 bg-paper/50 px-4 py-5 text-sm leading-relaxed text-ink-muted">
+                {i18n.asideHiddenHint}
+              </p>
+            ) : null}
+
+            {effectiveAsidePanel === "portrait" ? (
+              <div className={canInline ? "mt-3" : "mt-2"}>
+                {canInline ? (
+                  <>
+                    <input
+                      type="text"
+                      value={portraitUrl}
+                      onChange={(e) => setPortraitUrl(e.target.value)}
+                      placeholder={i18n.portraitUrlPlaceholder}
+                      className="w-full rounded-xl border border-line bg-surface/70 px-3 py-2 text-sm outline-none focus:border-ink/20"
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={portraitUploadBusy}
+                        onClick={() => portraitInputRef.current?.click()}
+                        className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20 disabled:opacity-60"
+                      >
+                        {portraitUploadBusy ? i18n.uploading : i18n.portraitUpload}
+                      </button>
+                      <input
+                        ref={portraitInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) void onUploadPortraitFile(file);
+                        }}
+                      />
+                    </div>
+                    {portraitUploadMessage ? (
+                      <p className="mt-2 text-xs text-ink-muted">{portraitUploadMessage}</p>
+                    ) : null}
+                    <input
+                      type="text"
+                      value={portraitCaption}
+                      onChange={(e) => setPortraitCaption(e.target.value)}
+                      maxLength={80}
+                      placeholder={i18n.portraitCaptionPlaceholder}
+                      className={`${SEAMLESS_INPUT} mt-3 text-sm text-ink-muted`}
+                    />
+                  </>
+                ) : null}
+                {portraitUrl.trim() ? (
+                  <div className={`overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : ""}`}>
+                    <button
+                      type="button"
+                      onClick={() => setPortraitHdPreviewOpen(true)}
+                      className="group block w-full overflow-hidden rounded-lg text-left"
+                      title={i18n.hdPreviewHint}
+                    >
+                      <img
+                        src={portraitUrl.trim()}
+                        alt={portraitCaption.trim() || i18n.portraitAlt}
+                        className="aspect-[3/4] w-full object-cover object-top transition-opacity group-hover:opacity-95"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                      />
+                    </button>
+                    {portraitCaption.trim() ? (
+                      <p className="mt-2 px-1 text-center text-sm text-ink-muted">
+                        {portraitCaption.trim()}
+                      </p>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => setPortraitHdPreviewOpen(true)}
+                      className="mt-2 w-full rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                      title={i18n.hdPreviewHint}
+                    >
+                      {i18n.hdPreview}
+                    </button>
+                  </div>
+                ) : canInline ? (
+                  <div className="mt-4 rounded-xl border border-dashed border-line/80 bg-paper/50 px-4 py-8 text-center text-sm text-ink-muted">
+                    {i18n.portraitEmptyHint}
+                  </div>
+                ) : null}
+              </div>
+            ) : effectiveAsidePanel === "showcase" ? (
+              <>
+            {canInline ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
+                {i18n.spotlightTitle}
+              </p>
+            ) : null}
             {canInline ? (
               <>
                 <input
@@ -1598,13 +1790,15 @@ export function HeroPage() {
                     const label =
                       kind === "image"
                         ? i18n.mediaImage
-                        : kind === "video"
-                          ? i18n.mediaVideo
-                          : kind === "code"
-                            ? i18n.mediaCode
-                            : kind === "document"
-                              ? i18n.mediaDocument
-                              : i18n.mediaLink;
+                        : kind === "gallery"
+                          ? i18n.mediaGallery
+                          : kind === "video"
+                            ? i18n.mediaVideo
+                            : kind === "code"
+                              ? i18n.mediaCode
+                              : kind === "document"
+                                ? i18n.mediaDocument
+                                : i18n.mediaLink;
                     const active = activePreviewKind === kind;
                     return (
                       <button
@@ -1638,6 +1832,7 @@ export function HeroPage() {
                       className="rounded-lg border border-line bg-surface px-2.5 py-2 text-sm text-ink outline-none focus:border-ink/20"
                     >
                       <option value="image">{i18n.mediaImage}</option>
+                      <option value="gallery">{i18n.mediaGallery}</option>
                       <option value="video">{i18n.mediaVideo}</option>
                       <option value="code">{i18n.mediaCode}</option>
                       <option value="link">{i18n.mediaLink}</option>
@@ -1666,6 +1861,50 @@ export function HeroPage() {
                         placeholder={mode === "zh" ? "如：项目方案.pdf" : "e.g. Proposal.pdf"}
                       />
                     </label>
+                  ) : spotlightKind === "gallery" ? (
+                    <div className="flex flex-col gap-1 text-xs text-ink-muted">
+                      <span>
+                        {mode === "zh"
+                          ? `已添加 ${spotlightMediaLinks.gallery.length} 张`
+                          : `${spotlightMediaLinks.gallery.length} photo(s) added`}
+                      </span>
+                      {spotlightMediaLinks.gallery.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {spotlightMediaLinks.gallery.map((url, idx) => (
+                            <div
+                              key={`gallery-thumb-${idx}-${url}`}
+                              className="group relative h-16 w-16 overflow-hidden rounded-md border border-line/80 bg-surface"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                                decoding="async"
+                                referrerPolicy="no-referrer"
+                              />
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSpotlightMediaLinks((prev) => ({
+                                    ...prev,
+                                    gallery: prev.gallery.filter((_, i) => i !== idx),
+                                  }))
+                                }
+                                className="absolute inset-x-0 bottom-0 bg-ink/70 py-0.5 text-[10px] text-white opacity-0 transition-opacity group-hover:opacity-100"
+                              >
+                                {i18n.galleryRemove}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-ink-muted/90">
+                          {i18n.galleryUploadHint}
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <label className="flex flex-col gap-1 text-xs text-ink-muted">
                       <span>{i18n.spotlightMediaSource}</span>
@@ -1720,11 +1959,16 @@ export function HeroPage() {
                         ref={fileInputRef}
                         type="file"
                         accept={mediaAccept}
+                        multiple={spotlightKind === "gallery"}
                         className="hidden"
                         onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          void onUploadSpotlightFile(f);
+                          const files = e.target.files;
+                          if (!files?.length) return;
+                          if (spotlightKind === "gallery") {
+                            void onUploadSpotlightGalleryFiles(files);
+                          } else {
+                            void onUploadSpotlightFile(files[0]);
+                          }
                         }}
                       />
                       <button
@@ -1742,12 +1986,90 @@ export function HeroPage() {
                         <p className="mt-1 text-xs text-ink-muted/90">
                           {i18n.videoUploadLimitHint}
                         </p>
+                      ) : spotlightKind === "gallery" ? (
+                        <p className="mt-1 text-xs text-ink-muted/90">
+                          {i18n.galleryUploadHint}
+                        </p>
                       ) : null}
                     </div>
                   ) : null}
                 </div>
               ) : null}
 
+              {spotlightPreview.kind === "gallery" && galleryUrls.length > 0 ? (
+                <div className="max-h-[420px] overflow-hidden rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1">
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={activeGalleryUrl}
+                      alt={spotlightTitle}
+                      className="h-auto max-h-[360px] w-full rounded-md object-contain"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                    />
+                    {galleryUrls.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setGallerySlideIndex(
+                              (idx) =>
+                                (idx - 1 + galleryUrls.length) % galleryUrls.length,
+                            )
+                          }
+                          className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full border border-line/70 bg-surface/90 px-2.5 py-1 text-xs font-medium text-ink shadow-sm transition-colors hover:border-ink/20"
+                          aria-label={i18n.galleryPrev}
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setGallerySlideIndex(
+                              (idx) => (idx + 1) % galleryUrls.length,
+                            )
+                          }
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-line/70 bg-surface/90 px-2.5 py-1 text-xs font-medium text-ink shadow-sm transition-colors hover:border-ink/20"
+                          aria-label={i18n.galleryNext}
+                        >
+                          ›
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                  {galleryUrls.length > 1 ? (
+                    <div className="mt-2 flex items-center justify-between gap-2 px-1">
+                      <p className="text-xs text-ink-muted">
+                        {i18n.galleryCount(gallerySlideIndex + 1, galleryUrls.length)}
+                      </p>
+                      <div className="flex flex-wrap justify-end gap-1">
+                        {galleryUrls.map((_, idx) => (
+                          <button
+                            key={`gallery-dot-${idx}`}
+                            type="button"
+                            onClick={() => setGallerySlideIndex(idx)}
+                            className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                              idx === gallerySlideIndex
+                                ? "bg-[rgb(var(--selection))]"
+                                : "bg-line hover:bg-ink/30"
+                            }`}
+                            aria-label={i18n.galleryCount(idx + 1, galleryUrls.length)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setSpotlightHdPreviewOpen(true)}
+                    className="mt-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
+                    title={i18n.hdPreviewHint}
+                  >
+                    {i18n.hdPreview}
+                  </button>
+                </div>
+              ) : null}
               {spotlightPreview.kind === "image" && spotlightPreview.url ? (
                 <div className="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1">
                   <img
@@ -1809,7 +2131,7 @@ export function HeroPage() {
                     type="button"
                     onClick={() => {
                       if (inlineVideoRef.current) {
-                        videoResumeSnapshotRef.current = readVideoSnapshot(inlineVideoRef.current);
+                        videoResumeSnapshotRef.current = readVideoSnapshotFn(inlineVideoRef.current);
                         inlineVideoRef.current.pause();
                       }
                       setSpotlightHdPreviewOpen(true);
@@ -1889,7 +2211,12 @@ export function HeroPage() {
                 </div>
               ) : null}
               {spotlightPreview.kind !== "code" &&
-              !("url" in spotlightPreview && spotlightPreview.url) ? (
+              canInline &&
+              !(
+                (spotlightPreview.kind === "gallery" &&
+                  spotlightPreview.urls.length > 0) ||
+                ("url" in spotlightPreview && spotlightPreview.url)
+              ) ? (
                 <div className="rounded-lg border border-dashed border-line/80 bg-surface px-4 py-10 text-center text-sm text-ink-muted">
                   {mode === "zh"
                     ? "请填写媒体链接后在此预览"
@@ -1897,118 +2224,43 @@ export function HeroPage() {
                 </div>
               ) : null}
             </div>
-          </div>
-        </motion.aside>
-      </div>
-
-      {qrZoomItem ? (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center px-4 py-8">
-          <button
-            type="button"
-            aria-label={i18n.qrZoomClose}
-            className="absolute inset-0 bg-ink/55 backdrop-blur-[2px]"
-            onClick={() => setQrZoomItem(null)}
-          />
-          <div className="relative z-[1] w-full max-w-sm rounded-2xl border border-line bg-surface p-4 shadow-[0_20px_48px_rgba(0,0,0,0.35)]">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-ink">{i18n.qrZoomTitle}</p>
-              <button
-                type="button"
-                className="rounded-full border border-line px-3 py-1 text-xs text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
-                onClick={() => setQrZoomItem(null)}
-              >
-                {i18n.qrZoomClose}
-              </button>
-            </div>
-            <div className="overflow-hidden rounded-xl border border-line/70 bg-paper/70">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={qrZoomItem.src}
-                alt={i18n.qrLabel}
-                className="mx-auto block h-auto w-full max-w-[320px] object-contain p-2"
-                loading="eager"
-                decoding="async"
-              />
-            </div>
-            {qrZoomItem.caption ? (
-              <p className="mt-2 text-center text-xs leading-relaxed text-ink-muted">
-                {qrZoomItem.caption}
-              </p>
+              </>
             ) : null}
           </div>
+        </motion.aside>
+        ) : null}
       </div>
-      ) : null}
 
-      {spotlightHdPreviewOpen &&
-      (spotlightPreview.kind === "image" || spotlightPreview.kind === "video") ? (
-        <div className="fixed inset-0 z-[91] flex items-center justify-center px-3 py-6">
-          <button
-            type="button"
-            aria-label={i18n.qrZoomClose}
-            className="absolute inset-0 bg-ink/70 backdrop-blur-[2px]"
-            onClick={() => {
-              if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
-                videoResumeSnapshotRef.current = readVideoSnapshot(hdVideoRef.current);
-              }
-              setSpotlightHdPreviewOpen(false);
-            }}
-          />
-          <div className="relative z-[1] w-full max-w-6xl rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_48px_rgba(0,0,0,0.35)]">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-ink">{i18n.hdPreviewTitle}</p>
-              <button
-                type="button"
-                className="rounded-full border border-line px-3 py-1 text-xs text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
-                onClick={() => {
-                  if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
-                    videoResumeSnapshotRef.current = readVideoSnapshot(hdVideoRef.current);
-                  }
-                  setSpotlightHdPreviewOpen(false);
-                }}
-              >
-                {i18n.qrZoomClose}
-              </button>
-            </div>
-            {spotlightPreview.kind === "image" ? (
-              <div className="flex max-h-[82vh] min-h-[42vh] items-center justify-center overflow-auto rounded-xl border border-line/70 bg-black/70 p-1">
-                <img
-                  src={spotlightPreview.url}
-                  alt={spotlightTitle}
-                  className="h-auto max-h-[80vh] w-auto max-w-[95vw] object-contain"
-                  loading="eager"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
-            ) : resolvedVideo?.mode === "embed" ? (
-              <div className="overflow-hidden rounded-xl border border-line/70 bg-black/85">
-                <div className="aspect-video w-full">
-                  <iframe
-                    src={resolvedVideo.src}
-                    title={spotlightTitle || "embedded video hd"}
-                    className="h-full w-full"
-                    loading="eager"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="flex max-h-[82vh] min-h-[42vh] items-center justify-center rounded-xl border border-line/70 bg-black/85 p-1">
-                <video
-                  ref={hdVideoRef}
-                  src={resolvedVideo?.src ?? spotlightPreview.url}
-                  controls
-                  preload="metadata"
-                  playsInline
-                  className="h-auto max-h-[80vh] w-auto max-w-[95vw] object-contain"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
+      <HeroSpotlightModals
+        mode={mode}
+        i18n={{
+          qrLabel: i18n.qrLabel,
+          qrZoomTitle: i18n.qrZoomTitle,
+          qrZoomClose: i18n.qrZoomClose,
+          hdPreviewTitle: i18n.hdPreviewTitle,
+          galleryPrev: i18n.galleryPrev,
+          galleryNext: i18n.galleryNext,
+          galleryCount: i18n.galleryCount,
+        }}
+        qrZoomItem={qrZoomItem}
+        onCloseQrZoom={onCloseQrZoom}
+        spotlightHdPreviewOpen={spotlightHdPreviewOpen}
+        onCloseHdPreview={onCloseHdPreview}
+        onBeforeCloseHdPreview={onBeforeCloseHdPreview}
+        portraitHdPreviewOpen={portraitHdPreviewOpen}
+        onClosePortraitHdPreview={onClosePortraitHdPreview}
+        portraitUrl={portraitUrl}
+        portraitAlt={portraitCaption.trim() || i18n.portraitAlt}
+        portraitCaption={portraitCaption}
+        spotlightPreview={spotlightPreview}
+        spotlightTitle={spotlightTitle}
+        resolvedVideo={resolvedVideo}
+        activeGalleryUrl={activeGalleryUrl}
+        galleryUrls={galleryUrls}
+        gallerySlideIndex={gallerySlideIndex}
+        onGallerySlideChange={setGallerySlideIndex}
+        hdVideoRef={hdVideoRef}
+      />
     </div>
   );
 }

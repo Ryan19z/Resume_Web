@@ -71,6 +71,7 @@ export type ResumeCopy = {
   pageTitle: string;
   pageIntro: string;
   experienceSectionEyebrow: string;
+  projectExperienceSectionEyebrow: string;
   educationSectionEyebrow: string;
   experienceCardCta: string;
   educationCardCta: string;
@@ -91,6 +92,7 @@ export type PortfolioProject = {
 
 export type HeroSpotlightMedia =
   | { kind: "image"; url: string }
+  | { kind: "gallery"; urls: string[] }
   | { kind: "video"; url: string }
   | { kind: "code"; code: string; language?: string }
   | { kind: "link"; url: string }
@@ -98,6 +100,8 @@ export type HeroSpotlightMedia =
 
 export type HeroSpotlightMediaLinks = {
   image?: string;
+  /** 摄影组 / 多图展示，与单张 image 独立保存 */
+  gallery?: string[];
   video?: string;
   link?: string;
   document?: string;
@@ -111,6 +115,14 @@ export type HeroSpotlight = {
   mediaLinks?: HeroSpotlightMediaLinks;
   /** 文档展示时的文件名/标题（可选） */
   documentName?: string;
+};
+
+/** 首屏右侧区域：重点展示窗 / 证件照 / 不展示 */
+export type HeroAsideMode = "showcase" | "portrait" | "hidden";
+
+export type HeroPortrait = {
+  url: string;
+  caption?: string;
 };
 
 export type RoleFitEntry = {
@@ -150,6 +162,10 @@ export type SiteContent = {
   roleFitEntries?: RoleFitEntry[];
   /** 首页核心优势展示窗（支持图片/视频/代码/链接） */
   heroSpotlight: HeroSpotlight;
+  /** 首屏右侧展示模式，默认 showcase */
+  heroAsideMode?: HeroAsideMode;
+  /** 证件照模式下的形象照 */
+  heroPortrait?: HeroPortrait;
   /** 页脚联系邮箱 */
   contactEmail?: string;
   /** 联系电话（展示在首屏与底部联系入口） */
@@ -168,6 +184,8 @@ export type SiteContent = {
   resumeCopy: ResumeCopy;
   portfolioCopy: PortfolioCopy;
   experience: ExperienceItem[];
+  /** 履历页「项目经历」（非公司项目，与作品集 projects 分离） */
+  projectExperience: ExperienceItem[];
   education: EducationItem[];
   projects: PortfolioProject[];
 };
@@ -179,6 +197,8 @@ export type ProfileSetupMeta = {
   contactEmail?: string;
   contactPhone?: string;
   contactExtra?: string;
+  heroAsideMode?: HeroAsideMode;
+  heroPortrait?: HeroPortrait;
 };
 
 export type PersistedProfile = {

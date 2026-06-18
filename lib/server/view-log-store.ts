@@ -156,7 +156,31 @@ export async function readViewLogForOwner(resumeId?: string): Promise<{
   };
 }
 
-/** 访客打开只读链接或公网浏览时记一条（不存 IP 明文，仅去重指纹） */
+/** 异步补全地区信息，避免阻塞主请求 */
+async function enrichVisitorGeo(
+  filePath: string,
+  fp: string,
+  ip: string,
+): Promise<void> {
+  try {
+    const geo = await lookupIpGeo(ip);
+    if (!geo.city && !geo.region && !geo.country) return;
+    const file = await readLog(filePath);
+    for (let i = file.events.length - 1; i >= 0; i -= 1) {
+      const e = file.events[i];
+      if (e.fp === fp && e.at && !e.city && !e.region && !e.country) {
+        e.city = geo.city;
+        e.region = geo.region;
+        e.country = geo.country;
+        await writeLog(filePath, file);
+        return;
+      }
+    }
+  } catch {
+    // ignore geo enrichment failures
+  }
+}
+
 export async function recordVisitorView(
   headers: Headers,
   resumeId?: string,
@@ -176,18 +200,18 @@ export async function recordVisitorView(
   const recent = file.events.filter((e) => now - e.at < DEDUP_MS);
   if (recent.some((e) => e.fp === fp)) return;
 
-  const geo = await lookupIpGeo(ip);
   const event: ViewLogEventStored = {
     at: now,
-    city: geo.city,
-    region: geo.region,
-    country: geo.country,
     device: deviceFromUserAgent(ua),
     fp,
   };
 
   file.events.push(event);
   await writeLog(filePath, file);
+
+  if (ip && !isLoopbackIp(ip)) {
+    void enrichVisitorGeo(filePath, fp, ip);
+  }
 }
 
 export { formatGeoLabel };

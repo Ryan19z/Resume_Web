@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/context/ThemeProvider";
+import { CRITICAL_INLINE_CSS } from "@/lib/critical-inline-css";
 import { themeBootstrapInlineScript } from "@/lib/theme-inline-script";
 import type { Metadata } from "next";
 import "./globals.css";
@@ -17,6 +18,10 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" data-theme="paper" suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <style
+          id="critical-layout-fallback"
+          dangerouslySetInnerHTML={{ __html: CRITICAL_INLINE_CSS }}
+        />
         {/**
          * 勿在根 layout 手写 `<head>` + `next/script` beforeInteractive：在 Next 15
          * 与流式元数据合并时，二次请求/刷新曾出现整页 Internal Server Error。

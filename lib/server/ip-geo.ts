@@ -25,7 +25,7 @@ export async function lookupIpGeo(ip: string): Promise<IpGeoHint> {
     return { city: "本地", region: undefined, country: undefined };
   }
   try {
-    const url = `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city&lang=zh-CN`;
+    const url = `https://ip-api.com/json/${encodeURIComponent(ip)}?fields=status,country,regionName,city&lang=zh-CN`;
     const res = await fetch(url, {
       signal: AbortSignal.timeout(2500),
       cache: "no-store",

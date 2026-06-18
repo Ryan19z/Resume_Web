@@ -91,30 +91,6 @@ html[data-theme="ocean"] {
   background: rgb(var(--selection) / 0.12);
 }
 
-/* 导出 PDF（window.print）时的版式：页边距、尽量不拆卡片 */
-@page {
-  margin: 14mm;
-}
-
-@media print {
-  html {
-    scroll-behavior: auto !important;
-  }
-
-  body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-
-  /* 主滚动区铺满纸面，避免出现多余分页空白 */
-  main {
-    display: block;
-    overflow: visible !important;
-    min-height: unset !important;
-    height: auto !important;
-  }
-}
-
 @layer utilities {
   .micro-card {
     position: relative;

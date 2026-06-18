@@ -4,7 +4,7 @@ import { EditNetworkBanner } from "@/components/EditNetworkBanner";
 import { PersistErrorBanner } from "@/components/PersistErrorBanner";
 import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
-import { useSiteContent } from "@/context/SiteContentProvider";
+import { HrQuickSummary } from "@/components/HrQuickSummary";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
 import { SiteEditorDock } from "@/components/SiteEditorDock";
@@ -14,11 +14,12 @@ import { TourReadonlySentinels } from "@/components/TourReadonlySentinels";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { TopUtilityBar } from "@/components/TopUtilityBar";
 import { VerticalScrollLayout } from "@/components/VerticalScrollLayout";
+import { AssetOptimizationBanner } from "@/components/AssetOptimizationBanner";
+import { EditorLangIndicator } from "@/components/EditorLangIndicator";
+import { LazyPageMount } from "@/components/LazyPageMount";
 import { HeroPage } from "@/components/pages/HeroPage";
-import { PortfolioPage } from "@/components/pages/PortfolioPage";
-import { ResumePage } from "@/components/pages/ResumePage";
+import { useSiteContent } from "@/context/SiteContentProvider";
 import dynamic from "next/dynamic";
-import { useState } from "react";
 
 const ProfileSetupModal = dynamic(
   () =>
@@ -60,36 +61,24 @@ const ResumeDetailOverlay = dynamic(
   { ssr: false },
 );
 
-const ViewLogModal = dynamic(
+const ResumeImportModal = dynamic(
   () =>
-    import("@/components/ViewLogModal").then((m) => ({
-      default: m.ViewLogModal,
+    import("@/components/ResumeImportModal").then((m) => ({
+      default: m.ResumeImportModal,
     })),
   { ssr: false },
 );
 
 export function HomeShell() {
-  const { contentReady } = useSiteContent();
   const { mode } = useLanguageMode();
-  const [viewLogOpen, setViewLogOpen] = useState(false);
-
-  if (!contentReady) {
-    return (
-      <div
-        className="flex min-h-[100dvh] w-full flex-col items-center justify-center gap-3 bg-paper text-ink-muted"
-        aria-busy="true"
-        aria-live="polite"
-      >
-        <div
-          className="h-8 w-8 animate-spin rounded-full border-2 border-line border-t-ink/70"
-          aria-hidden
-        />
-        <p className="text-sm font-medium">
-          {mode === "zh" ? "正在加载简历…" : "Loading resume..."}
-        </p>
-      </div>
-    );
-  }
+  const { site, previewMode } = useSiteContent();
+  const hasResumeContent =
+    (site.experience?.length ?? 0) > 0 ||
+    (site.projectExperience?.length ?? 0) > 0 ||
+    (site.education?.length ?? 0) > 0;
+  const hasPortfolioContent = (site.projects?.length ?? 0) > 0;
+  const showResumeSection = !previewMode || hasResumeContent;
+  const showPortfolioSection = !previewMode || hasPortfolioContent;
 
   return (
     <>
@@ -102,7 +91,12 @@ export function HomeShell() {
       <EditNetworkBanner />
       <SiteLoadWarningBanner />
       <PersistErrorBanner />
-      <SectionAnchorNav />
+      <AssetOptimizationBanner />
+      <SectionAnchorNav
+        showResume={showResumeSection}
+        showPortfolio={showPortfolioSection}
+      />
+      <HrQuickSummary />
       <VerticalScrollLayout>
         <section
           id="intro"
@@ -111,16 +105,34 @@ export function HomeShell() {
         >
           <HeroPage />
         </section>
-        <section
-          id="resume"
-          aria-label={mode === "zh" ? "履历" : "Resume"}
-          className="border-b border-line/50"
-        >
-          <ResumePage />
-        </section>
-        <section id="portfolio" aria-label={mode === "zh" ? "作品集" : "Portfolio"}>
-          <PortfolioPage />
-        </section>
+        {showResumeSection ? (
+          <section
+            id="resume"
+            aria-label={mode === "zh" ? "履历" : "Resume"}
+            className="border-b border-line/50"
+          >
+            <LazyPageMount
+              sectionId="resume"
+              loader={() =>
+                import("@/components/pages/ResumePage").then((m) => ({
+                  default: m.ResumePage,
+                }))
+              }
+            />
+          </section>
+        ) : null}
+        {showPortfolioSection ? (
+          <section id="portfolio" aria-label={mode === "zh" ? "作品集" : "Portfolio"}>
+            <LazyPageMount
+              sectionId="portfolio"
+              loader={() =>
+                import("@/components/pages/PortfolioPage").then((m) => ({
+                  default: m.PortfolioPage,
+                }))
+              }
+            />
+          </section>
+        ) : null}
         <SiteFooter />
       </VerticalScrollLayout>
       <ProfileSetupModal />
@@ -128,8 +140,9 @@ export function HomeShell() {
       <ResumePageCopyModal />
       <PortfolioPageCopyModal />
       <ResumeDetailOverlay />
-      <SiteEditorDock onOpenViewLog={() => setViewLogOpen(true)} />
-      <ViewLogModal open={viewLogOpen} onClose={() => setViewLogOpen(false)} />
+      <ResumeImportModal />
+      <SiteEditorDock />
+      <EditorLangIndicator />
     </>
   );
 }

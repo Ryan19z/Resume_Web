@@ -2,7 +2,8 @@
 
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
-import type { HeroCopy } from "@/lib/types";
+import type { HeroAsideMode, HeroCopy, HeroPortrait } from "@/lib/types";
+import { resolveHeroAsideMode } from "@/lib/hero-page-utils";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useState } from "react";
 
@@ -19,6 +20,13 @@ export function ProfileSetupModal() {
   const [contactPhone, setContactPhone] = useState(site.contactPhone ?? "");
   const [contactExtra, setContactExtra] = useState(site.contactExtra ?? "");
   const [heroCopy, setHeroCopy] = useState<HeroCopy>(site.heroCopy);
+  const [heroAsideMode, setHeroAsideMode] = useState<HeroAsideMode>(() =>
+    resolveHeroAsideMode(site.heroAsideMode),
+  );
+  const [portraitUrl, setPortraitUrl] = useState(site.heroPortrait?.url ?? "");
+  const [portraitCaption, setPortraitCaption] = useState(
+    site.heroPortrait?.caption ?? "",
+  );
   const titleId = useId();
   const descId = useId();
 
@@ -34,6 +42,9 @@ export function ProfileSetupModal() {
     setContactPhone(site.contactPhone ?? "");
     setContactExtra(site.contactExtra ?? "");
     setHeroCopy(site.heroCopy);
+    setHeroAsideMode(resolveHeroAsideMode(site.heroAsideMode));
+    setPortraitUrl(site.heroPortrait?.url ?? "");
+    setPortraitCaption(site.heroPortrait?.caption ?? "");
   }, [
     setupModalOpen,
     site.name,
@@ -44,6 +55,8 @@ export function ProfileSetupModal() {
     site.contactPhone,
     site.contactExtra,
     site.heroCopy,
+    site.heroAsideMode,
+    site.heroPortrait,
   ]);
 
   useBodyScrollLock(setupModalOpen);
@@ -188,6 +201,54 @@ export function ProfileSetupModal() {
                   />
                 </label>
               </div>
+              <div className="rounded-xl border border-line bg-paper/60 p-4">
+                <p className="mb-1 text-sm font-medium text-ink">首屏右侧展示</p>
+                <p className="mb-3 text-xs leading-relaxed text-ink-muted">
+                  可选择重点作品展示窗、个人证件照，或不展示。未上传内容时，访客不会看到空白区域。
+                </p>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {(
+                    [
+                      ["showcase", "重点展示"],
+                      ["portrait", "证件照"],
+                      ["hidden", "不展示"],
+                    ] as const
+                  ).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setHeroAsideMode(value)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        heroAsideMode === value
+                          ? "border-ink/25 bg-ink/[0.06] text-ink"
+                          : "border-line bg-surface text-ink-muted hover:border-ink/20"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {heroAsideMode === "portrait" ? (
+                  <div className="flex flex-col gap-2">
+                    <input
+                      value={portraitUrl}
+                      onChange={(e) => setPortraitUrl(e.target.value)}
+                      className="rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink/20"
+                      placeholder="证件照图片链接"
+                    />
+                    <input
+                      value={portraitCaption}
+                      onChange={(e) => setPortraitCaption(e.target.value)}
+                      className="rounded-lg border border-line bg-surface px-3 py-2 text-sm outline-none focus:border-ink/20"
+                      placeholder="照片说明（可选）"
+                      maxLength={80}
+                    />
+                    <p className="text-[11px] text-ink-muted">
+                      也可回到首页右侧区域上传本地照片并预览。
+                    </p>
+                  </div>
+                ) : null}
+              </div>
               <div className="rounded-xl border border-dashed border-line/90 bg-paper/50 p-4">
                 <p className="mb-3 text-sm font-medium text-ink">首页其他文案</p>
                 <div className="flex flex-col gap-3">
@@ -236,6 +297,11 @@ export function ProfileSetupModal() {
                     contactEmail: contactEmail.trim(),
                     contactPhone: contactPhone.trim(),
                     contactExtra: contactExtra.trim(),
+                    heroAsideMode,
+                    heroPortrait: {
+                      url: portraitUrl.trim(),
+                      caption: portraitCaption.trim() || undefined,
+                    } satisfies HeroPortrait,
                   })
                 }
                 className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"

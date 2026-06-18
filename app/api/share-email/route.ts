@@ -1,5 +1,10 @@
 import { isReasonableHttpUrl } from "@/lib/is-reasonable-http-url";
 import {
+  checkRateLimit,
+  rateLimitResponse,
+} from "@/lib/server/rate-limit";
+import { resolveEditPermission } from "@/lib/server/resolve-edit-permission";
+import {
   composeShareEmailText,
   normalizeShareEmailMessageInput,
 } from "@/lib/share-email-compose";
@@ -20,6 +25,31 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
+    const limited = checkRateLimit(
+      request.headers,
+      "share-email",
+      8,
+      60 * 60 * 1000,
+    );
+    if (!limited.ok) {
+      return NextResponse.json(rateLimitResponse(limited.retryAfterSec), {
+        status: 429,
+        headers: { "Retry-After": String(limited.retryAfterSec) },
+      });
+    }
+
+    const perm = await resolveEditPermission(request);
+    if (!perm.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "forbidden",
+          message: "仅站点主人可代发分享邮件。",
+        },
+        { status: 403 },
+      );
+    }
+
     const body = (await request.json()) as {
       to?: unknown;
       link?: unknown;

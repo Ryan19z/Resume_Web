@@ -35,6 +35,9 @@ yarn-error.log*
 /data/published-site.json
 /data/published-site.en.json
 /data/published-site*.tmp
+/data/view-log.json
+/data/resumes/
+/data/uploads/
 /public/uploads/*
 
 # typescript
