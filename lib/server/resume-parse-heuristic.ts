@@ -8,6 +8,9 @@ import { splitSchoolMajorBlob } from "@/lib/education-display";
 import {
   buildParseQualityWarnings,
   computeParseConfidence,
+  consolidateFragmentedProjects,
+  isCampusActivityNotProject,
+  isProjectAnchorTitle,
   reconcileWorkAndProjects,
 } from "@/lib/server/resume-parse-reconcile";
 const MONTH =
@@ -1125,6 +1128,7 @@ function isValidProjectTitle(title: string): boolean {
     return false;
   }
   if (/项目负责人/.test(t)) return false;
+  if (/篮球队|球队成员|院队|校队|运动会|社团活动|学生工作/.test(t)) return false;
   if (/^建筑电气与智能化$/.test(t)) return false;
   if (/[。；]/.test(t) && t.length > 24) return false;
   if (/^[a-zA-Z0-9]{0,2}[\u4e00-\u9fff]{1,6}[。；]?$/.test(t)) return false;
@@ -1702,8 +1706,19 @@ function scanTimedEntries(allLines: string[]): TimedEntry[] {
             kind: "project",
           };
         } else {
+          const resolvedTitle = projectTitle || titlePart.replace(/\s+/g, " ");
+          if (
+            isCampusActivityNotProject({
+              title: resolvedTitle,
+              period,
+              bullets: [],
+            })
+          ) {
+            flush();
+            continue;
+          }
           current = {
-            title: projectTitle || titlePart.replace(/\s+/g, " "),
+            title: resolvedTitle,
             period,
             bullets: [],
             kind: "project",
@@ -1732,6 +1747,26 @@ function scanTimedEntries(allLines: string[]): TimedEntry[] {
       ) {
         current.company = line;
         continue;
+      }
+      if (current.kind === "project") {
+        const endDateOnLine = rawLine.match(DATE_RANGE_AT_END);
+        const wouldStartNewProject =
+          Boolean(endDateOnLine) &&
+          isProjectAnchorTitle(
+            rawLine.slice(0, endDateOnLine!.index).trim(),
+          );
+        const isSectionStop =
+          /^(?:奖项荣誉|自我评价|专业技能|教育背景|工作经历|实习经历|项目经历|个人简介)/.test(
+            line,
+          );
+        if (!wouldStartNewProject && !isSectionStop && line.length > 6) {
+          if (shouldMergeBulletContinuation(rawLine, current.bullets, "project")) {
+            appendBulletContinuation(current.bullets, rawLine);
+          } else if (!isProjectAnchorTitle(rawLine)) {
+            current.bullets.push(stripBullet(line));
+          }
+          continue;
+        }
       }
       if (current.bullets.length === 0 && line.length > 8) {
         current.bullets.push(line);
@@ -2653,7 +2688,11 @@ export function parseResumeHeuristic(rawText: string): {
     ...sectionParsedProjects,
     ...leaderProjects,
     ...scannedProjects,
-  ]).filter((p) => isValidProjectTitle(p.title));
+  ])
+    .filter((p) => isValidProjectTitle(p.title))
+    .filter((p) => !isCampusActivityNotProject(p));
+
+  projects = consolidateFragmentedProjects(projects);
 
   const dedicatedProjectSection = hasDedicatedProjectSection(sections, lines);
   const reconciled = reconcileWorkAndProjects(experience, projects, {

@@ -30,13 +30,14 @@ const PARSE_SCHEMA = `{
     }]
   }],
   "projects": [{
-    "title": "项目名 — 课程设计/竞赛项目/科研项目/个人开发项目等，不能是公司名",
-    "description": "string | null — 项目的整体介绍（场景+目标）",
-    "role": "string | null — 在项目中的角色，如 负责人/主要开发/队长",
+    "title": "项目名 — 课程设计/竞赛项目/科研项目等（含芯片型号或系统名，如 惯导定位越野车（TC264））",
+    "description": "string | null — 项目的整体介绍（场景+目标，一段话）",
+    "role": "string | null — 在项目中的角色，如 负责人/主要开发/队员",
     "period": "string | null — 项目起止时间",
-    "bullets": ["项目要点 bullet（职责/技术方案/量化成果，尽量拆成多条）"],
+    "bullets": ["项目要点 bullet — 同一项目的所有技术方案/职责/量化成果都放这里，每条一句，不要拆成多个 project"],
     "link": "string | null — 项目链接/仓库地址，如无可为 null"
-  }]
+  }],
+  "awards": ["string"] — 奖学金、学科/英语/竞赛获奖、校级及以上荣誉（含年份），不要放进 projects
 }`;
 
 function resolveLlmConfig(): {
@@ -153,6 +154,8 @@ function sanitizeParsed(raw: unknown): ParsedResume | null {
         .filter(Boolean)
     : [];
 
+  const awards = strList(o.awards, 12);
+
   // 兼容模型输出中的别名章节：实践经历/活动经历/校园经历/实习经历等。
   // 若模型把它们放到了 schema 之外，这里做二次归类，确保不丢信息。
   const practiceLike = [
@@ -258,6 +261,7 @@ function sanitizeParsed(raw: unknown): ParsedResume | null {
     experience: experience as ParsedResume["experience"],
     education: education as ParsedResume["education"],
     projects: projects as ParsedResume["projects"],
+    awards: awards.length ? awards : undefined,
   };
 }
 
@@ -303,10 +307,10 @@ export async function parseResumeWithLlm(
 1. 自动识别中英文简历，章节可能叫「工作经历」「实习经历」「校园经历」「项目经历」「Projects」「Experience」等。
 2. 严格区分三类内容：
    2.1 experience = 实习/校招/社招等「工作岗位」，公司是企业或正式机构，例如：暑期实习生、销售工程师。不要把学生会/班长/社团/竞赛队员放到 experience。
-   2.2 education.campusExperiences = 校内职务与校园实践，例如：班级心理委员、学生会干部、校新闻中心成员、智能车队队员等。
-   2.3 projects = 具体项目（课程设计、比赛作品、科研课题、个人/开源项目等），通常有清晰的目标和成果，例如：基于 TC377 的智能车、红外循迹小车、管理系统等。
+   2.2 education.campusExperiences = 校内职务与校园实践，例如：班级心理委员、学生会干部、校新闻中心成员、智能车队队员、院篮球队成员、社团活动等。不要把篮球队/学生会/班委/志愿者放进 projects。
+   2.3 projects = 工程/学术/竞赛类具体项目（课程设计、智能车、电控系统、小程序开发等），通常有技术方案或系统名称；不是校园运动队、社团职务或奖学金荣誉。
 3. 工作经历 experience 按时间倒序（最近的在前），每条 keyResults 提取量化成果 bullet，每条独立。
-4. 项目经历 projects 必须尽量提取 bullets（职责/技术方案/成果），不要只给一句 description。
+4. 项目经历 projects：每个竞赛/课程/科研项目只占一条，不要把同一项目下的多条职责、技术方案、成果拆成多个 project 对象；同一项目的细节应放在该条的 bullets 数组里。例如「惯导定位越野车（TC264）2022.12-2023.08」及其下 4–6 条技术要点 = 1 个项目，不是 5 个项目。
 5. 找不到的字段用 null 或空数组，不要编造；字段中不要出现“暂无”“无”等字样。
 6. name 只填姓名，不要带「简历」「Resume」等词。
 

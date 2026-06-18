@@ -158,32 +158,65 @@ function mapEducationItem(
   const title = degree || "学历 / 专业";
   const subtitle = school || "学校";
 
-  const awardBullets = index === 0 ? (awards ?? []).slice(0, 6) : [];
-  const highlightBullets = [...e.highlights, ...awardBullets]
-    .filter(Boolean)
-    .slice(0, 12);
+  const academicBullets: string[] = [];
+  const courseBullets: string[] = [];
+  const miscBullets: string[] = [];
 
-  const courseBullets = highlightBullets
-    .filter((h) => h.startsWith("主修课程"))
-    .map((h) => h.replace(/^主修课程[:：]\s*/, ""));
-  const legacyCampusBullets = highlightBullets.filter(
-    (h) => !h.startsWith("主修课程"),
-  );
+  for (const h of e.highlights) {
+    const t = h.trim();
+    if (!t) continue;
+    if (t.startsWith("主修课程")) {
+      courseBullets.push(t.replace(/^主修课程[:：]\s*/, ""));
+    } else if (/GPA|gpa|CET|英语/i.test(t)) {
+      academicBullets.push(t);
+    } else {
+      miscBullets.push(t);
+    }
+  }
+
+  const awardBullets =
+    index === 0
+      ? dedupeAwardStrings([
+          ...(awards ?? []),
+          ...e.highlights.filter(isAwardLikeHighlight),
+        ]).slice(0, 12)
+      : [];
 
   const campusRoleBlocks = (e.campusExperiences ?? []).map((c) => ({
-    heading: `${c.role}（${c.period}）`,
-    bullets: c.bullets,
+    heading: `${c.role}${c.period?.trim() ? `（${c.period.trim()}）` : ""}`,
+    bullets:
+      c.bullets.length > 0
+        ? c.bullets
+        : ([c.role].filter(Boolean) as string[]),
   }));
 
-  const campusHighlights = [
-    ...(courseBullets.length
-      ? [{ heading: "主修课程", bullets: courseBullets }]
-      : []),
-    ...campusRoleBlocks,
-    ...(legacyCampusBullets.length && !campusRoleBlocks.length
-      ? [{ heading: "在校经历", bullets: legacyCampusBullets }]
-      : []),
-  ];
+  const campusHighlights: EducationItem["campusHighlights"] = [];
+
+  if (academicBullets.length) {
+    campusHighlights.push({
+      heading: "学业表现",
+      bullets: academicBullets.slice(0, 6),
+    });
+  }
+  if (courseBullets.length) {
+    campusHighlights.push({
+      heading: "主修课程",
+      bullets: courseBullets.slice(0, 8),
+    });
+  }
+  campusHighlights.push(...campusRoleBlocks);
+  if (awardBullets.length) {
+    campusHighlights.push({
+      heading: "奖项荣誉",
+      bullets: awardBullets,
+    });
+  }
+  if (miscBullets.length) {
+    campusHighlights.push({
+      heading: "在校经历",
+      bullets: miscBullets.slice(0, 8),
+    });
+  }
 
   return {
     id: randomId("edu-"),
@@ -194,6 +227,27 @@ function mapEducationItem(
     campusHighlights,
     representativeProjects: [],
   };
+}
+
+function isAwardLikeHighlight(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.length < 3) return false;
+  if (/^主修课程/.test(t)) return false;
+  if (/GPA|gpa/.test(t) && !/奖/.test(t)) return false;
+  return /(?:奖|竞赛|大赛|学金|Honor|Scholarship|CET|英语|三等奖|二等奖|一等奖|参赛奖|优秀奖)/i.test(
+    t,
+  );
+}
+
+function dedupeAwardStrings(items: string[]): string[] {
+  const seen = new Set<string>();
+  return items
+    .map((x) => x.trim())
+    .filter((x) => {
+      if (!x || seen.has(x)) return false;
+      seen.add(x);
+      return true;
+    });
 }
 
 function formatWorkSubtitle(company: string, title: string): string {

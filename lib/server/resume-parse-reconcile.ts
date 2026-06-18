@@ -281,13 +281,252 @@ export function computeParseConfidence(parsed: ParsedResume): number {
   return Math.max(0.2, Math.min(0.98, Math.round(score * 100) / 100));
 }
 
+/** 项目标题是否像「惯导定位越野车（TC264）」这类主标题，而非职责 bullet */
+export function isProjectAnchorTitle(title: string): boolean {
+  const t = title.trim();
+  if (t.length < 4 || t.length > 96) return false;
+  if (
+    /[（(][^）)]*(?:TC\d+|STM32|MSPM0|ESP32|μC|TC377|TC264|F103|G3507|TC264|TC377|NB-IoT|FM33|PIC24)[^）)]*[）)]/i.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (/^基于/.test(t)) return true;
+  if (
+    /(?:系统|单元|越野车|循迹|平台|装置|主控|电控)(?:[（(]|$)/.test(t) &&
+    t.length <= 72 &&
+    !/^(?:根据|针对|使用|通过|配置|对比|设计|利用|制定|主导|将|采用|实现|完成|编写|开发|优化|移植|建立|搭建)/.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (/^(?:惯导|红外循迹|车载电控|智能车|竞赛)/.test(t) && t.length <= 72) {
+    return true;
+  }
+  return false;
+}
+
+/** 是否像被误当成独立项目的职责/技术 bullet */
+function isProjectFragmentTitle(title: string): boolean {
+  const t = title.trim();
+  if (!t) return true;
+  if (isProjectAnchorTitle(t)) return false;
+  if (
+    /^(?:根据|针对|使用|通过|配置|对比|设计|利用|制定|主导|项目成果|将|采用|实现|完成|编写|开发|优化|移植|建立|搭建|缩短|减少|提高|降低|嘉立创|利用霍尔|电机进入|对比FreeRTOS)/.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (/^算法[，,、：:]/.test(t)) return true;
+  if (/[。；]$/.test(t) && t.length >= 8) return true;
+  if (t.length > 28 && /[，,、]/.test(t)) return true;
+  if (/^(?:办公工具|数据分析|技术栈|技术理解力|需求分析|跨团队协作)[:：]/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
+function mergeFragmentIntoProject(
+  target: ParsedProject,
+  fragment: ParsedProject,
+): void {
+  const parts: string[] = [];
+  if (fragment.description?.trim()) parts.push(fragment.description.trim());
+  if (fragment.bullets?.length) parts.push(...fragment.bullets);
+  if (isProjectFragmentTitle(fragment.title)) {
+    parts.unshift(fragment.title.trim());
+  } else if (
+    fragment.title.trim() &&
+    fragment.title.trim() !== target.title.trim() &&
+    !isProjectAnchorTitle(fragment.title)
+  ) {
+    parts.unshift(fragment.title.trim());
+  }
+  target.bullets = target.bullets ?? [];
+  for (const p of parts) {
+    const t = p.trim();
+    if (!t) continue;
+    if (!target.bullets.some((b) => b.trim() === t)) {
+      target.bullets.push(t);
+    }
+  }
+  if (fragment.link?.trim() && !target.link?.trim()) {
+    target.link = fragment.link.trim();
+  }
+  if (
+    fragment.role?.trim() &&
+    fragment.role !== "项目成员" &&
+    (!target.role?.trim() || target.role === "项目成员")
+  ) {
+    target.role = fragment.role.trim();
+  }
+}
+
+/**
+ * 合并 LLM 等误拆的项目条目：同一项目下的多条 bullet 不应各占一条「项目经历」。
+ */
+export function consolidateFragmentedProjects(
+  projects: ParsedProject[],
+): ParsedProject[] {
+  if (projects.length <= 1) return projects;
+
+  const result: ParsedProject[] = [];
+  let current: ParsedProject | null = null;
+
+  for (const raw of projects) {
+    const p: ParsedProject = {
+      ...raw,
+      bullets: raw.bullets ? [...raw.bullets] : undefined,
+    };
+    const hasPeriod = Boolean(p.period?.trim());
+    const isAnchor = hasPeriod && isProjectAnchorTitle(p.title);
+    const isFragment =
+      isProjectFragmentTitle(p.title) ||
+      (!hasPeriod && !isProjectAnchorTitle(p.title));
+
+    if (isAnchor || (!isFragment && hasPeriod && !isProjectFragmentTitle(p.title))) {
+      if (current) result.push(current);
+      current = p;
+      continue;
+    }
+
+    if (isFragment) {
+      if (current) {
+        mergeFragmentIntoProject(current, p);
+        continue;
+      }
+      if (result.length > 0) {
+        mergeFragmentIntoProject(result[result.length - 1]!, p);
+        continue;
+      }
+    }
+
+    if (current) result.push(current);
+    current = p;
+  }
+
+  if (current) result.push(current);
+  return result.filter((p) => p.title?.trim());
+}
+
+export type ProjectReconcileResult = {
+  projects: ParsedProject[];
+  warnings: string[];
+};
+
+/**
+ * 优先合并碎片；若仍明显多于规则引擎识别数，则回退规则引擎项目列表。
+ */
+export function reconcileProjectList(
+  projects: ParsedProject[],
+  heuristicProjects: ParsedProject[],
+): ProjectReconcileResult {
+  const warnings: string[] = [];
+  const before = projects.length;
+  let merged = consolidateFragmentedProjects(projects);
+
+  if (
+    heuristicProjects.length >= 1 &&
+    merged.length > Math.max(heuristicProjects.length + 1, heuristicProjects.length * 1.5)
+  ) {
+    warnings.push(
+      `AI 将项目拆分为 ${before} 条（合并后仍有 ${merged.length} 条），已改用规则引擎识别的 ${heuristicProjects.length} 个项目条目；请导入后核对要点是否完整。`,
+    );
+    merged = heuristicProjects;
+  } else if (before > merged.length) {
+    warnings.push(
+      `已将 ${before - merged.length} 条误识别的项目要点合并进对应项目，请在「履历 → 项目经历」中核对。`,
+    );
+  }
+
+  return { projects: merged, warnings };
+}
+
 type ClassifyResult = {
   parsed: ParsedResume;
   warnings: string[];
 };
 
 const CAMPUS_ROLE_RE =
-  /(学生会|班委|班长|团支书|社团|协会|主席团|新闻中心|志愿者|辅导员助理|校队|组织部|宣传部)/i;
+  /(学生会|班委|班长|团支书|社团|协会|主席团|新闻中心|志愿者|辅导员助理|校队|院队|组织部|宣传部|篮球队|足球队|羽毛球队|乒乓球队|运动队|田径队|辩论队|艺术团|合唱团|主持队|球队成员|篮球队员|实验室队员|智能车实验室)/i;
+
+const CAMPUS_ACTIVITY_NOT_PROJECT_RE =
+  /(篮球队|足球队|羽毛球队|乒乓球队|运动队|田径队|校队|院队|球队成员|篮球队员|院级比赛|校级比赛|院级.*(?:亚|季|冠)军|热爱运动|院篮|校篮|社团活动|学生工作|学生会|班委|志愿者服务)/i;
+
+/** 是否应归入校园经历，而非工程/学术「项目经历」 */
+export function isCampusActivityNotProject(p: ParsedProject): boolean {
+  const joined = `${p.title} ${p.role ?? ""} ${p.description ?? ""} ${(p.bullets ?? []).join(" ")}`.trim();
+  if (!joined) return false;
+  if (isProjectAnchorTitle(p.title) && !CAMPUS_ACTIVITY_NOT_PROJECT_RE.test(joined)) {
+    return false;
+  }
+  if (CAMPUS_ACTIVITY_NOT_PROJECT_RE.test(joined)) return true;
+  if (CAMPUS_ROLE_RE.test(p.title) || CAMPUS_ROLE_RE.test(p.role ?? "")) {
+    return !isProjectAnchorTitle(p.title);
+  }
+  if (
+    /(?:成员|队员)$/.test(p.title.trim()) &&
+    !/(?:系统|单元|平台|电控|循迹|定位|开发|主控|STM32|TC264|MSPM0|μC)/.test(
+      joined,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** 将误放入 projects 的校园/运动/社团条目移至 education.campusExperiences */
+export function relocateCampusActivitiesFromProjects(
+  parsed: ParsedResume,
+): { parsed: ParsedResume; warnings: string[] } {
+  const warnings: string[] = [];
+  const remaining: ParsedProject[] = [];
+  let moved = 0;
+
+  for (const p of parsed.projects) {
+    if (!isCampusActivityNotProject(p)) {
+      remaining.push(p);
+      continue;
+    }
+    moved++;
+    const edu = parsed.education[0];
+    if (edu) {
+      if (!edu.campusExperiences) edu.campusExperiences = [];
+      const role = p.title.trim() || p.role?.trim() || "校园经历";
+      const bullets = [
+        ...(p.bullets ?? []),
+        ...(p.description?.trim() ? [p.description.trim()] : []),
+      ].filter(Boolean);
+      const period = p.period?.trim() ?? "";
+      const exists = edu.campusExperiences.some(
+        (c) =>
+          c.role === role &&
+          c.period.replace(/\s/g, "") === period.replace(/\s/g, ""),
+      );
+      if (!exists) {
+        edu.campusExperiences.push({
+          role,
+          period,
+          bullets: bullets.slice(0, 10),
+        });
+      }
+    }
+  }
+
+  if (moved > 0) {
+    warnings.push(
+      `已将 ${moved} 条校园/运动/社团经历从「项目经历」移至「教育背景 → 校园经历」，请在履历页核对。`,
+    );
+  }
+
+  return {
+    parsed: { ...parsed, projects: remaining },
+    warnings,
+  };
+}
 const WORKLIKE_RE =
   /(实习|兼职|全职|教师|助教|辅导|运营|销售|顾问|客服|商务|地推|门店|创业|经营|接单|客户|转化|营收|GMV)/i;
 const PROJECTLIKE_RE =
@@ -295,6 +534,62 @@ const PROJECTLIKE_RE =
 
 function uniqPush<T>(arr: T[], item: T, same: (a: T, b: T) => boolean) {
   if (!arr.some((x) => same(x, item))) arr.push(item);
+}
+
+function dedupeAwardStrings(items: string[]): string[] {
+  const seen = new Set<string>();
+  return items
+    .map((x) => x.trim())
+    .filter((x) => {
+      if (!x || x.length < 3 || seen.has(x)) return false;
+      seen.add(x);
+      return true;
+    });
+}
+
+const AWARD_LIKE_RE =
+  /(?:奖|竞赛|大赛|学金|Honor|Scholarship|CET|英语|三等奖|二等奖|一等奖|参赛奖|优秀奖)/i;
+
+export function isAwardLikeText(text: string): boolean {
+  const t = text.trim();
+  if (!t || t.length < 3) return false;
+  if (/^主修课程/.test(t)) return false;
+  if (/GPA|gpa/.test(t) && !/奖/.test(t)) return false;
+  return AWARD_LIKE_RE.test(t);
+}
+
+/** 合并 LLM/规则/教育亮点中的奖项，避免导入后校园详情丢失荣誉 */
+export function enrichParsedResumeAwards(
+  parsed: ParsedResume,
+  fallbackAwards: string[] = [],
+): ParsedResume {
+  const fromHighlights = parsed.education.flatMap((e) =>
+    e.highlights.filter(isAwardLikeText),
+  );
+  const fromCampus = parsed.education.flatMap((e) =>
+    (e.campusExperiences ?? []).flatMap((c) =>
+      c.bullets.filter(isAwardLikeText),
+    ),
+  );
+  const awards = dedupeAwardStrings([
+    ...(parsed.awards ?? []),
+    ...fromHighlights,
+    ...fromCampus,
+    ...fallbackAwards,
+  ]).slice(0, 12);
+
+  const education = parsed.education.map((e) => ({
+    ...e,
+    highlights: e.highlights.filter(
+      (h) => !isAwardLikeText(h) || /GPA|gpa|CET|英语/i.test(h),
+    ),
+  }));
+
+  return {
+    ...parsed,
+    education,
+    awards: awards.length ? awards : undefined,
+  };
 }
 
 function classifyCampusEntry(
@@ -405,6 +700,21 @@ export function autoClassifyResumeContent(parsed: ParsedResume): ClassifyResult 
       `已自动归类实践型经历：转入工作经历 ${movedToWork} 条，转入项目经历 ${movedToProject} 条。请在履历页核对。`,
     );
   }
+
+  const consolidated = consolidateFragmentedProjects(out.projects);
+  if (consolidated.length < out.projects.length) {
+    warnings.push(
+      `已将 ${out.projects.length - consolidated.length} 条误拆的项目要点合并进对应项目。`,
+    );
+  }
+  out.projects = consolidated;
+
+  const relocated = relocateCampusActivitiesFromProjects(out);
+  out.projects = relocated.parsed.projects;
+  if (relocated.parsed.education[0]) {
+    out.education[0] = relocated.parsed.education[0]!;
+  }
+  warnings.push(...relocated.warnings);
 
   return { parsed: out, warnings };
 }

@@ -12,6 +12,8 @@ import {
   autoClassifyResumeContent,
   buildParseQualityWarnings,
   computeParseConfidence,
+  enrichParsedResumeAwards,
+  reconcileProjectList,
 } from "@/lib/server/resume-parse-reconcile";
 import {
   getLlmParseMeta,
@@ -118,6 +120,9 @@ export async function POST(request: NextRequest) {
     let warnings: string[] = [];
     let llmAttempted = false;
 
+    const heuristic = parseResumeHeuristic(rawText);
+    const heuristicProjects = heuristic.parsed.projects;
+
     const preferLlm = request.nextUrl.searchParams.get("llm") !== "0";
     if (preferLlm && isLlmParseAvailable()) {
       llmAttempted = true;
@@ -137,7 +142,6 @@ export async function POST(request: NextRequest) {
     const llmFallback = llmAttempted && method !== "llm";
 
     if (!parsed) {
-      const heuristic = parseResumeHeuristic(rawText);
       parsed = heuristic.parsed;
       confidence = heuristic.confidence;
       warnings = heuristic.warnings;
@@ -149,13 +153,18 @@ export async function POST(request: NextRequest) {
         ];
       }
     } else {
+      const projectReconcile = reconcileProjectList(
+        parsed.projects,
+        heuristicProjects,
+      );
+      parsed.projects = projectReconcile.projects;
       warnings = buildParseQualityWarnings({
         experience: parsed.experience,
         projects: parsed.projects,
         name: parsed.name,
         educationCount: parsed.education.length,
         method: "llm",
-        reconcileWarnings: [],
+        reconcileWarnings: projectReconcile.warnings,
       });
       confidence = computeParseConfidence(parsed);
       if (warnings.length > 0) {
@@ -176,6 +185,8 @@ export async function POST(request: NextRequest) {
     if (contactFallback.extra?.trim() && !parsed.contactExtra?.trim()) {
       parsed.contactExtra = contactFallback.extra.trim();
     }
+
+    parsed = enrichParsedResumeAwards(parsed, heuristic.parsed.awards ?? []);
 
     const classified = autoClassifyResumeContent(parsed);
     parsed = classified.parsed;
