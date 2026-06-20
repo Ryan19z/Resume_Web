@@ -1,6 +1,8 @@
 import { buildNewCustomerDefaultBundle } from "@/lib/persist-site";
+import { buildResumeSpaceUrls } from "@/lib/public-site-url";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { writePublishedBundle } from "@/lib/server/published-site-store";
+import { initializeTrialSubscription } from "@/lib/server/subscription-store";
 import { randomBytes } from "crypto";
 import fs from "fs/promises";
 import path from "path";
@@ -88,7 +90,10 @@ export async function readResumeSpaceMeta(
   };
 }
 
-export async function createResumeSpace(): Promise<ResumeSpaceMeta> {
+export async function createResumeSpace(options?: {
+  /** 默认 true；管理端「开户并开通套餐」时应设为 false，避免先写 7 天试用再叠月租 */
+  initTrial?: boolean;
+}): Promise<ResumeSpaceMeta> {
   const resumeId = makeResumeId();
   const meta: ResumeSpaceMeta = {
     resumeId,
@@ -104,8 +109,23 @@ export async function createResumeSpace(): Promise<ResumeSpaceMeta> {
   const starterBundle = buildNewCustomerDefaultBundle(meta.createdAt);
   await writePublishedBundle(starterBundle, "zh", resumeId);
   await writePublishedBundle(starterBundle, "en", resumeId);
+  if (options?.initTrial !== false) {
+    await initializeTrialSubscription(resumeId, meta.createdAt);
+  }
 
   return meta;
+}
+
+export async function getResumeSpaceLinks(
+  resumeIdRaw: string,
+): Promise<{ editUrl: string; viewUrl: string } | null> {
+  const meta = await readResumeSpaceMeta(resumeIdRaw);
+  if (!meta) return null;
+  return buildResumeSpaceUrls({
+    resumeId: meta.resumeId,
+    editToken: meta.editToken,
+    viewToken: meta.viewToken,
+  });
 }
 
 export async function canEditByToken(

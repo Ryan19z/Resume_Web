@@ -3,7 +3,9 @@ import {
   checkRateLimit,
   rateLimitResponse,
 } from "@/lib/server/rate-limit";
+import { requireFeature } from "@/lib/server/entitlements";
 import { resolveEditPermission } from "@/lib/server/resolve-edit-permission";
+import { sanitizeResumeId } from "@/lib/resume-scope";
 import {
   composeShareEmailText,
   normalizeShareEmailMessageInput,
@@ -43,9 +45,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           ok: false,
-          error: "forbidden",
-          message: "仅站点主人可代发分享邮件。",
+          error: perm.code ?? "forbidden",
+          message: perm.message || "仅站点主人可代发分享邮件。",
         },
+        { status: 403 },
+      );
+    }
+
+    const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
+    const shareEnt = await requireFeature(resumeId || undefined, "shareEmail");
+    if (!shareEnt.ok) {
+      return NextResponse.json(
+        { ok: false, error: shareEnt.code, message: shareEnt.message },
         { status: 403 },
       );
     }

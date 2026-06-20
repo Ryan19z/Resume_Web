@@ -1,3 +1,4 @@
+import { requireFeature } from "@/lib/server/entitlements";
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { canEditByToken } from "@/lib/server/resume-space-store";
@@ -19,6 +20,13 @@ export async function GET(request: NextRequest) {
       if (!tokenOk) {
         return NextResponse.json(
           { ok: false, error: "forbidden", message: "无权限查看访问记录。" },
+          { status: 403 },
+        );
+      }
+      const ent = await requireFeature(resumeId, "viewLog");
+      if (!ent.ok) {
+        return NextResponse.json(
+          { ok: false, error: ent.code, message: ent.message },
           { status: 403 },
         );
       }

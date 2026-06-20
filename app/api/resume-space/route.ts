@@ -1,4 +1,5 @@
 import { createResumeSpace } from "@/lib/server/resume-space-store";
+import { readSubscriptionRecord } from "@/lib/server/subscription-store";
 import { getPublicSiteOrigin } from "@/lib/public-site-url";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
   const origin = getPublicSiteOrigin();
   const editUrl = `${origin}/?resumeId=${encodeURIComponent(space.resumeId)}&editToken=${encodeURIComponent(space.editToken)}&viewToken=${encodeURIComponent(space.viewToken)}`;
   const viewUrl = `${origin}/?resumeId=${encodeURIComponent(space.resumeId)}&viewToken=${encodeURIComponent(space.viewToken)}`;
+  const subscription = await readSubscriptionRecord(space.resumeId);
   return NextResponse.json({
     ok: true,
     space: {
@@ -46,6 +48,7 @@ export async function POST(request: NextRequest) {
       createdAt: space.createdAt,
       editUrl,
       viewUrl,
+      subscription,
     },
   });
 }

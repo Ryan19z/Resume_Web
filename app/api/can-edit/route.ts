@@ -1,3 +1,7 @@
+import {
+  entitlementsPayload,
+  resolveEntitlements,
+} from "@/lib/server/entitlements";
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { canEditByToken } from "@/lib/server/resume-space-store";
@@ -16,22 +20,42 @@ export async function GET(request: NextRequest) {
       const tokenOk = editToken
         ? await canEditByToken(resumeId, editToken)
         : false;
+      const entitlements = await resolveEntitlements(resumeId);
+      const canEdit = tokenOk && entitlements.features.editing;
       return NextResponse.json({
-        canEdit: tokenOk,
+        canEdit,
+        tokenAuthorized: tokenOk,
+        subscriptionActive: entitlements.active,
+        entitlements: entitlementsPayload(entitlements),
         ip: "",
-        reason: tokenOk
+        reason: canEdit
           ? "编辑令牌已授权。"
-          : "缺少或无效的 editToken，当前链接仅可只读浏览。",
+          : !tokenOk
+            ? "缺少或无效的 editToken，当前链接仅可只读浏览。"
+            : !entitlements.active
+              ? "套餐已到期，编辑与发布已暂停，请联系管理员续费。"
+              : "当前套餐未包含在线编辑，请升级套餐。",
       });
     }
     const { canEdit, ip, reason } = resolveCanEdit(request.headers);
-    return NextResponse.json({ canEdit, ip, reason });
+    const entitlements = await resolveEntitlements(undefined);
+    return NextResponse.json({
+      canEdit,
+      tokenAuthorized: canEdit,
+      subscriptionActive: true,
+      entitlements: entitlementsPayload(entitlements),
+      ip,
+      reason,
+    });
   } catch (e) {
     console.error("[api/can-edit]", e);
     const devFallback = process.env.NODE_ENV === "development";
     return NextResponse.json(
       {
         canEdit: devFallback,
+        tokenAuthorized: devFallback,
+        subscriptionActive: devFallback,
+        entitlements: null,
         ip: "",
         reason: devFallback
           ? "服务端校验异常，开发环境已临时允许编辑。"

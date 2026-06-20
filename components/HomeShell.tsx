@@ -8,6 +8,7 @@ import { HrQuickSummary } from "@/components/HrQuickSummary";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
 import { SiteEditorDock } from "@/components/SiteEditorDock";
+import { SubscriptionStatusBanner } from "@/components/SubscriptionStatusBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteTourAutoStart, SiteTourListener } from "@/components/SiteTourDriver";
 import { TourReadonlySentinels } from "@/components/TourReadonlySentinels";
@@ -89,6 +90,7 @@ export function HomeShell() {
       <ThemeSwitcher />
       <TopUtilityBar />
       <EditNetworkBanner />
+      <SubscriptionStatusBanner />
       <SiteLoadWarningBanner />
       <PersistErrorBanner />
       <AssetOptimizationBanner />

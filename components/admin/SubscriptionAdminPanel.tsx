@@ -1,0 +1,504 @@
+"use client";
+
+import { PlanComparisonTable } from "@/components/admin/PlanComparisonTable";
+import { MANAGED_TIERS, SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
+import type { SubscriptionTier } from "@/lib/subscription-types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+type ListItem = {
+  resumeId: string;
+  createdAt: number | null;
+  updatedAt: number | null;
+  editUrl: string;
+  viewUrl: string;
+  subscription: {
+    tier: SubscriptionTier;
+    status: string;
+    expiresAt: number | null;
+    note?: string;
+  } | null;
+  usage: {
+    monthKey: string;
+    smartImport: number;
+    aiParse: number;
+  };
+};
+
+type GeneratedLinks = {
+  resumeId: string;
+  tierLabelZh: string;
+  editUrl: string;
+  viewUrl: string;
+};
+
+const STORAGE_KEY = "resume-space-admin-key";
+
+function formatDate(ms: number | null): string {
+  if (ms == null) return "—";
+  return new Date(ms).toLocaleString("zh-CN");
+}
+
+function daysLeft(ms: number | null): string {
+  if (ms == null) return "未设到期";
+  const d = Math.ceil((ms - Date.now()) / (24 * 60 * 60 * 1000));
+  if (d < 0) return `已过期 ${Math.abs(d)} 天`;
+  if (d === 0) return "今日到期";
+  return `剩余 ${d} 天`;
+}
+
+function LinkCopyField({
+  label,
+  hint,
+  value,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async () => {
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium text-ink">{label}</span>
+        <button
+          type="button"
+          onClick={copy}
+          disabled={!value}
+          className="shrink-0 rounded-full border border-line px-3 py-1 text-[11px] font-medium text-ink hover:bg-ink/[0.04] disabled:opacity-40"
+        >
+          {copied ? "已复制" : "复制"}
+        </button>
+      </div>
+      <p className="text-[11px] text-ink-muted">{hint}</p>
+      <textarea
+        readOnly
+        value={value}
+        rows={2}
+        className="w-full resize-none rounded-xl border border-line bg-paper px-3 py-2 font-mono text-[11px] leading-relaxed text-ink"
+      />
+    </div>
+  );
+}
+
+export function SubscriptionAdminPanel() {
+  const [adminKey, setAdminKey] = useState("");
+  const [items, setItems] = useState<ListItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [tier, setTier] = useState<SubscriptionTier>("monthly");
+  const [extendDays, setExtendDays] = useState("30");
+  const [note, setNote] = useState("");
+  const [generatedLinks, setGeneratedLinks] = useState<GeneratedLinks | null>(
+    null,
+  );
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(STORAGE_KEY);
+    if (saved) setAdminKey(saved);
+  }, []);
+
+  useEffect(() => {
+    const days = SUBSCRIPTION_PLANS[tier].durationDays;
+    if (days) setExtendDays(String(days));
+  }, [tier]);
+
+  const load = useCallback(async (key: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/subscriptions?adminKey=${encodeURIComponent(key)}`,
+        { cache: "no-store" },
+      );
+      const data = (await res.json()) as {
+        ok?: boolean;
+        message?: string;
+        items?: ListItem[];
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setItems(data.items ?? []);
+      sessionStorage.setItem(STORAGE_KEY, key);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const selected = useMemo(
+    () => items.find((x) => x.resumeId === selectedId) ?? null,
+    [items, selectedId],
+  );
+
+  useEffect(() => {
+    if (selected?.subscription?.tier) {
+      setTier(
+        MANAGED_TIERS.includes(selected.subscription.tier as SubscriptionTier)
+          ? (selected.subscription.tier as SubscriptionTier)
+          : "monthly",
+      );
+      setNote(selected.subscription.note ?? "");
+    }
+  }, [selected]);
+
+  const provisionNewCustomer = async () => {
+    if (!adminKey.trim()) return;
+    setProvisioning(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/provision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminKey,
+          tier,
+          extendDays: Number(extendDays) || undefined,
+          note: note.trim() || undefined,
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        message?: string;
+        resumeId?: string;
+        tierLabelZh?: string;
+        editUrl?: string;
+        viewUrl?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setGeneratedLinks({
+        resumeId: data.resumeId ?? "",
+        tierLabelZh: data.tierLabelZh ?? SUBSCRIPTION_PLANS[tier].labelZh,
+        editUrl: data.editUrl ?? "",
+        viewUrl: data.viewUrl ?? "",
+      });
+      setSelectedId(data.resumeId ?? "");
+      setMessage(data.message ?? "已生成客户链接。");
+      await load(adminKey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "开户失败");
+    } finally {
+      setProvisioning(false);
+    }
+  };
+
+  const applyPlan = async () => {
+    if (!adminKey.trim() || !selectedId) return;
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminKey,
+          resumeId: selectedId,
+          tier,
+          status: "active",
+          extendDays: Number(extendDays) || undefined,
+          note: note.trim() || undefined,
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        message?: string;
+        editUrl?: string;
+        viewUrl?: string;
+        tierLabelZh?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setGeneratedLinks({
+        resumeId: selectedId,
+        tierLabelZh: data.tierLabelZh ?? SUBSCRIPTION_PLANS[tier].labelZh,
+        editUrl: data.editUrl ?? selected?.editUrl ?? "",
+        viewUrl: data.viewUrl ?? selected?.viewUrl ?? "",
+      });
+      setMessage(
+        `已为 ${selectedId} 开通/续费「${data.tierLabelZh ?? SUBSCRIPTION_PLANS[tier].labelZh}」，链接不变，可直接发给客户。`,
+      );
+      await load(adminKey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "更新失败");
+    }
+  };
+
+  const displayLinks = generatedLinks ?? (selected
+    ? {
+        resumeId: selected.resumeId,
+        tierLabelZh: selected.subscription
+          ? (SUBSCRIPTION_PLANS[selected.subscription.tier]?.labelZh ??
+            selected.subscription.tier)
+          : "存量全开",
+        editUrl: selected.editUrl,
+        viewUrl: selected.viewUrl,
+      }
+    : null);
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-10">
+      <h1 className="text-2xl font-semibold tracking-tight text-ink">
+        客户套餐管理
+      </h1>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-muted">
+        客户付款后：选套餐 → 点击「生成链接并开通」或给老客户「保存并续期」。
+        <strong className="font-medium text-ink">
+          同一客户的 EditURL / ViewURL 长期不变
+        </strong>
+        ，升级月租/季租/年租只改后台权限，无需重新发链接。
+      </p>
+
+      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-line bg-surface p-4">
+        <label className="flex min-w-[240px] flex-1 flex-col gap-1 text-sm">
+          <span className="font-medium text-ink">管理员密钥</span>
+          <input
+            type="password"
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+            className="rounded-xl border border-line bg-paper px-3 py-2 text-sm"
+            placeholder="RESUME_SPACE_ADMIN_KEY"
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => load(adminKey)}
+          disabled={loading || !adminKey.trim()}
+          className="rounded-full border border-line bg-paper px-5 py-2 text-sm font-medium text-ink disabled:opacity-50"
+        >
+          {loading ? "加载中…" : "刷新列表"}
+        </button>
+      </div>
+
+      {error ? (
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {error}
+        </p>
+      ) : null}
+      {message ? (
+        <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {message}
+        </p>
+      ) : null}
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold text-ink">套餐功能对照表</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          与代码配置 `lib/subscription-plans.ts` 同步；当前表单选中：
+          <span className="font-medium text-ink">
+            {SUBSCRIPTION_PLANS[tier].labelZh}
+          </span>
+          。对客户只需看对照表两行：「简历导入总次数」与「AI 简历分析次数」。
+        </p>
+        <div className="mt-3 rounded-xl border border-line/80 bg-paper/60 px-4 py-3 text-[12px] leading-relaxed text-ink-muted">
+          <p className="font-medium text-ink">技术说明（给你自己看）</p>
+          <ul className="mt-2 list-disc space-y-1 pl-4">
+            <li>
+              <strong className="font-medium text-ink">简历导入总次数</strong>
+              ：无论 AI 还是规则引擎，只要上传并成功填入，都算 1 次。
+            </li>
+            <li>
+              <strong className="font-medium text-ink">AI 简历分析</strong>
+              ：只有季租/年租开启；走 DeepSeek 等模型的次数，约 2 分/次。
+            </li>
+            <li>
+              试用/月租：可导入，但
+              <strong className="font-medium text-ink"> 0 次 AI</strong>
+              ，全是规则引擎（几乎零 API 成本）。
+            </li>
+          </ul>
+        </div>
+        <div className="mt-4">
+          <PlanComparisonTable highlightTier={tier} />
+        </div>
+      </div>
+
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/40 p-5">
+          <h2 className="text-lg font-semibold text-ink">① 新客户付款 · 开户发链接</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            选套餐后一键创建空间并写入权限，生成 EditURL（客户编辑）与 ViewURL（HR 只读）。
+          </p>
+          <div className="mt-4 space-y-4">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">套餐档位</span>
+              <select
+                value={tier}
+                onChange={(e) => setTier(e.target.value as SubscriptionTier)}
+                className="rounded-xl border border-line bg-surface px-3 py-2"
+              >
+                {MANAGED_TIERS.map((t) => (
+                  <option key={t} value={t}>
+                    {SUBSCRIPTION_PLANS[t].labelZh}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">开通天数</span>
+              <input
+                type="number"
+                min={1}
+                value={extendDays}
+                onChange={(e) => setExtendDays(e.target.value)}
+                className="rounded-xl border border-line bg-surface px-3 py-2"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="font-medium">备注（客户名 / 收款方式）</span>
+              <input
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                className="rounded-xl border border-line bg-surface px-3 py-2"
+                placeholder="如：张三 · 微信月租"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={provisionNewCustomer}
+              disabled={provisioning || !adminKey.trim()}
+              className="w-full rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-paper disabled:opacity-50"
+            >
+              {provisioning ? "正在生成…" : "生成链接并开通套餐"}
+            </button>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="text-lg font-semibold text-ink">② 老客户续费 · 换套餐</h2>
+          <p className="mt-2 text-sm text-ink-muted">
+            在下方列表选中客户，改套餐或续期天数后保存。链接保持不变。
+          </p>
+          {!selected ? (
+            <p className="mt-4 text-sm text-ink-muted">请先在列表中选择一位客户。</p>
+          ) : (
+            <div className="mt-4 space-y-4">
+              <p className="font-mono text-[12px] text-ink-muted">{selected.resumeId}</p>
+              <button
+                type="button"
+                onClick={applyPlan}
+                className="w-full rounded-full border border-ink bg-paper px-4 py-2.5 text-sm font-medium text-ink"
+              >
+                保存套餐并续期
+              </button>
+              {selected.subscription ? (
+                <p className="text-[11px] text-ink-muted">
+                  当前到期：{formatDate(selected.subscription.expiresAt)}
+                </p>
+              ) : (
+                <p className="text-[11px] text-ink-muted">当前：存量全开（未设 subscription）</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {displayLinks ? (
+        <div className="mt-8 rounded-2xl border border-line bg-surface p-5">
+          <h2 className="text-lg font-semibold text-ink">客户链接（{displayLinks.tierLabelZh}）</h2>
+          <p className="mt-1 text-[12px] text-ink-muted">
+            resumeId: {displayLinks.resumeId} · 功能由后台套餐控制，链接本身不含「档位信息」。
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <LinkCopyField
+              label="EditURL · 发给客户"
+              hint="含 editToken，可编辑、导入、分享、看访问记录（视套餐而定）。"
+              value={displayLinks.editUrl}
+            />
+            <LinkCopyField
+              label="ViewURL · 发给 HR"
+              hint="仅 viewToken，HR 只读浏览，不含编辑入口。"
+              value={displayLinks.viewUrl}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-8 overflow-hidden rounded-2xl border border-line">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-paper/80 text-[11px] uppercase tracking-wide text-ink-muted">
+            <tr>
+              <th className="px-3 py-2">resumeId</th>
+              <th className="px-3 py-2">套餐</th>
+              <th className="px-3 py-2">到期</th>
+              <th className="px-3 py-2">本月用量</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item) => {
+              const sub = item.subscription;
+              const tierLabel = sub
+                ? (SUBSCRIPTION_PLANS[sub.tier]?.labelZh ?? sub.tier)
+                : "存量全开";
+              const active =
+                sub &&
+                sub.status === "active" &&
+                (sub.expiresAt == null || sub.expiresAt > Date.now());
+              return (
+                <tr
+                  key={item.resumeId}
+                  onClick={() => {
+                    setSelectedId(item.resumeId);
+                    setGeneratedLinks(null);
+                  }}
+                  className={`cursor-pointer border-t border-line/70 hover:bg-ink/[0.03] ${
+                    selectedId === item.resumeId ? "bg-ink/[0.05]" : ""
+                  }`}
+                >
+                  <td className="px-3 py-2 font-mono text-[11px]">{item.resumeId}</td>
+                  <td className="px-3 py-2">
+                    <span className={active ? "text-ink" : "text-red-700"}>
+                      {tierLabel}
+                    </span>
+                    {sub?.note ? (
+                      <span className="block text-[11px] text-ink-muted">{sub.note}</span>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 text-[12px]">
+                    {sub ? daysLeft(sub.expiresAt) : "—"}
+                  </td>
+                  <td className="px-3 py-2 text-[12px] text-ink-muted">
+                    导入 {item.usage.smartImport} · AI {item.usage.aiParse}
+                  </td>
+                </tr>
+              );
+            })}
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-8 text-center text-ink-muted">
+                  暂无客户，请用上方「生成链接并开通套餐」创建第一位客户。
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-10 rounded-2xl border border-line bg-paper/50 p-5 text-sm text-ink-muted">
+        <p className="font-semibold text-ink">推荐操作流程</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5">
+          <li>客户微信/支付宝付款</li>
+          <li>本页选「月租 / 季租 / 年租」→ 点「生成链接并开通套餐」</li>
+          <li>复制 EditURL 发给客户，ViewURL 留给 HR（或让客户自行分享）</li>
+          <li>到期前收款 → 列表选中该客户 →「保存套餐并续期」（链接不用换）</li>
+        </ol>
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 "use client";
 
+import { FeatureGateButton } from "@/components/FeatureGateButton";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { AnimatePresence, motion } from "framer-motion";
 import dynamic from "next/dynamic";
@@ -55,47 +56,49 @@ export function SiteEditorDock() {
           paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))",
         }}
       >
-        <button
-          id="tour-resume-import"
-          type="button"
-          onClick={() => openResumeImportModal()}
+        <FeatureGateButton
+          feature="smartImport"
+          onAllowed={() => openResumeImportModal()}
           className={QUICK_ACTION_CLASS}
           title="上传 PDF/Word，自动识别并填入各区块"
         >
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
-            aria-hidden
-          >
-            ↑
-          </span>
-          <span className="min-w-0 pr-0.5">
-            <span className="block leading-tight">智能导入简历</span>
-            <span className="block text-[11px] font-normal text-ink-muted">
-              PDF / Word 自动填入
+          <span id="tour-resume-import" className="contents">
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
+              aria-hidden
+            >
+              ↑
+            </span>
+            <span className="min-w-0 pr-0.5">
+              <span className="block leading-tight">智能导入简历</span>
+              <span className="block text-[11px] font-normal text-ink-muted">
+                PDF / Word 自动填入
+              </span>
             </span>
           </span>
-        </button>
+        </FeatureGateButton>
 
-        <button
-          id="tour-view-log"
-          type="button"
-          onClick={() => setViewLogOpen(true)}
+        <FeatureGateButton
+          feature="viewLog"
+          onAllowed={() => setViewLogOpen(true)}
           className={QUICK_ACTION_CLASS}
           title="查看只读链接何时被打开、来自哪里"
         >
-          <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
-            aria-hidden
-          >
-            ◷
-          </span>
-          <span className="min-w-0 pr-0.5">
-            <span className="block leading-tight">链接访问记录</span>
-            <span className="block text-[11px] font-normal text-ink-muted">
-              打开时间与大致地区
+          <span id="tour-view-log" className="contents">
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
+              aria-hidden
+            >
+              ◷
+            </span>
+            <span className="min-w-0 pr-0.5">
+              <span className="block leading-tight">链接访问记录</span>
+              <span className="block text-[11px] font-normal text-ink-muted">
+                打开时间与大致地区
+              </span>
             </span>
           </span>
-        </button>
+        </FeatureGateButton>
 
         <div className="relative">
           <button

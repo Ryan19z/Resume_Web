@@ -1,13 +1,19 @@
 "use client";
 
+import { ImportQualityPanel } from "@/components/ImportQualityPanel";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { fieldLabel } from "@/lib/resume-parse-mapper";
+import {
+  getImportCommitmentBrief,
+  getServiceCommitment,
+} from "@/lib/service-commitment";
 import {
   fetchParseResumeCapabilities,
   parseResumeFile,
 } from "@/lib/resume-parse-client";
 import { resumeParseAcceptList } from "@/lib/resume-parse-formats";
+import type { ParsedResume } from "@/lib/resume-parse-types";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { AnimatePresence, motion } from "framer-motion";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -16,10 +22,18 @@ type Step = "pick" | "parsing" | "preview" | "done";
 
 const PARSE_STAGE_KEYS = ["read", "extract", "parse", "map"] as const;
 
-function ParseProgressRing({ progress }: { progress: number }) {
+function ParseProgressRing({
+  progress,
+  variant,
+}: {
+  progress: number;
+  variant: "ai" | "rule";
+}) {
   const r = 42;
   const c = 2 * Math.PI * r;
   const offset = c - (progress / 100) * c;
+  const strokeClass =
+    variant === "ai" ? "text-violet-500" : "text-ink/45";
 
   return (
     <div className="relative flex h-28 w-28 items-center justify-center">
@@ -47,7 +61,7 @@ function ParseProgressRing({ progress }: { progress: number }) {
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={offset}
-          className="text-violet-500 transition-[stroke-dashoffset] duration-300 ease-out"
+          className={`${strokeClass} transition-[stroke-dashoffset] duration-300 ease-out`}
         />
       </svg>
       <span className="absolute text-2xl font-semibold tabular-nums tracking-tight text-ink">
@@ -141,6 +155,10 @@ export function ResumeImportModal() {
     resumeImportModalOpen,
     closeResumeImportModal,
     applyImportedResume,
+    entitlements,
+    refreshEntitlements,
+    bumpImportUsage,
+    resumeScopeActive,
   } = useSiteContent();
   const { mode } = useLanguageMode();
   const titleId = useId();
@@ -159,6 +177,9 @@ export function ResumeImportModal() {
   const [fieldsFilled, setFieldsFilled] = useState<string[]>([]);
   const [confidence, setConfidence] = useState(0);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
+  const [textLength, setTextLength] = useState(0);
+  const [parsedFull, setParsedFull] = useState<ParsedResume | null>(null);
+  const [commitmentOpen, setCommitmentOpen] = useState(false);
   const [parsedPreview, setParsedPreview] = useState<{
     name?: string;
     targetRole?: string;
@@ -170,13 +191,14 @@ export function ResumeImportModal() {
   const mappedRef = useRef<Parameters<typeof applyImportedResume>[0] | null>(
     null,
   );
-  const useLlmForProgress = llmAvailable;
+  const planAllowsAi = entitlements.features.aiParse;
+  const willUseAi = llmAvailable && planAllowsAi;
   const {
     progress: parseProgress,
     stageIndex: parseStageIndex,
     setProgress: setParseProgress,
     setStageIndex: setParseStageIndex,
-  } = useSimulatedParseProgress(step === "parsing", useLlmForProgress);
+  } = useSimulatedParseProgress(step === "parsing", willUseAi);
 
   useBodyScrollLock(resumeImportModalOpen);
 
@@ -192,6 +214,9 @@ export function ResumeImportModal() {
             `已配置 AI（${provider} · ${model}），上传后将优先使用 AI 解析`,
           aiOnNote: "实际解析方式以预览页标识为准",
           aiOff: "使用规则引擎解析（请在 .env.local 配置 OPENAI_API_KEY 启用 AI）",
+          planRuleOnly:
+            "当前套餐使用规则引擎导入（不含 AI 深度解析）。",
+          planRuleOnlyNote: "上传后将按规则识别字段，复杂排版请导入后手动核对。",
           parsingAi: (provider: string, model: string) =>
             `正在使用 ${provider}（${model}）AI 深度解析`,
           parsingRule: "正在使用规则引擎解析",
@@ -224,7 +249,10 @@ export function ResumeImportModal() {
           awards: "奖项荣誉",
           items: "条",
           confidence: "字段完整度",
-          warningsTitle: "建议核对",
+          qualityScore: "导入质量评分",
+          warningsTitle: "建议核对（系统详情）",
+          commitmentToggle: "查看服务承诺边界",
+          commitmentClose: "收起",
         }
       : {
           title: "Smart Resume Import",
@@ -236,6 +264,10 @@ export function ResumeImportModal() {
             `AI configured (${provider} · ${model}); uploads prefer AI parsing`,
           aiOnNote: "Actual method is shown on the preview badge",
           aiOff: "Rule-based parsing (set OPENAI_API_KEY in .env.local for AI)",
+          planRuleOnly:
+            "Your plan uses rule-based import only (no AI deep parsing).",
+          planRuleOnlyNote:
+            "Fields are matched by rules; review manually if layout is complex.",
           parsingAi: (provider: string, model: string) =>
             `Parsing with ${provider} (${model}) AI`,
           parsingRule: "Parsing with rule engine",
@@ -269,17 +301,39 @@ export function ResumeImportModal() {
           awards: "Awards",
           items: "items",
           confidence: "Field completeness",
-          warningsTitle: "Please review",
+          qualityScore: "Import quality score",
+          warningsTitle: "Please review (system details)",
+          commitmentToggle: "Service commitment & limits",
+          commitmentClose: "Collapse",
         };
 
   const parseStageLabel = (() => {
     const key = PARSE_STAGE_KEYS[parseStageIndex] ?? "read";
     if (key === "parse") {
-      return useLlmForProgress
+      return willUseAi
         ? i18n.parsingStages.parse
         : i18n.parsingStages.parseRule;
     }
     return i18n.parsingStages[key];
+  })();
+
+  const parseModeBanner = (() => {
+    if (!planAllowsAi) {
+      return {
+        main: i18n.planRuleOnly,
+        note: i18n.planRuleOnlyNote,
+      };
+    }
+    if (willUseAi && llmProvider && llmModel) {
+      return {
+        main: i18n.aiOnDetail(llmProvider, llmModel),
+        note: i18n.aiOnNote,
+      };
+    }
+    if (willUseAi) {
+      return { main: i18n.aiOn, note: i18n.aiOnNote };
+    }
+    return { main: i18n.aiOff, note: undefined };
   })();
 
   const reset = useCallback(() => {
@@ -293,6 +347,9 @@ export function ResumeImportModal() {
     setFieldsFilled([]);
     setConfidence(0);
     setParseWarnings([]);
+    setTextLength(0);
+    setParsedFull(null);
+    setCommitmentOpen(false);
     setParsedPreview(null);
     mappedRef.current = null;
     if (fileRef.current) fileRef.current.value = "";
@@ -324,12 +381,20 @@ export function ResumeImportModal() {
     setFileName(file.name);
     setStep("parsing");
 
-    const result = await parseResumeFile(file);
+    const tryAi = llmAvailable && planAllowsAi;
+    const result = await parseResumeFile(file, {
+      preferLlm: tryAi ? undefined : false,
+    });
     if (!result.ok) {
       setError(result.message);
       setParseProgress(0);
       setStep("pick");
       return;
+    }
+
+    if (resumeScopeActive) {
+      bumpImportUsage(result.method === "llm");
+      void refreshEntitlements();
     }
 
     setParseProgress(100);
@@ -343,6 +408,8 @@ export function ResumeImportModal() {
     setFieldsFilled(result.fieldsFilled);
     setConfidence(result.confidence);
     setParseWarnings(result.warnings ?? []);
+    setTextLength(result.textLength);
+    setParsedFull(result.parsed);
     setParsedPreview({
       name: result.parsed.name,
       targetRole: result.parsed.targetRole,
@@ -360,6 +427,8 @@ export function ResumeImportModal() {
     applyImportedResume(mappedRef.current);
     setStep("done");
   };
+
+  const commitment = getServiceCommitment(mode);
 
   return (
     <AnimatePresence>
@@ -396,17 +465,45 @@ export function ResumeImportModal() {
             <p className="mb-6 text-sm leading-relaxed text-ink-muted">{i18n.desc}</p>
 
             <p className="mb-4 rounded-xl bg-ink/[0.04] px-3 py-2 text-[12px] text-ink-muted">
-              {llmAvailable && llmProvider && llmModel
-                ? i18n.aiOnDetail(llmProvider, llmModel)
-                : llmAvailable
-                  ? i18n.aiOn
-                  : i18n.aiOff}
-              {llmAvailable ? (
+              {parseModeBanner.main}
+              {parseModeBanner.note ? (
                 <span className="mt-1 block text-[11px] opacity-80">
-                  {i18n.aiOnNote}
+                  {parseModeBanner.note}
                 </span>
               ) : null}
             </p>
+
+            <div className="mb-4 rounded-xl border border-line/80 bg-paper/60 px-3 py-2.5 text-[12px] leading-relaxed text-ink-muted">
+              <p>{getImportCommitmentBrief(mode)}</p>
+              <button
+                type="button"
+                onClick={() => setCommitmentOpen((v) => !v)}
+                className="mt-2 text-[11px] font-semibold text-ink underline-offset-2 hover:underline"
+              >
+                {commitmentOpen ? i18n.commitmentClose : i18n.commitmentToggle}
+              </button>
+              {commitmentOpen ? (
+                <div className="mt-3 space-y-3 border-t border-line/60 pt-3 text-[11px]">
+                  <div>
+                    <p className="font-semibold text-ink">{commitment.weProvide.heading}</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-4">
+                      {commitment.weProvide.items.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-ink">{commitment.weDoNot.heading}</p>
+                    <ul className="mt-1 list-disc space-y-1 pl-4">
+                      {commitment.weDoNot.items.map((line) => (
+                        <li key={line}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <p>{commitment.importNote}</p>
+                </div>
+              ) : null}
+            </div>
 
             {step === "pick" ? (
               <div className="flex flex-col gap-4">
@@ -447,16 +544,25 @@ export function ResumeImportModal() {
                 role="progressbar"
                 aria-label={parseStageLabel}
               >
-                <ParseProgressRing progress={parseProgress} />
+                <ParseProgressRing
+                  progress={parseProgress}
+                  variant={willUseAi ? "ai" : "rule"}
+                />
                 <div className="w-full max-w-xs space-y-2 text-center">
                   <p className="text-sm font-medium text-ink">
-                    {llmAvailable && llmProvider && llmModel
+                    {willUseAi && llmProvider && llmModel
                       ? i18n.parsingAi(llmProvider, llmModel)
-                      : llmAvailable
+                      : willUseAi
                         ? i18n.parsing
                         : i18n.parsingRule}
                   </p>
-                  <p className="text-[13px] text-violet-700 dark:text-violet-300">
+                  <p
+                    className={
+                      willUseAi
+                        ? "text-[13px] text-violet-700 dark:text-violet-300"
+                        : "text-[13px] text-ink-muted"
+                    }
+                  >
                     {parseStageLabel}
                   </p>
                   {fileName ? (
@@ -464,7 +570,9 @@ export function ResumeImportModal() {
                   ) : null}
                   <div className="h-1.5 overflow-hidden rounded-full bg-line">
                     <div
-                      className="h-full rounded-full bg-violet-500 transition-[width] duration-300 ease-out"
+                      className={`h-full rounded-full transition-[width] duration-300 ease-out ${
+                        willUseAi ? "bg-violet-500" : "bg-ink/35"
+                      }`}
                       style={{ width: `${parseProgress}%` }}
                     />
                   </div>
@@ -473,7 +581,7 @@ export function ResumeImportModal() {
               </div>
             ) : null}
 
-            {step === "preview" && parsedPreview ? (
+            {step === "preview" && parsedPreview && parsedFull ? (
               <div className="flex flex-col gap-5">
                 {method ? (
                   <ParseMethodBadge
@@ -484,6 +592,17 @@ export function ResumeImportModal() {
                     zh={mode === "zh"}
                   />
                 ) : null}
+                <ImportQualityPanel
+                  parsed={parsedFull}
+                  warnings={parseWarnings}
+                  confidence={confidence}
+                  textLength={textLength}
+                  fileName={fileName}
+                  method={method ?? "heuristic"}
+                  llmFallback={llmFallback}
+                  planAllowsAi={planAllowsAi}
+                  lang={mode}
+                />
                 <div className="rounded-2xl border border-line bg-paper/50 p-4 text-sm">
                   <p className="mb-3 font-medium text-ink">{i18n.previewTitle}</p>
                   <ul className="space-y-1.5 text-ink-muted">
@@ -511,9 +630,6 @@ export function ResumeImportModal() {
                         {i18n.awards}：{parsedPreview.awardsCount} {i18n.items}
                       </li>
                     ) : null}
-                    <li>
-                      {i18n.confidence}：{Math.round(confidence * 100)}%
-                    </li>
                   </ul>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {fieldsFilled.map((f) => (

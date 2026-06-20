@@ -25,6 +25,8 @@ import {
   applyMappedImportToSite,
   type MappedResumeImport,
 } from "@/lib/resume-parse-mapper";
+import { DEFAULT_CLIENT_ENTITLEMENTS } from "@/lib/client-entitlements";
+import type { ClientEntitlements } from "@/lib/subscription-types";
 import { newExperienceItem } from "@/lib/experience-factory";
 import { newEducationItem } from "@/lib/education-factory";
 import {
@@ -127,6 +129,12 @@ type SiteContentContextValue = {
   canEdit: boolean;
   editPermissionLoaded: boolean;
   editPermissionHint: string;
+  tokenAuthorized: boolean;
+  subscriptionActive: boolean;
+  resumeScopeActive: boolean;
+  entitlements: ClientEntitlements;
+  refreshEntitlements: () => Promise<void>;
+  bumpImportUsage: (aiUsed: boolean) => void;
   previewMode: boolean;
   setPreviewMode: (v: boolean) => void;
   updateProfile: (
@@ -249,6 +257,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [canEdit, setCanEdit] = useState(false);
   const [editPermissionLoaded, setEditPermissionLoaded] = useState(false);
   const [editPermissionHint, setEditPermissionHint] = useState("");
+  const [tokenAuthorized, setTokenAuthorized] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState(true);
+  const [entitlements, setEntitlements] = useState<ClientEntitlements>(
+    DEFAULT_CLIENT_ENTITLEMENTS,
+  );
+  const resumeScopeRef = useRef(parseClientResumeScope());
+  resumeScopeRef.current = parseClientResumeScope();
+  const resumeScopeActive = Boolean(resumeScopeRef.current.resumeId);
   const [resumePageCopyModalOpen, setResumePageCopyModalOpen] =
     useState(false);
   const [portfolioPageCopyModalOpen, setPortfolioPageCopyModalOpen] =
@@ -260,8 +276,6 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [persistError, setPersistError] = useState<string | null>(null);
   const [assetHint, setAssetHint] = useState<string | null>(null);
   const persistErrorTimerRef = useRef<number | null>(null);
-  const resumeScopeRef = useRef(parseClientResumeScope());
-  resumeScopeRef.current = parseClientResumeScope();
 
   const profileRef = useRef(profile);
   const siteRef = useRef(site);
@@ -506,49 +520,60 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       window.removeEventListener(SITE_TOUR_FINISHED_EVENT, onTourFinished);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshEntitlements = useCallback(async () => {
+    const params = new URLSearchParams();
+    const scope = resumeScopeRef.current;
+    if (scope.resumeId) params.set("resumeId", scope.resumeId);
+    if (scope.editToken) params.set("editToken", scope.editToken);
     const url =
       typeof window !== "undefined"
-        ? (() => {
-            const params = new URLSearchParams();
-            const scope = resumeScopeRef.current;
-            if (scope.resumeId) params.set("resumeId", scope.resumeId);
-            if (scope.editToken) params.set("editToken", scope.editToken);
-            return `${window.location.origin}/api/can-edit${params.toString() ? `?${params}` : ""}`;
-          })()
+        ? `${window.location.origin}/api/can-edit${params.toString() ? `?${params}` : ""}`
         : "/api/can-edit";
-    fetch(url, { cache: "no-store" })
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<{
-          canEdit?: boolean;
-          reason?: string;
-        }>;
-      })
-      .then((d) => {
-        if (cancelled) return;
-        setCanEdit(Boolean(d.canEdit));
-        setEditPermissionHint(
-          typeof d.reason === "string" ? d.reason : "",
-        );
-        setEditPermissionLoaded(true);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        const devFallback = process.env.NODE_ENV === "development";
-        setCanEdit(devFallback);
-        setEditPermissionHint(
-          devFallback
-            ? "接口不可用，开发环境已临时允许编辑（生产环境请检查 /api/can-edit）。"
-            : "无法校验编辑权限，已禁止在线编辑。请检查网络或联系站点管理员。",
-        );
-        setEditPermissionLoaded(true);
-      });
-    return () => {
-      cancelled = true;
-    };
+    try {
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const d = (await r.json()) as {
+        canEdit?: boolean;
+        tokenAuthorized?: boolean;
+        subscriptionActive?: boolean;
+        entitlements?: ClientEntitlements;
+        reason?: string;
+      };
+      setCanEdit(Boolean(d.canEdit));
+      setTokenAuthorized(Boolean(d.tokenAuthorized ?? d.canEdit));
+      setSubscriptionActive(Boolean(d.subscriptionActive ?? true));
+      if (d.entitlements && typeof d.entitlements === "object") {
+        setEntitlements(d.entitlements);
+      }
+      setEditPermissionHint(typeof d.reason === "string" ? d.reason : "");
+      setEditPermissionLoaded(true);
+    } catch {
+      const devFallback = process.env.NODE_ENV === "development";
+      setCanEdit(devFallback);
+      setEditPermissionHint(
+        devFallback
+          ? "接口不可用，开发环境已临时允许编辑（生产环境请检查 /api/can-edit）。"
+          : "无法校验编辑权限，已禁止在线编辑。请检查网络或联系站点管理员。",
+      );
+      setEditPermissionLoaded(true);
+    }
   }, []);
+
+  const bumpImportUsage = useCallback((aiUsed: boolean) => {
+    setEntitlements((prev) => ({
+      ...prev,
+      usage: {
+        smartImportUsed: prev.usage.smartImportUsed + 1,
+        aiParseUsed: aiUsed
+          ? prev.usage.aiParseUsed + 1
+          : prev.usage.aiParseUsed,
+      },
+    }));
+  }, []);
+
+  useEffect(() => {
+    void refreshEntitlements();
+  }, [refreshEntitlements]);
 
   const setPreviewMode = useCallback((v: boolean) => {
     setPreviewModeState(v);
@@ -961,6 +986,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       canEdit,
       editPermissionLoaded,
       editPermissionHint,
+      tokenAuthorized,
+      subscriptionActive,
+      resumeScopeActive,
+      entitlements,
+      refreshEntitlements,
+      bumpImportUsage,
       previewMode,
       setPreviewMode,
       updateProfile,
@@ -1013,6 +1044,12 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       canEdit,
       editPermissionLoaded,
       editPermissionHint,
+      tokenAuthorized,
+      subscriptionActive,
+      resumeScopeActive,
+      entitlements,
+      refreshEntitlements,
+      bumpImportUsage,
       previewMode,
       setPreviewMode,
       updateProfile,

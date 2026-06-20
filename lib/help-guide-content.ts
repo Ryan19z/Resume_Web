@@ -17,8 +17,12 @@ export const HELP_GUIDE_TEXT = {
 3) （最快）智能导入简历 —— 强烈推荐
    点右下角「智能导入简历」，上传 PDF / Word / 纯文本（.txt）。
    系统会自动识别姓名、联系方式、工作经历、教育背景、项目经历、奖项荣誉等，并填入对应区块。
-   导入后请在预览页查看「建议核对」提示，重点检查：项目是否合并完整、校园成果里的奖项是否一条对应一项荣誉。
-   确认无误后点「确认填入站点」；再逐页人工微调即可。
+   导入前可展开「服务承诺边界」；导入后务必查看预览页的「导入质量评分」与「核对清单」，再点「确认填入站点」。
+
+【智能导入：我们承诺什么 / 不承诺什么】
+· 承诺：快速生成可编辑初稿；提供质量评分与核对清单；不替代您核对后分享给 HR。
+· 不承诺：任意排版 100% 准确；扫描件无 OCR 必成功；零编辑即可投递。
+· 复杂表格、多栏 Word、图片 PDF 可能需要导入后手动调整；详见导入弹窗内「服务承诺边界」。
 
 4) 完善首页（首屏）
    · 直接在首页点击文字，可改姓名、意向岗位、一句话介绍、核心亮点、邮箱 / 电话等（会自动保存）。
@@ -85,7 +89,12 @@ export const HELP_GUIDE_TEXT = {
 3) (Fastest) Smart resume import — highly recommended
    Tap "Smart Import" bottom-right; upload PDF / Word / plain text (.txt).
    Name, contact, experience, education, projects, and awards are mapped automatically.
-   Review warnings on the preview screen (merged projects, campus awards, etc.), then tap "Apply to site" and polish manually.
+   Expand "Service commitment & limits" before upload; on preview, check the quality score and checklist before "Apply to site".
+
+[Smart import: what we promise / do not promise]
+· We provide: fast editable draft, quality score, and checklist—not a substitute for your review before sharing.
+· We do not guarantee: perfect layout for every file, scanned PDFs without OCR, or zero-edit ready-to-send resumes.
+· Complex layouts may need manual fixes; see the import dialog for full terms.
 
 4) Complete Home (hero)
    · Click text on Home to edit name, role, tagline, highlights, email / phone (auto-saves).

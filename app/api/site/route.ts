@@ -1,4 +1,5 @@
 import { resolveCanEdit } from "@/lib/server/edit-auth";
+import { requireFeature } from "@/lib/server/entitlements";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { recordVisitorView } from "@/lib/server/view-log-store";
 import { MAX_PUBLISH_BYTES } from "@/lib/publish-limits";
@@ -59,6 +60,18 @@ export async function GET(request: NextRequest) {
         { status: 403 },
       );
     }
+    const viewEnt = await requireFeature(resumeId, "publicView");
+    if (!viewEnt.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          published: false,
+          error: viewEnt.code,
+          message: viewEnt.message,
+        },
+        { status: 403 },
+      );
+    }
   }
   const result = await readPublishedSite(lang, resumeId);
   if (result.status === "missing") {
@@ -108,6 +121,17 @@ export async function PUT(request: NextRequest) {
           error: "forbidden",
           message: "无编辑权限，无法发布到服务器。",
           reason: "缺少或无效的 editToken。",
+        },
+        { status: 403 },
+      );
+    }
+    const editEnt = await requireFeature(resumeId, "editing");
+    if (!editEnt.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: editEnt.code,
+          message: editEnt.message,
         },
         { status: 403 },
       );

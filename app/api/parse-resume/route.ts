@@ -2,7 +2,13 @@ import {
   checkRateLimit,
   rateLimitResponse,
 } from "@/lib/server/rate-limit";
+import {
+  requireFeature,
+  requireParseQuota,
+} from "@/lib/server/entitlements";
 import { resolveEditPermission } from "@/lib/server/resolve-edit-permission";
+import { incrementUsage } from "@/lib/server/subscription-store";
+import { sanitizeResumeId } from "@/lib/resume-scope";
 import { mapParsedResumeToSite } from "@/lib/resume-parse-mapper";
 import {
   extractContactsFromText,
@@ -53,8 +59,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: false,
-        error: "forbidden",
-        message: "无编辑权限，无法解析简历。",
+        error: perm.code ?? "forbidden",
+        message: perm.message || "无编辑权限，无法解析简历。",
+      },
+      { status: 403 },
+    );
+  }
+
+  const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
+  const importQuota = await requireParseQuota(resumeId || undefined, false);
+  if (!importQuota.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: importQuota.code,
+        message: importQuota.message,
       },
       { status: 403 },
     );
@@ -123,8 +142,16 @@ export async function POST(request: NextRequest) {
     const heuristic = parseResumeHeuristic(rawText);
     const heuristicProjects = heuristic.parsed.projects;
 
-    const preferLlm = request.nextUrl.searchParams.get("llm") !== "0";
-    if (preferLlm && isLlmParseAvailable()) {
+    const preferLlmParam = request.nextUrl.searchParams.get("llm") !== "0";
+    let preferLlm = preferLlmParam && isLlmParseAvailable();
+    if (preferLlm) {
+      const aiQuota = await requireParseQuota(resumeId || undefined, true);
+      if (!aiQuota.ok) {
+        preferLlm = false;
+        warnings.push(aiQuota.message);
+      }
+    }
+    if (preferLlm) {
       llmAttempted = true;
       try {
         const llmResult = await parseResumeWithLlm(rawText);
@@ -210,6 +237,13 @@ export async function POST(request: NextRequest) {
         },
         { status: 422 },
       );
+    }
+
+    if (resumeId) {
+      await incrementUsage(resumeId, "smartImport");
+      if (method === "llm") {
+        await incrementUsage(resumeId, "aiParse");
+      }
     }
 
     return NextResponse.json({
