@@ -957,7 +957,7 @@ export function HeroPage() {
   }
 
   return (
-    <div className="relative min-h-[min(100svh,880px)] px-6 py-16 sm:px-10 sm:py-20 md:px-14 lg:px-16">
+    <div className="relative px-6 pt-4 pb-12 sm:px-10 sm:pt-5 sm:pb-14 md:px-14 md:pt-6 md:pb-16 lg:px-16">
       <div
         className={`mx-auto grid max-w-6xl grid-cols-1 gap-10 ${
           showAside ? "lg:grid-cols-12 lg:items-start lg:gap-10" : ""
@@ -975,7 +975,7 @@ export function HeroPage() {
               mass: 0.9,
             }}
           >
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted sm:mb-4">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted sm:mb-2.5">
               {heroCopy.eyebrow}
             </p>
 
@@ -1561,7 +1561,7 @@ export function HeroPage() {
 
         {showAside ? (
         <motion.aside
-          className="min-w-0 lg:col-span-5 lg:pt-2"
+          className="min-w-0 lg:col-span-5 lg:pt-0"
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{
