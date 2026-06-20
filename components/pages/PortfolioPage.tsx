@@ -393,7 +393,7 @@ export function PortfolioPage() {
     : pc;
 
   return (
-    <div className="px-10 pb-20 pt-20 sm:px-16 md:px-24">
+    <div className="px-5 pb-16 pt-14 sm:px-10 sm:pb-20 sm:pt-20 md:px-16 lg:px-24">
       <header className="mb-10 max-w-2xl">
         {canInline ? (
           <>

@@ -92,7 +92,7 @@ function ExperienceSection({
                   <h3 className="text-base font-semibold tracking-[-0.01em]">
                     {c.title}
                   </h3>
-                  <span className="shrink-0 whitespace-nowrap pl-3 text-[13px] tabular-nums text-ink-muted">
+                  <span className="shrink-0 text-[13px] tabular-nums text-ink-muted sm:whitespace-nowrap sm:pl-3">
                     {c.period}
                   </span>
                 </div>
@@ -305,7 +305,7 @@ export function ResumePage() {
   ]);
 
   return (
-    <div className="relative isolate px-10 pb-24 pt-20 sm:px-16 md:px-24">
+    <div className="relative isolate px-5 pb-20 pt-14 sm:px-10 sm:pb-24 sm:pt-20 md:px-16 lg:px-24">
       <header className="mb-12 max-w-xl">
         {canInline ? (
           <>

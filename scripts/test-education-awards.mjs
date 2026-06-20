@@ -64,6 +64,32 @@ const asserts = [
     "award_has_english",
     (awardBlock?.bullets ?? []).some((b) => /英语/.test(b)),
   ],
+  [
+    "smart_car_merged",
+    (awardBlock?.bullets ?? []).some(
+      (b) => /智能车竞赛/.test(b) && /浙江省二等奖/.test(b),
+    ),
+  ],
+  [
+    "english_comp_merged",
+    (awardBlock?.bullets ?? []).some(
+      (b) => /英语竞赛/.test(b) && /校一等奖/.test(b),
+    ),
+  ],
+  [
+    "award_count_lte_8",
+    (awardBlock?.bullets.length ?? 0) <= 8 &&
+      (awardBlock?.bullets.length ?? 0) >= 5,
+  ],
+  [
+    "no_semantic_duplicate_awards",
+    new Set((awardBlock?.bullets ?? []).map((b) =>
+      b
+        .replace(/[（(]\d{4}[.\-/年]?\d{1,2}[)）]/g, "")
+        .replace(/\s+/g, "")
+        .toLowerCase(),
+    )).size === (awardBlock?.bullets.length ?? 0),
+  ],
 ];
 
 let failed = 0;

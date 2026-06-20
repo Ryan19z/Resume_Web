@@ -1031,7 +1031,7 @@ export function HeroPage() {
             <div className="mt-5">
               <div className="flex w-fit max-w-full flex-wrap items-start gap-4 sm:gap-5">
                 <div className="space-y-3">
-              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
+              <div className="grid max-w-[560px] grid-cols-1 gap-1 sm:grid-cols-[86px_minmax(0,1fr)] sm:items-center sm:gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                   {i18n.emailLabel}
                 </p>
@@ -1044,15 +1044,13 @@ export function HeroPage() {
                     placeholder="you@example.com"
                   />
                 ) : contactEmail ? (
-                  <p className="inline-flex w-fit text-sm text-ink">
-                    {contactEmail}
-                  </p>
+                  <p className="break-all text-sm text-ink">{contactEmail}</p>
                 ) : (
                   <p className="text-sm text-ink-muted">—</p>
                 )}
               </div>
 
-              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
+              <div className="grid max-w-[560px] grid-cols-1 gap-1 sm:grid-cols-[86px_minmax(0,1fr)] sm:items-center sm:gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                   {i18n.phoneLabel}
                 </p>
@@ -1066,13 +1064,13 @@ export function HeroPage() {
                     placeholder="13800000000"
                   />
                 ) : contactPhone ? (
-                  <p className="inline-flex w-fit text-sm text-ink">{contactPhone}</p>
+                  <p className="break-all text-sm text-ink">{contactPhone}</p>
                 ) : (
                   <p className="text-sm text-ink-muted">—</p>
                 )}
               </div>
 
-              <div className="grid max-w-[560px] grid-cols-[86px_minmax(0,1fr)] items-center gap-2">
+              <div className="grid max-w-[560px] grid-cols-1 gap-1 sm:grid-cols-[86px_minmax(0,1fr)] sm:items-center sm:gap-2">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
                   {i18n.socialLabel}
                 </p>
@@ -1085,7 +1083,7 @@ export function HeroPage() {
                     placeholder={i18n.socialHint}
                   />
                 ) : contactEntries.length > 0 ? (
-                  <p className="inline-flex w-fit text-sm text-ink">
+                  <p className="break-all text-sm text-ink">
                     {contactEntries.map(formatContactEntryDisplay).join(" | ")}
                   </p>
                 ) : (

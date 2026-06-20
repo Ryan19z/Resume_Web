@@ -1,12 +1,19 @@
 import { ThemeProvider } from "@/context/ThemeProvider";
 import { CRITICAL_INLINE_CSS } from "@/lib/critical-inline-css";
 import { themeBootstrapInlineScript } from "@/lib/theme-inline-script";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "简历",
   description: "极简个人简历",
+};
+
+/** 确保手机浏览器按设备宽度缩放，并适配刘海屏安全区 */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

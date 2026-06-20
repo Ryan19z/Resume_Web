@@ -12,7 +12,7 @@ export function VerticalScrollLayout({ children }: { children: ReactNode }) {
   const { microInteractionEnabled } = useInteractionMode();
   return (
     <div
-      className="relative z-[1] flex min-w-0 w-full flex-col bg-transparent pb-28 text-ink print:pb-6"
+      className="relative z-[1] flex min-w-0 w-full flex-col bg-transparent pb-[calc(7rem+env(safe-area-inset-bottom,0px))] text-ink print:pb-6"
       data-micro-interaction={microInteractionEnabled ? "on" : "off"}
     >
       <PageBackgroundLayer />

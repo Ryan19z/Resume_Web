@@ -11,6 +11,7 @@ import {
   consolidateFragmentedProjects,
   isCampusActivityNotProject,
   isProjectAnchorTitle,
+  normalizeAwardList,
   reconcileWorkAndProjects,
 } from "@/lib/server/resume-parse-reconcile";
 const MONTH =
@@ -162,6 +163,12 @@ function isHeroWorthyLine(line: string): boolean {
     /(?:SQL|Python|PowerBI|Tableau).{0,40}(?:熟练|精通|流利)/i.test(t) ||
     /留学期间取得|工作期间取得/i.test(t)
   );
+}
+
+function isOrphanAwardDate(line: string): boolean {
+  const t = line.trim().replace(/\s/g, "");
+  if (!t) return false;
+  return /^\d{4}[.\-/年]\d{1,2}/.test(t) || /^\d{4}$/.test(t);
 }
 
 function buildHeroPreviewLines(input: {
@@ -1016,37 +1023,16 @@ function dedupeStringList(items: string[]): string[] {
   });
 }
 
-function isOrphanAwardDate(line: string): boolean {
-  const t = line.trim();
-  if (!t) return false;
-  if (/^\d{4}[.\-/年]\d{1,2}(?:[.\-/月]\d{1,2})?$/.test(t)) return true;
-  if (/^\d{4}\s*[-–—~至到]\s*\d{4}$/.test(t)) return true;
-  return false;
-}
-
-function lineAlreadyHasAwardDate(line: string): boolean {
-  return /(?:（|\()\d{4}[.\-/年]|\d{4}[.\-/年]\d{1,2}\s*$/.test(line);
-}
-
 function parseAwardsBlock(lines: string[]): string[] {
-  const awards: string[] = [];
-  for (const raw of lines) {
-    const line = stripBullet(cleanLine(raw));
-    if (!line) continue;
-    if (/^(?:奖项|荣誉)/i.test(line) && line.length < 10) continue;
-
-    if (isOrphanAwardDate(line)) {
-      const prev = awards[awards.length - 1];
-      if (prev && !lineAlreadyHasAwardDate(prev)) {
-        awards[awards.length - 1] = `${prev}（${line}）`;
-      }
-      continue;
-    }
-
-    if (line.length < 4) continue;
-    awards.push(line.slice(0, 120));
+  const raw: string[] = [];
+  for (const line of lines) {
+    const t = stripBullet(cleanLine(line));
+    if (!t) continue;
+    if (/^(?:奖项|荣誉)/i.test(t) && t.length < 10) continue;
+    if (t.length < 2) continue;
+    raw.push(t);
   }
-  return awards.slice(0, 10);
+  return normalizeAwardList(raw).slice(0, 12);
 }
 
 function isEducationLine(text: string): boolean {

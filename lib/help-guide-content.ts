@@ -1,58 +1,136 @@
 /** 使用说明弹窗内展示的纯文本（避免运行时读取 md 文件） */
 export const HELP_GUIDE_TEXT = {
   zh: `
-【首次进入，请按这 6 步操作】
-1) 先看顶部导航：HOME（首页）/ RESUME（履历）/ WORK（作品）。
-2) 回到 HOME，补全姓名、意向岗位、一句话介绍与 2-4 条亮点。
-3) 左下「主题」可切换配色与页面背景（纯色 / 图片 / 轻柔流光）。
-4) 进入 RESUME，完善工作经历与教育（支持新增 / 编辑 / 删除）。
-5) 进入 WORK，至少添加 2 个代表作品（封面 + 外链）。
-6) 点右上「分享」，复制链接或发邮件给 HR/客户。
+【第一次使用？建议按下面顺序走一遍】
 
-【如何编辑内容（有编辑权限时）】
-- 首页可直接点文字修改：姓名、岗位、简介、亮点会自动保存。
-- 右下「站点编辑」用于编辑页面文案、背景、联系方式等全局内容。
-- 履历与作品支持增删改；代表项目支持图片/视频/代码/链接/文档。
+0) 新手引导
+   每个网络（IP）首次打开本站时，会自动播放分步引导（约 1 分钟）；同一网络下刷新页面不会重复播放。可随时点右上角「使用说明」，在底部「重新播放新手引导」。
 
-【看不到编辑按钮怎么办】
-- 说明当前是只读模式，通常是 IP 不在白名单。
-- 让站长把你的公网 IP 加入 ALLOWED_EDIT_IPS 后刷新。
+1) 先认清页面结构
+   顶部导航：首页 / 履历 / 作品 —— 点击可平滑滚动到对应区域。
+   右上角「分享」：复制链接、发邮件或扫码，给 HR / 客户查看。
 
-【背景和展示建议】
-- 背景建议使用高清横图（推荐 1920x1080 或更高）。
-- 作品卡片优先放“最能证明能力”的内容，不要堆太多。
-- 每次改完先点预览自查，再分享。
+2) 确认你有没有编辑权限
+   · 有权限：右下角会出现「智能导入简历」「链接访问记录」「站点编辑」。
+   · 无权限：页面为只读浏览，顶栏会提示「只读浏览」；需使用站长发给你的「编辑链接」，或请站长把你的公网 IP 加入白名单后刷新。
 
-【数据保存说明】
-- 内容保存于当前浏览器；换设备或清缓存后可能看不到本地草稿。
-- 重要版本建议及时发布并备份。
+3) （最快）智能导入简历 —— 强烈推荐
+   点右下角「智能导入简历」，上传 PDF / Word / 纯文本（.txt）。
+   系统会自动识别姓名、联系方式、工作经历、教育背景、项目经历、奖项荣誉等，并填入对应区块。
+   导入后请在预览页查看「建议核对」提示，重点检查：项目是否合并完整、校园成果里的奖项是否一条对应一项荣誉。
+   确认无误后点「确认填入站点」；再逐页人工微调即可。
+
+4) 完善首页（首屏）
+   · 直接在首页点击文字，可改姓名、意向岗位、一句话介绍、核心亮点、邮箱 / 电话等（会自动保存）。
+   · 或打开「站点编辑 → 首屏与形象」，集中填写形象照、辅助文案、联系二维码等。
+   · 右侧展示窗可切换「重点展示 / 证件照」类预览素材。
+
+5) 检查「履历」区
+   含工作经历、项目经历、教育背景；点击卡片可展开详情。
+   支持新增 / 编辑 / 删除；教育卡片里的「校园成果」可展示学业表现、主修课程、校园经历、奖项荣誉等分区。
+   每条经历下的「代表项目」可挂图片、视频、代码、链接、文档。
+
+6) 补充「作品」区
+   至少放 2 个最能证明能力的作品：标题 + 封面 + 外链。
+   封面点击会打开外部链接（仓库、视频页、项目页等）。
+
+7) 调整主题与背景
+   左下角「主题」可切换整站配色（墨 / 暖 / 编辑 / 海洋等）。
+   还可选页面背景：纯色纸面、自定义图片、轻柔流光。
+
+8) 预览 → 再分享
+   点右上角「预览」，隐藏所有编辑入口，模拟访客视角自查排版与链接。
+   满意后点「分享」：复制链接（会自动去掉编辑密钥）、生成二维码，或发送到邮箱。
+   若你在 localhost 调试，对方打不开链接，需部署到公网或使用隧道后再分享。
+
+9) （可选）链接访问记录
+   右下角「链接访问记录」可查看只读链接何时被打开、来自哪里，便于跟进 HR 是否已查看。
+
+【编辑入口速查（有权限时）】
+· 首页就地编辑：点文字即改，停顿后自动保存。
+· 智能导入简历：PDF / Word 一键填入。
+· 站点编辑：首屏与形象、履历页用词、作品页用词。
+· 履历 / 作品卡片：进入各分区后增删改条目。
+
+【内容会自动保存到哪里？】
+· 编辑链接（带 editToken）：改动会保存到本机浏览器，并自动同步到服务器发布版；HR 打开只读链接看到的是最新发布内容。
+· 仅本机调试：主要保存在当前浏览器；换设备或清缓存可能丢失，重要内容请及时分享备份。
+
+【分享前自查清单】
+· 姓名、岗位、联系方式是否正确。
+· 至少 1 段教育 + 若干经历 / 项目 / 作品，且外链可打开。
+· 用手机竖屏预览一遍（Chrome 可按 F12 → 切换设备模式，或真机打开「预览」后的链接）；HR 打开的是同一链接，页面会自动适配手机排版，无需单独做移动版。
+· 中英文若都要展示，请分别切换「EN / 中文」检查。
+
+【常见问题】
+· 看不到编辑按钮 → 使用编辑链接，或联系站长加 IP 白名单。
+· 导入后字段不对 → 在对应分区手动改；Word / PDF 尽量用文字版，扫描件需 OCR。
+· 视频 embed 失败 → 使用 YouTube / Bilibili 公开页面链接。
+· 页面突然点不动 → 刷新页面；若刚中断新手引导，也请先刷新。
 `.trim(),
   en: `
-[First-time quick start: follow these 6 steps]
-1) Use top navigation: HOME / RESUME / WORK.
-2) Go to HOME and complete name, target role, one-line intro, and 2-4 highlights.
-3) Use bottom-left "Theme" for colors and page background (solid / image / mesh).
-4) Go to RESUME and finish experience + education (add / edit / delete supported).
-5) Go to WORK and add at least 2 representative projects (cover + link).
-6) Click "Share" on top-right to copy link or send by email.
+[First time here? Follow this order]
 
-[How editing works (when you have permission)]
-- On HOME, click text directly to edit; changes auto-save after a short pause.
-- Use bottom-right "Site Editor" for global copy, background, and contact fields.
-- Resume and work items support add/edit/delete.
-- Spotlight and project entries support image/video/code/link/document.
+0) Onboarding tour
+   The step-by-step tour auto-plays on the first visit from each network (IP); refreshes on the same network will not replay it. Open "Guide" top-right anytime and tap "Replay onboarding tour" at the bottom.
 
-[If edit controls are missing]
-- You are in read-only mode, usually because your IP is not whitelisted.
-- Ask the owner to add your public IP to ALLOWED_EDIT_IPS, then refresh.
+1) Learn the layout
+   Top nav: Home / Resume / Work — smooth scroll to each section.
+   "Share" top-right: copy link, email, or QR for HR / clients.
 
-[Visual quality tips]
-- Use high-resolution wide background images (1920x1080+ recommended).
-- Keep projects focused on proof of capability, not quantity.
-- Always check Preview before sharing.
+2) Check edit permission
+   · With permission: bottom-right shows Smart Import, View Log, and Site Editor.
+   · Read-only: a banner appears; use your Edit URL from the site owner, or ask them to whitelist your public IP.
 
-[Data note]
-- Content is saved in this browser.
-- Drafts may not carry over after switching devices or clearing browser storage.
+3) (Fastest) Smart resume import — highly recommended
+   Tap "Smart Import" bottom-right; upload PDF / Word / plain text (.txt).
+   Name, contact, experience, education, projects, and awards are mapped automatically.
+   Review warnings on the preview screen (merged projects, campus awards, etc.), then tap "Apply to site" and polish manually.
+
+4) Complete Home (hero)
+   · Click text on Home to edit name, role, tagline, highlights, email / phone (auto-saves).
+   · Or use Site Editor → Profile & hero for portrait, QR codes, and helper copy.
+   · The aside panel supports spotlight vs. portrait preview modes.
+
+5) Review Resume
+   Work experience, project experience, and education; expand cards for details.
+   Add / edit / delete entries; education "Campus" blocks cover academics, courses, activities, and awards.
+   Representative projects support image / video / code / link / document.
+
+6) Add Work (portfolio)
+   At least 2 strong pieces: title + cover + external link.
+
+7) Theme & background
+   Bottom-left "Theme" for palette (Ink / Warm / Editorial / Ocean, etc.).
+   Page background: solid paper, custom image, or soft gradient mesh.
+
+8) Preview, then share
+   Tap "Preview" top-right to hide edit UI and check as a visitor.
+   Then "Share": copy link (edit secrets stripped), QR code, or email.
+   localhost links are not reachable for others — deploy or use a tunnel first.
+
+9) (Optional) View log
+   "View Log" bottom-right shows when read-only links were opened and rough region.
+
+[Edit entry cheat sheet]
+· Inline hero edits: click text, auto-save after pause.
+· Smart import: PDF / Word one-click fill.
+· Site Editor: profile, resume copy, portfolio copy.
+· Resume / Work sections: add or edit cards in place.
+
+[Where is data saved?]
+· Edit URL (with editToken): local browser draft + auto sync to server publish; HR view URL shows latest publish.
+· Local dev only: mostly in this browser; switch devices or clear storage at your own risk.
+
+[Pre-share checklist]
+· Name, role, contact correct.
+· Education + experience / projects / portfolio present; links work.
+· Check mobile layout; switch EN / 中文 if both languages matter.
+
+[FAQ]
+· No edit controls → use Edit URL or ask for IP whitelist.
+· Import mismatch → edit sections manually; prefer text-based PDF/Word over scans.
+· Video embed fails → use public YouTube / Bilibili URLs.
+· Page unclickable → refresh; also try refresh if onboarding was interrupted mid-tour.
 `.trim(),
 } as const;

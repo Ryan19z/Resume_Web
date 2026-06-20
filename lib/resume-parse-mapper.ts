@@ -2,6 +2,7 @@ import { emptyHeroSpotlightForImport, resetHeroPersonalDisplayForImport } from "
 import { splitSchoolMajorBlob } from "@/lib/education-display";
 import { isReasonableHttpUrl } from "@/lib/is-reasonable-http-url";
 import { randomId } from "@/lib/random-id";
+import { normalizeAwardList, isAcademicMetricNotAward } from "@/lib/server/resume-parse-reconcile";
 import type { ParsedResume } from "@/lib/resume-parse-types";
 import type {
   EducationItem,
@@ -167,7 +168,9 @@ function mapEducationItem(
     if (!t) continue;
     if (t.startsWith("主修课程")) {
       courseBullets.push(t.replace(/^主修课程[:：]\s*/, ""));
-    } else if (/GPA|gpa|CET|英语/i.test(t)) {
+    } else if (/GPA|gpa/i.test(t)) {
+      academicBullets.push(t);
+    } else if (/^英语水平\s*[:：]/i.test(t) || /^CET[-\s]?[46]/i.test(t)) {
       academicBullets.push(t);
     } else {
       miscBullets.push(t);
@@ -175,12 +178,7 @@ function mapEducationItem(
   }
 
   const awardBullets =
-    index === 0
-      ? dedupeAwardStrings([
-          ...(awards ?? []),
-          ...e.highlights.filter(isAwardLikeHighlight),
-        ]).slice(0, 12)
-      : [];
+    index === 0 ? normalizeAwardList(awards ?? []).slice(0, 12) : [];
 
   const campusRoleBlocks = (e.campusExperiences ?? []).map((c) => ({
     heading: `${c.role}${c.period?.trim() ? `（${c.period.trim()}）` : ""}`,

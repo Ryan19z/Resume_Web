@@ -2,7 +2,14 @@
 
 import { useSiteContent } from "@/context/SiteContentProvider";
 import {
+  fetchSiteTourStatus,
+  markSiteTourSeenOnServer,
+} from "@/lib/site-tour-client";
+import { parseClientResumeScope } from "@/lib/resume-scope";
+import {
   hasCompletedSiteTour,
+  hasOfferedAutoTourThisSession,
+  markAutoTourOfferedThisSession,
   markSiteTourCompleted,
   notifySiteTourFinished,
 } from "@/lib/site-tour-state";
@@ -54,7 +61,7 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "欢迎与分区导航",
         description:
-          "点击「首屏 / 履历 / 作品」可平滑滚动到对应区域；右侧「分享」可复制链接或扫码打开。若你有编辑权限，下一步会介绍右上角的预览与使用说明。",
+          "顶部「首页 / 履历 / 作品」可平滑滚动到对应区域；右侧「分享」可复制链接、发邮件或扫码。完整步骤见右上角「使用说明」。",
         side: "bottom",
         align: "center",
       },
@@ -64,8 +71,18 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "预览与使用说明",
         description:
-          "「使用说明」随时打开完整手册并可在底部重新播放本引导；「预览」仅在有编辑权限时出现，用于隐藏编辑入口、模拟访客视角。",
+          "「使用说明」含完整新手教程，底部可重新播放本引导。「预览」仅在有编辑权限时出现，用于隐藏编辑入口、模拟 HR 访客视角。",
         side: "bottom",
+        align: "end",
+      },
+    },
+    {
+      element: "#tour-resume-import",
+      popover: {
+        title: "智能导入简历",
+        description:
+          "有编辑权限时，可上传 PDF / Word / 文本简历，自动识别并填入姓名、经历、教育、项目与奖项。导入后请在预览里核对，再逐页微调。",
+        side: "top",
         align: "end",
       },
     },
@@ -74,7 +91,7 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "首屏就地编辑",
         description:
-          "首屏可直接编辑姓名、岗位、简介、邮箱/电话/社媒与联系二维码；修改后会自动保存。右侧展示窗也支持直接切换与编辑预览素材。",
+          "首页可直接点改姓名、岗位、简介、亮点与联系方式，停顿后自动保存。右侧展示窗也支持切换与编辑预览素材。",
         side: "bottom",
         align: "start",
       },
@@ -82,9 +99,9 @@ function buildSteps(): DriveStep[] {
     {
       element: "#tour-site-editor",
       popover: {
-        title: "站点编辑",
+        title: "站点编辑与访问记录",
         description:
-          "打开后可集中编辑首屏基础信息、履历页文案、作品页文案，并管理作品条目；这里会放置不适合就地编辑的设置项。",
+          "「站点编辑」集中管理首屏形象、履历/作品页文案；上方「链接访问记录」可查看 HR 何时打开只读链接。履历与作品条目请在对应分区卡片上增删改。",
         side: "top",
         align: "end",
       },
@@ -94,7 +111,7 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "分享简历",
         description:
-          "可复制当前页面链接、发送到您的邮箱备份，或生成二维码用手机扫一扫打开。",
+          "复制访客链接（会自动去掉编辑密钥）、发送到邮箱，或生成二维码。分享前建议先点「预览」自查一遍。",
         side: "bottom",
         align: "end",
       },
@@ -102,8 +119,9 @@ function buildSteps(): DriveStep[] {
     {
       element: "#tour-theme",
       popover: {
-        title: "主题切换",
-        description: "左下角可更换整站配色与纸张风格。",
+        title: "主题与背景",
+        description:
+          "左下角可更换整站配色，并选择纯色纸面、自定义图片或轻柔流光背景。",
         side: "top",
         align: "start",
       },
@@ -132,47 +150,115 @@ function filterExistingSteps(steps: DriveStep[]): DriveStep[] {
   return steps.filter((s) => Boolean(resolveStepElement(s)));
 }
 
-const TOUR_STEP_TARGET_COUNT = buildSteps().length;
+/** 首屏必须具备的引导锚点（不依赖编辑权限） */
+const CORE_TOUR_SELECTORS = [
+  "#tour-anchors",
+  "#tour-top-actions",
+  "#tour-hero-edit",
+  "#tour-share-resume",
+  "#tour-theme",
+] as const;
 
-async function waitForTourSelectorsMounted(maxMs = 6000): Promise<void> {
+/** 有编辑权限时才出现的锚点；缺失时不阻塞引导启动 */
+const OPTIONAL_TOUR_SELECTORS = [
+  "#tour-resume-import",
+  "#tour-site-editor",
+] as const;
+
+function coreTourSelectorsReady(): boolean {
+  if (typeof document === "undefined") return false;
+  return CORE_TOUR_SELECTORS.every((sel) => Boolean(document.querySelector(sel)));
+}
+
+async function waitForTourSelectorsMounted(
+  shouldAbort?: () => boolean,
+  maxMs = 8000,
+): Promise<void> {
   if (typeof document === "undefined") return;
-  const deadline = Date.now() + maxMs;
+  const startedAt = Date.now();
+  const deadline = startedAt + maxMs;
+  let coreReadyAt = 0;
+
   while (Date.now() < deadline) {
-    if (filterExistingSteps(buildSteps()).length === TOUR_STEP_TARGET_COUNT) {
-      return;
+    if (shouldAbort?.()) return;
+
+    if (coreTourSelectorsReady()) {
+      if (!coreReadyAt) coreReadyAt = Date.now();
+      const optionalReady = OPTIONAL_TOUR_SELECTORS.every((sel) =>
+        Boolean(document.querySelector(sel)),
+      );
+      const waitedAfterCore = Date.now() - coreReadyAt;
+      if (optionalReady || waitedAfterCore >= 1200) {
+        return;
+      }
     }
-    await new Promise((r) => setTimeout(r, 100));
+
+    await new Promise((r) => setTimeout(r, 80));
   }
 }
 
+let activeTourRunId = 0;
+
+export type RunSiteTourOptions = {
+  /** 自动启动在 React cleanup 时应中止，且不应误标「已完成」 */
+  shouldAbort?: () => boolean;
+};
+
 const DRIVER_CSS_ID = "resume-driver-js-stylesheet";
 
-function ensureDriverStylesheet(): void {
-  if (typeof document === "undefined") return;
-  if (document.getElementById(DRIVER_CSS_ID)) return;
-  const link = document.createElement("link");
-  link.id = DRIVER_CSS_ID;
-  link.rel = "stylesheet";
-  link.href = "/vendor/driver.css";
-  document.head.appendChild(link);
+function ensureDriverStylesheet(): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+  const existing = document.getElementById(DRIVER_CSS_ID);
+  if (existing instanceof HTMLLinkElement && existing.sheet) {
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    let link = document.getElementById(DRIVER_CSS_ID) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement("link");
+      link.id = DRIVER_CSS_ID;
+      link.rel = "stylesheet";
+      link.href = "/vendor/driver.css";
+      document.head.appendChild(link);
+    }
+    if (link.sheet) {
+      resolve();
+      return;
+    }
+    const done = () => resolve();
+    link.addEventListener("load", done, { once: true });
+    link.addEventListener("error", done, { once: true });
+    window.setTimeout(done, 1200);
+  });
 }
 
 /**
  * 引导样式使用 `public/vendor/driver.css`，避免 `import('driver.js/dist/driver.css')`
  * 经 Webpack 再注入时与 Next 主样式表竞态，出现整页 Tailwind/preflight 不生效。
  */
-export async function runSiteTour(): Promise<void> {
+export async function runSiteTour(options?: RunSiteTourOptions): Promise<void> {
   if (typeof window === "undefined") return;
+  const runId = ++activeTourRunId;
+  const shouldAbort = options?.shouldAbort;
+
   forceTeardownDriverTourDom();
   try {
-    ensureDriverStylesheet();
-    await waitForTourSelectorsMounted();
+    await ensureDriverStylesheet();
+    if (shouldAbort?.() || runId !== activeTourRunId) return;
+
+    await waitForTourSelectorsMounted(shouldAbort);
+    if (shouldAbort?.() || runId !== activeTourRunId) return;
+
     const { driver } = await import("driver.js");
+    if (shouldAbort?.() || runId !== activeTourRunId) return;
+
     const steps = filterExistingSteps(buildSteps());
     if (steps.length === 0) {
       console.warn("[SiteTourDriver] no tour steps with matching DOM nodes");
-      markSiteTourCompleted();
-      notifySiteTourFinished();
+      if (!shouldAbort?.()) {
+        markSiteTourCompleted();
+        notifySiteTourFinished();
+      }
       return;
     }
     const config: Config = {
@@ -190,13 +276,19 @@ export async function runSiteTour(): Promise<void> {
     };
     const d = driver(config);
     requestAnimationFrame(() => {
+      if (shouldAbort?.() || runId !== activeTourRunId) {
+        forceTeardownDriverTourDom();
+        return;
+      }
       d.drive();
     });
   } catch (e) {
     console.error("[SiteTourDriver] runSiteTour failed:", e);
     forceTeardownDriverTourDom();
-    markSiteTourCompleted();
-    notifySiteTourFinished();
+    if (!shouldAbort?.()) {
+      markSiteTourCompleted();
+      notifySiteTourFinished();
+    }
   }
 }
 
@@ -222,39 +314,58 @@ export function SiteTourListener() {
 }
 
 /**
- * 首次进入自动播放一次（可跳过）。首帧布局后即启动，不等待权限接口。
- * 只读访客同样会播放：步骤会按 DOM 自动过滤；预览模式下不启动。
+ * 首次进入自动播放一次（可跳过）。
+ * 同一 IP 首次打开站点时播放；服务端记录后，同 IP 刷新不再自动播放。
+ * 手动「重新播放新手引导」不受 IP 记录影响。
  */
 export function SiteTourAutoStart() {
-  const { previewMode } = useSiteContent();
+  const { previewMode, editPermissionLoaded } = useSiteContent();
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (previewMode) return;
     if (hasCompletedSiteTour()) return;
+    if (hasOfferedAutoTourThisSession()) return;
+    if (!editPermissionLoaded) return;
 
     let cancelled = false;
-    let id2 = 0;
+    const shouldAbort = () => cancelled;
 
-    const kick = () => {
-      if (cancelled) return;
-      void runSiteTour().catch((err) =>
-        console.error("[SiteTourDriver] auto tour:", err),
-      );
-    };
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        if (cancelled) return;
 
-    // 不等待 /api/can-edit：隧道或弱网时权限请求可能很慢，导致引导迟迟不出现。
-    // 双 requestAnimationFrame：等浏览器完成首帧布局后再启动，避免目标节点尚未挂载。
-    const id1 = window.requestAnimationFrame(() => {
-      id2 = window.requestAnimationFrame(kick);
-    });
+        try {
+          const { shouldAutoPlay } = await fetchSiteTourStatus(
+            parseClientResumeScope(),
+          );
+          if (cancelled) return;
+          if (!shouldAutoPlay) {
+            markSiteTourCompleted();
+            return;
+          }
+        } catch {
+          if (cancelled) return;
+        }
+
+        markAutoTourOfferedThisSession();
+        void markSiteTourSeenOnServer(parseClientResumeScope()).catch(() => {
+          /* 离线时仍播放一次，localStorage 在引导结束时写入 */
+        });
+
+        window.requestAnimationFrame(() => {
+          if (cancelled) return;
+          void runSiteTour({ shouldAbort }).catch((err) =>
+            console.error("[SiteTourDriver] auto tour:", err),
+          );
+        });
+      })();
+    }, 180);
 
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(id1);
-      window.cancelAnimationFrame(id2);
-      /** 预览切换 / StrictMode / HMR 时取消待启动的引导，并清掉可能半截的 driver DOM */
+      window.clearTimeout(timer);
       forceTeardownDriverTourDom();
     };
-  }, [previewMode]);
+  }, [previewMode, editPermissionLoaded]);
   return null;
 }

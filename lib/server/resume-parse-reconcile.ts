@@ -537,14 +537,240 @@ function uniqPush<T>(arr: T[], item: T, same: (a: T, b: T) => boolean) {
 }
 
 function dedupeAwardStrings(items: string[]): string[] {
-  const seen = new Set<string>();
-  return items
-    .map((x) => x.trim())
-    .filter((x) => {
-      if (!x || x.length < 3 || seen.has(x)) return false;
-      seen.add(x);
-      return true;
-    });
+  return dedupeAwardsSemantically(items);
+}
+
+const AWARD_BULLET_PREFIX_RE =
+  /^[\s\u25a1\u25aa\u2022\u00b7\u25cf□■●◆◇▪◦❖\-*]+/;
+
+/** 清洗 PDF/Word 前缀符号与空白，统一行尾日期展示 */
+export function sanitizeAwardLine(raw: string): string {
+  let t = raw
+    .trim()
+    .replace(AWARD_BULLET_PREFIX_RE, "")
+    .replace(/^[^\u4e00-\u9fffA-Za-z0-9(（第]+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!t) return "";
+
+  if (!/[（(]\d{4}/.test(t)) {
+    t = t.replace(
+      /(等奖|参赛奖|学金)(\d{4}[.\-/年]?\d{1,2}(?:[.\-/月]?\d{1,2})?)$/,
+      "$1（$2）",
+    );
+  }
+
+  t = t.replace(
+    /\s*[（(]\s*(\d{4}[.\-/年]?\d{1,2}(?:[.\-/月]?\d{1,2})?)\s*[)）]\s*$/,
+    "（$1）",
+  );
+  if (!/[（(]\d{4}/.test(t)) {
+    t = t.replace(/\s+(\d{4}[.\-/年]\d{1,2}(?:[.\-/月]\d{1,2})?)\s*$/, "（$1）");
+  }
+  return t.slice(0, 160);
+}
+
+/** 语义去重指纹：忽略括号日期、名次、标点与 PDF 符号差异 */
+export function awardDedupeKey(line: string): string {
+  return sanitizeAwardLine(line)
+    .replace(/[（(]\s*\d{4}[.\-/年]?\d{1,2}(?:[.\-/月]?\d{1,2})?\s*[)）]/g, "")
+    .replace(/[（(]\s*\d{4}\s*[-–—~至到]\s*\d{4}\s*[)）]/g, "")
+    .replace(/[（(]\s*\d+\s*\/\s*\d+\s*[)）]/g, "")
+    .replace(/[\s，,、；;：:.*\-–—~至到/]/g, "")
+    .toLowerCase();
+}
+
+function awardLineRichness(line: string): number {
+  let score = sanitizeAwardLine(line).length;
+  if (/[（(]\d{4}/.test(line)) score += 10;
+  if (/\d+\s*\/\s*\d+/.test(line)) score += 6;
+  if (/二等奖|一等奖|三等奖|参赛奖/.test(line)) score += 4;
+  return score;
+}
+
+export function isAcademicMetricNotAward(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  if (/^GPA\s*[:：]?/i.test(t)) return true;
+  if (/^英语水平\s*[:：]/i.test(t)) return true;
+  if (/^(?:语言|英语)能力\s*[:：]/i.test(t) && /CET/i.test(t)) return true;
+  if (
+    /^CET[-\s]?[46]/i.test(t) &&
+    !/(?:竞赛|大赛|征文|写作|智能车|电子设计|奖学金)/.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** 合并「竞赛名+等级+日期」相同、仅格式不同的荣誉条目 */
+export function dedupeAwardsSemantically(items: string[]): string[] {
+  const out: string[] = [];
+  const keys: string[] = [];
+
+  for (const raw of items) {
+    const line = sanitizeAwardLine(raw);
+    if (!line || line.length < 3) continue;
+    if (isAcademicMetricNotAward(line)) continue;
+
+    const key = awardDedupeKey(line);
+    if (!key || key.length < 4) continue;
+
+    const idx = keys.findIndex(
+      (existing) =>
+        existing === key ||
+        (existing.length >= 8 &&
+          key.length >= 8 &&
+          (existing.includes(key) || key.includes(existing))),
+    );
+
+    if (idx === -1) {
+      keys.push(key);
+      out.push(line);
+      continue;
+    }
+
+    if (awardLineRichness(line) > awardLineRichness(out[idx]!)) {
+      out[idx] = line;
+    }
+  }
+
+  return out;
+}
+
+function awardLineAlreadyHasDate(line: string): boolean {
+  return /(?:（|\()\d{4}[.\-/年]|\d{4}[.\-/年]\d{1,2}\s*$/.test(line);
+}
+
+function awardLineAlreadyHasPrizeLevel(line: string): boolean {
+  const { core } = splitAwardDateSuffix(line);
+  return /(?:特等|一|二|三|四|五|优胜|优秀|铜|银|金)等奖|参赛奖/.test(core);
+}
+
+/** 剥离行尾括号日期，便于识别「浙江省二等奖（2023.07）」类等级行 */
+function splitAwardDateSuffix(line: string): { core: string; date?: string } {
+  const t = line.trim();
+  const paren = t.match(
+    /^(.+?)\s*[（(](\d{4}[.\-/年]\d{1,2}(?:[.\-/月]\d{1,2})?)[)）]\s*$/,
+  );
+  if (paren?.[1] && paren[2]) {
+    return {
+      core: paren[1].trim(),
+      date: paren[2].replace(/\s/g, ""),
+    };
+  }
+  return { core: t };
+}
+
+function isOrphanAwardDateLine(line: string): boolean {
+  const t = line.trim().replace(/\s/g, "");
+  if (!t) return false;
+  if (/^[（(]?\d{4}[.\-/年]\d{1,2}(?:[.\-/月]\d{1,2})?[)）]?$/.test(t)) return true;
+  if (/^[（(]?\d{4}[-–—~至到]\d{4}[)）]?$/.test(t)) return true;
+  if (/^\d{4}$/.test(t)) return true;
+  return false;
+}
+
+function extractOrphanAwardDate(line: string): string {
+  return line
+    .trim()
+    .replace(/^[（(]|[)）]$/g, "")
+    .replace(/\s/g, "");
+}
+
+function isAwardRankOnlyLine(line: string): boolean {
+  const t = line.trim();
+  return /^[（(]?\s*\d+\s*\/\s*\d+\s*[)）]?$/.test(t);
+}
+
+/** 仅含等级/名次的一行，应合并到上一条竞赛/荣誉名称 */
+function isAwardPrizeLevelLine(line: string): boolean {
+  const { core } = splitAwardDateSuffix(line);
+  const t = core.trim();
+  if (!t || t.length > 32) return false;
+  if (/奖学金/.test(t) && t.length > 6) return false;
+  if (
+    /^(?:全国|浙江省|省|校|院|区级)?(?:特等|一|二|三|四|五|优胜|优秀|铜|银|金)等奖$/.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  if (/^参赛奖$/.test(t)) return true;
+  return false;
+}
+
+/** 竞赛/奖学金名称行（尚未含完整等级+日期） */
+function isAwardEventTitleLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (
+    isAwardPrizeLevelLine(t) ||
+    isOrphanAwardDateLine(t) ||
+    isAwardRankOnlyLine(t)
+  ) {
+    return false;
+  }
+  if (/(?:竞赛|大赛|征文|学金|荣誉|杯|评选)/.test(t)) return true;
+  if (/^第.+届/.test(t) && /(?:奖|赛|大赛)/.test(t)) return true;
+  return t.length >= 10 && /(?:大学|全国|省)/.test(t);
+}
+
+/**
+ * 将 Word/PDF 中拆行的「竞赛名 + 等级 + 日期」合并为单条荣誉。
+ * 例：智能车竞赛 / 浙江省二等奖 / 2023.07 → 一条
+ */
+export function normalizeAwardList(lines: string[]): string[] {
+  const awards: string[] = [];
+
+  for (const raw of lines) {
+    const line = sanitizeAwardLine(raw);
+    if (!line || line.length < 2) continue;
+    if (isAcademicMetricNotAward(line)) continue;
+
+    if (isOrphanAwardDateLine(line)) {
+      const prev = awards[awards.length - 1];
+      if (prev && !awardLineAlreadyHasDate(prev)) {
+        const date = extractOrphanAwardDate(line);
+        awards[awards.length - 1] = `${prev}（${date}）`;
+      }
+      continue;
+    }
+
+    if (isAwardRankOnlyLine(line)) {
+      const prev = awards[awards.length - 1];
+      if (prev) {
+        awards[awards.length - 1] = `${prev} ${line}`.replace(/\s+/g, " ").trim();
+      }
+      continue;
+    }
+
+    const prev = awards[awards.length - 1];
+    if (
+      prev &&
+      isAwardPrizeLevelLine(line) &&
+      isAwardEventTitleLine(prev) &&
+      !isAwardPrizeLevelLine(prev) &&
+      !awardLineAlreadyHasPrizeLevel(prev)
+    ) {
+      const { core, date } = splitAwardDateSuffix(line);
+      let merged = `${prev} ${core}`.replace(/\s+/g, " ").trim();
+      if (date && !awardLineAlreadyHasDate(merged)) {
+        merged = `${merged}（${date}）`;
+      }
+      awards[awards.length - 1] = merged;
+      continue;
+    }
+
+    if (isAwardPrizeLevelLine(line)) {
+      const { core } = splitAwardDateSuffix(line);
+      if (awards.some((a) => a.includes(core))) continue;
+    }
+
+    awards.push(line);
+  }
+
+  return dedupeAwardsSemantically(awards);
 }
 
 const AWARD_LIKE_RE =
@@ -563,6 +789,11 @@ export function enrichParsedResumeAwards(
   parsed: ParsedResume,
   fallbackAwards: string[] = [],
 ): ParsedResume {
+  const stripAcademicHighlight = (h: string): boolean => {
+    if (!isAwardLikeText(h)) return true;
+    return isAcademicMetricNotAward(h);
+  };
+
   const fromHighlights = parsed.education.flatMap((e) =>
     e.highlights.filter(isAwardLikeText),
   );
@@ -571,7 +802,7 @@ export function enrichParsedResumeAwards(
       c.bullets.filter(isAwardLikeText),
     ),
   );
-  const awards = dedupeAwardStrings([
+  const awards = normalizeAwardList([
     ...(parsed.awards ?? []),
     ...fromHighlights,
     ...fromCampus,
@@ -580,9 +811,7 @@ export function enrichParsedResumeAwards(
 
   const education = parsed.education.map((e) => ({
     ...e,
-    highlights: e.highlights.filter(
-      (h) => !isAwardLikeText(h) || /GPA|gpa|CET|英语/i.test(h),
-    ),
+    highlights: e.highlights.filter(stripAcademicHighlight),
   }));
 
   return {

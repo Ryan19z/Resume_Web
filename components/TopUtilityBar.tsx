@@ -119,8 +119,8 @@ export function TopUtilityBar() {
                 </h2>
                 <p className="mt-1 text-xs text-ink-muted">
                   {mode === "zh"
-                    ? "第一次使用可先看新手引导；也可随时点此面板复习。"
-                    : "New here? Start with the onboarding tour and revisit this panel anytime."}
+                    ? "含完整 9 步上手流程；首次进入会自动播放引导，也可在底部重播。"
+                    : "Full 9-step quick start; onboarding plays on first visit, or replay below."}
                 </p>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-ink/90 sm:px-6">

@@ -6,6 +6,7 @@ import { forceTeardownDriverTourDom } from "@/components/SiteTourDriver";
 import { InteractionModeProvider } from "@/context/InteractionModeProvider";
 import { LanguageModeProvider } from "@/context/LanguageModeProvider";
 import { SiteContentProvider } from "@/context/SiteContentProvider";
+import { resetSiteTourCompletion } from "@/lib/site-tour-state";
 import { useLayoutEffect } from "react";
 
 function clearPersistedSiteDrafts() {
@@ -37,6 +38,7 @@ export default function AppClientTree() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("reset") === "default") {
       clearPersistedSiteDrafts();
+      resetSiteTourCompletion();
       params.delete("reset");
       const qs = params.toString();
       window.location.replace(

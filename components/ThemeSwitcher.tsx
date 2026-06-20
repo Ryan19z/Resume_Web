@@ -86,6 +86,8 @@ export function ThemeSwitcher() {
   };
 
   if (previewMode) return null;
+  /** HR 访客无需切换主题，移动端也避免左下角遮挡内容 */
+  if (editPermissionLoaded && !canEdit) return null;
 
   return (
     <div

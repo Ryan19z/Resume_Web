@@ -4,7 +4,7 @@ import { useSiteContent } from "@/context/SiteContentProvider";
 
 /**
  * 只读访客不渲染「站点编辑」悬浮钮时，仍保留与引导一致的 DOM 锚点，
- * 避免首次自动引导被 filter 成少于 6 步（与「重新播放」不一致）。
+ * 避免首次自动引导被 filter 成步数过少（与「重新播放」不一致）。
  */
 export function TourReadonlySentinels() {
   const { editPermissionLoaded, canEdit, previewMode } = useSiteContent();
