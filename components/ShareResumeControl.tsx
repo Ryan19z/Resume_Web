@@ -13,7 +13,14 @@ import {
   appendResumeScopeToPath,
   parseClientResumeScope,
 } from "@/lib/resume-scope";
-import { buildShareLink } from "@/lib/share-url";
+import {
+  buildShareLink,
+} from "@/lib/share-url";
+import {
+  getPublicSiteOrigin,
+  hasScopedResumeInUrl,
+  toPublicPageUrl,
+} from "@/lib/public-site-url";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -33,6 +40,11 @@ function isLocalDevPageUrl(href: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isOnLocalDevHost(): boolean {
+  if (typeof window === "undefined") return false;
+  return isLocalDevPageUrl(window.location.href);
 }
 
 export function ShareResumeControl() {
@@ -101,11 +113,15 @@ export function ShareResumeControl() {
 
   useEffect(() => {
     if (!open) return;
-    setPageUrl(typeof window !== "undefined" ? window.location.href : "");
+    const href = window.location.href;
+    setPageUrl(hasScopedResumeInUrl(href) ? toPublicPageUrl(href) : "");
     setSheet("menu");
     setSendState("idle");
     setSendMsg("");
   }, [open]);
+
+  const missingScopedResume =
+    open && typeof window !== "undefined" && !hasScopedResumeInUrl(window.location.href);
 
   const shareUrl = useMemo(() => {
     if (!pageUrl) return "";
@@ -248,32 +264,30 @@ export function ShareResumeControl() {
                 </p>
               </div>
               <div className="px-5 py-4 sm:px-6">
-                {shareUrl && isLocalDevPageUrl(shareUrl) ? (
+                {missingScopedResume ? (
                   <div className="mb-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5 text-[11px] leading-relaxed text-amber-950/90">
                     <p className="font-semibold">
                       {mode === "zh"
-                        ? "发给朋友时请用外网链接"
-                        : "Use a public URL when sharing with others"}
+                        ? "请用客户 EditURL 打开后再分享"
+                        : "Open with a customer Edit URL first"}
                     </p>
                     <p className="mt-1 text-amber-950/85">
-                      {mode === "zh" ? (
-                        <>
-                          当前是 localhost，对方打不开。临时分享可在项目根目录运行{" "}
-                          <span className="rounded bg-amber-100/90 px-1 font-mono">
-                            npm run dev:share
-                          </span>{" "}
-                          ，把终端里 localtunnel 的 https 发给对方。
-                        </>
-                      ) : (
-                        <>
-                          This is localhost and not reachable by others. For temporary
-                          sharing, run{" "}
-                          <span className="rounded bg-amber-100/90 px-1 font-mono">
-                            npm run dev:share
-                          </span>{" "}
-                          and send the generated localtunnel https URL.
-                        </>
-                      )}
+                      {mode === "zh"
+                        ? `分享链接必须带 resumeId，指向独立客户空间（默认模板「你的名字」）。当前页面无 resumeId，若直接分享 ${getPublicSiteOrigin()} 会打开站长全局站点，可能含个人草稿。`
+                        : `Share links must include resumeId for an isolated customer space (default template). Without it, ${getPublicSiteOrigin()} shows the site owner's global draft.`}
+                    </p>
+                  </div>
+                ) : isOnLocalDevHost() && shareUrl ? (
+                  <div className="mb-4 rounded-xl border border-line/80 bg-paper/80 px-3 py-2.5 text-[11px] leading-relaxed text-ink-muted">
+                    <p className="font-medium text-ink">
+                      {mode === "zh"
+                        ? "链接已使用正式域名"
+                        : "Link uses your public domain"}
+                    </p>
+                    <p className="mt-1">
+                      {mode === "zh"
+                        ? "你在本地编辑客户空间，复制/扫码/发邮件的地址已是 linkola.cn，HR 将看到该客户空间已发布的内容。"
+                        : "You edit locally; shared links use linkola.cn and show this customer space's published content."}
                     </p>
                   </div>
                 ) : null}
@@ -316,7 +330,8 @@ export function ShareResumeControl() {
                   <button
                     type="button"
                     onClick={() => void copyLink()}
-                    className="w-full rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 sm:w-auto sm:min-w-[8rem]"
+                    disabled={!shareUrl}
+                    className="w-full rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 sm:w-auto sm:min-w-[8rem]"
                   >
                     {copied
                       ? mode === "zh"
@@ -338,7 +353,8 @@ export function ShareResumeControl() {
                   <button
                     type="button"
                     onClick={() => setSheet("qr")}
-                    className="w-full rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink/20 sm:flex-1"
+                    disabled={!shareUrl}
+                    className="w-full rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink/20 disabled:opacity-40 sm:flex-1"
                   >
                     {mode === "zh" ? "扫码打开" : "Open with QR"}
                   </button>

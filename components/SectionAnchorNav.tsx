@@ -42,31 +42,25 @@ export function SectionAnchorNav({
         aria-label={mode === "zh" ? "页面分区" : "Sections"}
         className={NAV_CLASS}
       >
-        <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-2 px-3 sm:px-6">
-          <div className="hidden w-11 shrink-0 sm:block" aria-hidden />
-          <div className="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-0.5 sm:gap-1">
-            {links.map(({ href, label }, i) => (
-              <span key={href} className="flex items-center">
-                {i > 0 ? (
-                  <span
-                    className="mx-0.5 text-ink-muted/35 sm:mx-1"
-                    aria-hidden
-                  >
-                    /
-                  </span>
-                ) : null}
-                <a
-                  href={href}
-                  className="rounded-full px-2.5 py-1.5 text-[12px] font-semibold tracking-[0.02em] text-ink-muted transition-colors hover:bg-[rgb(var(--selection)/0.1)] hover:text-[rgb(var(--selection))] sm:px-3"
-                >
-                  {label}
-                </a>
-              </span>
-            ))}
-          </div>
-          <div className="shrink-0">
-            <ShareResumeControl />
-          </div>
+        <div className="flex max-w-xl flex-wrap items-center justify-center gap-0.5 px-14 sm:gap-1 sm:px-24">
+          {links.map(({ href, label }, i) => (
+            <span key={href} className="flex items-center">
+              {i > 0 ? (
+                <span className="mx-0.5 text-ink-muted/35 sm:mx-1" aria-hidden>
+                  /
+                </span>
+              ) : null}
+              <a
+                href={href}
+                className="rounded-full px-2.5 py-1.5 text-[12px] font-semibold tracking-[0.02em] text-ink-muted transition-colors hover:bg-[rgb(var(--selection)/0.1)] hover:text-[rgb(var(--selection))] sm:px-3"
+              >
+                {label}
+              </a>
+            </span>
+          ))}
+        </div>
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 sm:right-4">
+          <ShareResumeControl />
         </div>
       </nav>
       <div className="shrink-0 print:hidden" style={SPACER_STYLE} aria-hidden />

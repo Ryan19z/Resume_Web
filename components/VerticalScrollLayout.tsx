@@ -2,6 +2,7 @@
 
 import { PageBackgroundLayer } from "@/components/PageBackgroundLayer";
 import { useInteractionMode } from "@/context/InteractionModeProvider";
+import { useSiteContent } from "@/context/SiteContentProvider";
 import type { ReactNode } from "react";
 
 /**
@@ -10,9 +11,14 @@ import type { ReactNode } from "react";
  */
 export function VerticalScrollLayout({ children }: { children: ReactNode }) {
   const { microInteractionEnabled } = useInteractionMode();
+  const { canEdit, editPermissionLoaded, previewMode } = useSiteContent();
+  const readonlyVisitor =
+    editPermissionLoaded && !canEdit && !previewMode;
   return (
     <div
-      className="relative z-[1] flex min-w-0 w-full flex-col bg-transparent pb-[calc(7rem+env(safe-area-inset-bottom,0px))] text-ink print:pb-6"
+      className={`relative z-[1] flex min-w-0 w-full flex-col bg-transparent text-ink print:pb-6 ${
+        readonlyVisitor ? "pb-0" : "pb-[calc(7rem+env(safe-area-inset-bottom,0px))]"
+      }`}
       data-micro-interaction={microInteractionEnabled ? "on" : "off"}
     >
       <PageBackgroundLayer />

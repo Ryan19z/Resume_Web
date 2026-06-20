@@ -34,14 +34,25 @@ export function SiteFooter() {
 
   const showPrivacyNote =
     editPermissionLoaded && !canEdit && !previewMode;
+  const readonlyVisitor = showPrivacyNote;
   const hasContact = Boolean(email || phone || footerQrs.length > 0);
 
   if (!hasContact && !showPrivacyNote) return null;
 
   return (
-    <footer className="border-t border-line/70 bg-paper px-6 py-8 text-left sm:px-12">
+    <footer
+      className={`border-t border-line/70 bg-paper text-left ${
+        readonlyVisitor
+          ? "px-6 sm:px-12"
+          : "px-6 py-8 sm:px-12"
+      }`}
+    >
       {hasContact ? (
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div
+        className={`flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between ${
+          readonlyVisitor ? "pt-5" : ""
+        }`}
+      >
         <div>
           <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-muted">
             {mode === "zh" ? "联系入口" : "Contact"}
@@ -132,7 +143,15 @@ export function SiteFooter() {
       ) : null}
       {showPrivacyNote ? (
         <p
-          className={`text-[11px] leading-relaxed text-ink-muted/80 ${hasContact ? "mt-6 border-t border-line/50 pt-4" : ""}`}
+          className={`text-[11px] leading-snug text-ink-muted/80 ${
+            hasContact
+              ? readonlyVisitor
+                ? "mt-3 border-t border-line/40 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+                : "mt-6 border-t border-line/50 pt-4"
+              : readonlyVisitor
+                ? "px-0 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+                : ""
+          }`}
         >
           {mode === "zh"
             ? "本页会匿名记录是否被打开及大致地区，帮助候选人确认简历已送达；不保存访问者 IP 明文，也无法识别具体身份。"

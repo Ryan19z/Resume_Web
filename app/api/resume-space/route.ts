@@ -1,16 +1,10 @@
 import { createResumeSpace } from "@/lib/server/resume-space-store";
+import { getPublicSiteOrigin } from "@/lib/public-site-url";
 import { type NextRequest, NextResponse } from "next/server";
 
 type CreateResumeSpaceRequest = {
   adminKey?: string;
 };
-
-function resolveOrigin(request: NextRequest): string {
-  const proto = request.headers.get("x-forwarded-proto") ?? "https";
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (host) return `${proto}://${host}`;
-  return request.nextUrl.origin;
-}
 
 export async function POST(request: NextRequest) {
   const requiredAdminKey = process.env.RESUME_SPACE_ADMIN_KEY?.trim();
@@ -40,7 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   const space = await createResumeSpace();
-  const origin = resolveOrigin(request);
+  const origin = getPublicSiteOrigin();
   const editUrl = `${origin}/?resumeId=${encodeURIComponent(space.resumeId)}&editToken=${encodeURIComponent(space.editToken)}&viewToken=${encodeURIComponent(space.viewToken)}`;
   const viewUrl = `${origin}/?resumeId=${encodeURIComponent(space.resumeId)}&viewToken=${encodeURIComponent(space.viewToken)}`;
   return NextResponse.json({
