@@ -14,6 +14,14 @@ const ViewLogModal = dynamic(
   { ssr: false },
 );
 
+const LinkSecurityModal = dynamic(
+  () =>
+    import("@/components/LinkSecurityModal").then((m) => ({
+      default: m.LinkSecurityModal,
+    })),
+  { ssr: false },
+);
+
 const QUICK_ACTION_CLASS =
   "flex max-w-[min(92vw,240px)] items-center gap-2 rounded-full border border-line bg-surface/90 px-3 py-2 text-left text-[12px] font-medium text-ink shadow-[0_1px_0_rgb(0_0_0/0.04)] backdrop-blur-md transition-colors hover:border-ink/12 hover:bg-surface";
 
@@ -32,6 +40,7 @@ export function SiteEditorDock() {
   } = useSiteContent();
   const [open, setOpen] = useState(false);
   const [viewLogOpen, setViewLogOpen] = useState(false);
+  const [linkSecurityOpen, setLinkSecurityOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
@@ -179,6 +188,21 @@ export function SiteEditorDock() {
                     标题、说明与卡片上的引导文字
                   </span>
                 </button>
+                <div className="mx-3 h-px bg-line/80" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setLinkSecurityOpen(true);
+                  }}
+                  className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-ink/[0.04]"
+                >
+                  <span className="font-medium text-ink">链接安全</span>
+                  <span className="text-[11px] leading-snug text-ink-muted">
+                    为编辑链接设置口令（HR 只读链接不受影响）
+                  </span>
+                </button>
               </motion.div>
             ) : null}
           </AnimatePresence>
@@ -186,6 +210,10 @@ export function SiteEditorDock() {
       </div>
 
       <ViewLogModal open={viewLogOpen} onClose={() => setViewLogOpen(false)} />
+      <LinkSecurityModal
+        open={linkSecurityOpen}
+        onClose={() => setLinkSecurityOpen(false)}
+      />
     </>
   );
 }

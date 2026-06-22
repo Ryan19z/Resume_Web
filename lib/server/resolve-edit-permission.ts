@@ -1,3 +1,4 @@
+import { enforceAccessGate } from "@/lib/server/access-gate";
 import { requireFeature } from "@/lib/server/entitlements";
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
@@ -13,6 +14,16 @@ export async function resolveEditPermission(
   );
 
   if (resumeId) {
+    const gateBlock = await enforceAccessGate(request, resumeId);
+    if (gateBlock) {
+      const data = (await gateBlock.json()) as { message?: string; error?: string };
+      return {
+        ok: false,
+        message: data.message ?? "需要访问口令。",
+        code: data.error ?? "pin_required",
+      };
+    }
+
     const tokenOk = editToken
       ? await canEditByToken(resumeId, editToken)
       : false;

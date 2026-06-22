@@ -1,3 +1,4 @@
+import { enforceAccessGate } from "@/lib/server/access-gate";
 import { requireFeature } from "@/lib/server/entitlements";
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
@@ -14,6 +15,9 @@ export async function GET(request: NextRequest) {
     );
 
     if (resumeId) {
+      const gateBlock = await enforceAccessGate(request, resumeId);
+      if (gateBlock) return gateBlock;
+
       const tokenOk = editToken
         ? await canEditByToken(resumeId, editToken)
         : false;

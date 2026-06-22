@@ -1,6 +1,9 @@
 import { buildNewCustomerDefaultBundle } from "@/lib/persist-site";
 import { buildResumeSpaceUrls } from "@/lib/public-site-url";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
+import {
+  createAccessPinRecord,
+} from "@/lib/server/access-gate";
 import { writePublishedBundle } from "@/lib/server/published-site-store";
 import { initializeTrialSubscription } from "@/lib/server/subscription-store";
 import { randomBytes } from "crypto";
@@ -13,6 +16,8 @@ export type ResumeSpaceMeta = {
   viewToken: string;
   createdAt: number;
   updatedAt: number;
+  /** 可选：访问口令（哈希存储），链接持有人仍需输入口令才能查看 */
+  accessPin?: { salt: string; hash: string };
 };
 
 function resumeBaseDir(): string {
@@ -87,7 +92,22 @@ export async function readResumeSpaceMeta(
       typeof data.updatedAt === "number" && Number.isFinite(data.updatedAt)
         ? data.updatedAt
         : now(),
+    accessPin:
+      data.accessPin &&
+      typeof data.accessPin.salt === "string" &&
+      typeof data.accessPin.hash === "string"
+        ? { salt: data.accessPin.salt, hash: data.accessPin.hash }
+        : undefined,
   };
+}
+
+async function writeResumeSpaceMeta(meta: ResumeSpaceMeta): Promise<void> {
+  await fs.mkdir(resumeDir(meta.resumeId), { recursive: true });
+  await fs.writeFile(
+    metaPath(meta.resumeId),
+    JSON.stringify({ ...meta, updatedAt: now() }, null, 2),
+    "utf8",
+  );
 }
 
 export async function createResumeSpace(options?: {
@@ -151,6 +171,63 @@ export async function canViewByToken(
   const meta = await readResumeSpaceMeta(resumeId);
   if (!meta) return false;
   return !!(viewToken && meta.viewToken === viewToken) || !!(editToken && meta.editToken === editToken);
+}
+
+/** 永久删除客户空间（meta、简历快照、订阅与用量）；链接立即失效 */
+export async function deleteResumeSpace(resumeIdRaw: string): Promise<boolean> {
+  const resumeId = sanitizeResumeId(resumeIdRaw);
+  if (!resumeId) return false;
+  const dir = resumeDir(resumeId);
+  try {
+    await fs.rm(dir, { recursive: true, force: true });
+    return true;
+  } catch (e) {
+    const code = (e as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") return false;
+    throw e;
+  }
+}
+
+/** 重置 edit/view 令牌，旧链接立即失效 */
+export async function rotateResumeTokens(
+  resumeIdRaw: string,
+): Promise<ResumeSpaceMeta | null> {
+  const meta = await readResumeSpaceMeta(resumeIdRaw);
+  if (!meta) return null;
+  const next: ResumeSpaceMeta = {
+    ...meta,
+    editToken: makeResumeToken(),
+    viewToken: makeResumeToken(),
+    updatedAt: now(),
+  };
+  await writeResumeSpaceMeta(next);
+  return next;
+}
+
+export async function setResumeAccessPin(
+  resumeIdRaw: string,
+  pin: string,
+): Promise<ResumeSpaceMeta | null> {
+  const meta = await readResumeSpaceMeta(resumeIdRaw);
+  if (!meta) return null;
+  const next: ResumeSpaceMeta = {
+    ...meta,
+    accessPin: createAccessPinRecord(meta.resumeId, pin),
+    updatedAt: now(),
+  };
+  await writeResumeSpaceMeta(next);
+  return next;
+}
+
+export async function clearResumeAccessPin(
+  resumeIdRaw: string,
+): Promise<ResumeSpaceMeta | null> {
+  const meta = await readResumeSpaceMeta(resumeIdRaw);
+  if (!meta) return null;
+  const { accessPin: _removed, ...rest } = meta;
+  const next: ResumeSpaceMeta = { ...rest, updatedAt: now() };
+  await writeResumeSpaceMeta(next);
+  return next;
 }
 
 export function getResumePublishFilePath(

@@ -1,3 +1,4 @@
+import { enforceAccessGate } from "@/lib/server/access-gate";
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { requireFeature } from "@/lib/server/entitlements";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
@@ -48,6 +49,9 @@ export async function GET(request: NextRequest) {
     request.nextUrl.searchParams.get("viewToken"),
   );
   if (resumeId) {
+    const gateBlock = await enforceAccessGate(request, resumeId);
+    if (gateBlock) return gateBlock;
+
     const canView = await canViewByToken(resumeId, viewToken, editToken);
     if (!canView) {
       return NextResponse.json(
@@ -113,6 +117,9 @@ export async function PUT(request: NextRequest) {
   );
 
   if (resumeId) {
+    const gateBlock = await enforceAccessGate(request, resumeId);
+    if (gateBlock) return gateBlock;
+
     const tokenOk = editToken ? await canEditByToken(resumeId, editToken) : false;
     if (!tokenOk) {
       return NextResponse.json(

@@ -33,6 +33,56 @@ type GeneratedLinks = {
 
 const STORAGE_KEY = "resume-space-admin-key";
 
+type ListFilter = "all" | "managed" | "legacy" | "active" | "cancelled";
+
+function isSubscriptionActive(sub: ListItem["subscription"]): boolean {
+  if (!sub) return true;
+  if (sub.status === "cancelled" || sub.status === "expired") return false;
+  if (sub.expiresAt != null && sub.expiresAt <= Date.now()) return false;
+  return sub.status === "active";
+}
+
+function tierLabelFor(item: ListItem): string {
+  const sub = item.subscription;
+  if (!sub) return "存量全开";
+  return SUBSCRIPTION_PLANS[sub.tier]?.labelZh ?? sub.tier;
+}
+
+function statusLabelFor(item: ListItem): string {
+  const sub = item.subscription;
+  if (!sub) return "存量";
+  if (sub.status === "cancelled") return "已停用";
+  if (sub.status === "expired") return "已过期";
+  if (sub.expiresAt != null && sub.expiresAt <= Date.now()) return "已过期";
+  return "正常";
+}
+
+function matchesListFilter(item: ListItem, filter: ListFilter): boolean {
+  const sub = item.subscription;
+  switch (filter) {
+    case "managed":
+      return sub != null;
+    case "legacy":
+      return sub == null;
+    case "active":
+      return isSubscriptionActive(sub);
+    case "cancelled":
+      return sub?.status === "cancelled";
+    default:
+      return true;
+  }
+}
+
+function matchesSearch(item: ListItem, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    item.resumeId.toLowerCase().includes(q) ||
+    (item.subscription?.note?.toLowerCase().includes(q) ?? false) ||
+    item.editUrl.toLowerCase().includes(q)
+  );
+}
+
 function formatDate(ms: number | null): string {
   if (ms == null) return "—";
   return new Date(ms).toLocaleString("zh-CN");
@@ -102,6 +152,10 @@ export function SubscriptionAdminPanel() {
   const [generatedLinks, setGeneratedLinks] = useState<GeneratedLinks | null>(
     null,
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [listFilter, setListFilter] = useState<ListFilter>("managed");
+  const [jumpId, setJumpId] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
 
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -143,6 +197,27 @@ export function SubscriptionAdminPanel() {
     () => items.find((x) => x.resumeId === selectedId) ?? null,
     [items, selectedId],
   );
+
+  const filteredItems = useMemo(
+    () =>
+      items.filter(
+        (item) => matchesListFilter(item, listFilter) && matchesSearch(item, searchQuery),
+      ),
+    [items, listFilter, searchQuery],
+  );
+
+  const stats = useMemo(() => {
+    const legacy = items.filter((x) => !x.subscription).length;
+    const managed = items.length - legacy;
+    const active = items.filter((x) => isSubscriptionActive(x.subscription)).length;
+    const cancelled = items.filter((x) => x.subscription?.status === "cancelled").length;
+    return { total: items.length, legacy, managed, active, cancelled };
+  }, [items]);
+
+  const selectCustomer = useCallback((resumeId: string) => {
+    setSelectedId(resumeId);
+    setGeneratedLinks(null);
+  }, []);
 
   useEffect(() => {
     if (selected?.subscription?.tier) {
@@ -237,6 +312,136 @@ export function SubscriptionAdminPanel() {
       await load(adminKey);
     } catch (e) {
       setError(e instanceof Error ? e.message : "更新失败");
+    }
+  };
+
+  const jumpToCustomer = () => {
+    const id = jumpId.trim();
+    if (!id) return;
+    const found = items.find((x) => x.resumeId === id);
+    if (!found) {
+      setError(`未找到 ${id}，请确认 ID 或切换筛选为「全部」。`);
+      return;
+    }
+    setError(null);
+    setListFilter("all");
+    setSearchQuery("");
+    selectCustomer(id);
+    setMessage(`已定位到 ${id}`);
+  };
+
+  const setCustomerStatus = async (status: "active" | "cancelled") => {
+    if (!adminKey.trim() || !selectedId) return;
+    setActionBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/subscriptions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminKey,
+          resumeId: selectedId,
+          tier: selected?.subscription?.tier ?? "legacy",
+          status,
+          note: note.trim() || selected?.subscription?.note,
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setMessage(
+        status === "cancelled"
+          ? `已停用 ${selectedId}，链接仍可打开但无法编辑/导入。`
+          : `已恢复 ${selectedId} 为正常状态。`,
+      );
+      await load(adminKey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const deleteCustomer = async () => {
+    if (!adminKey.trim() || !selectedId) return;
+    const label = selected?.subscription?.note ?? selectedId;
+    const ok = window.confirm(
+      `确定永久删除「${label}」？\n\nresumeId: ${selectedId}\n\n删除后 EditURL / ViewURL 立即失效，数据不可恢复。`,
+    );
+    if (!ok) return;
+
+    setActionBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/subscriptions?adminKey=${encodeURIComponent(adminKey)}&resumeId=${encodeURIComponent(selectedId)}`,
+        { method: "DELETE" },
+      );
+      const data = (await res.json()) as { ok?: boolean; message?: string };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setSelectedId("");
+      setGeneratedLinks(null);
+      setMessage(data.message ?? "已删除。");
+      await load(adminKey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const rotateCustomerLinks = async () => {
+    if (!adminKey.trim() || !selectedId) return;
+    if (
+      !window.confirm(
+        "确定重置链接？旧 EditURL / ViewURL 将全部失效，需重新发给客户。",
+      )
+    ) {
+      return;
+    }
+    setActionBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/link-security", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminKey,
+          resumeId: selectedId,
+          action: "rotateTokens",
+        }),
+      });
+      const data = (await res.json()) as {
+        ok?: boolean;
+        message?: string;
+        editUrl?: string;
+        viewUrl?: string;
+      };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setGeneratedLinks({
+        resumeId: selectedId,
+        tierLabelZh:
+          selected?.subscription?.tier != null
+            ? (SUBSCRIPTION_PLANS[selected.subscription.tier]?.labelZh ??
+              selected.subscription.tier)
+            : "存量全开",
+        editUrl: data.editUrl ?? "",
+        viewUrl: data.viewUrl ?? "",
+      });
+      setMessage(data.message ?? "链接已重置。");
+      await load(adminKey);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败");
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -377,6 +582,9 @@ export function SubscriptionAdminPanel() {
             >
               {provisioning ? "正在生成…" : "生成链接并开通套餐"}
             </button>
+            <p className="text-[11px] leading-relaxed text-ink-muted">
+              访问口令由客户在编辑页自行设置：站点编辑 → 链接安全。
+            </p>
           </div>
         </div>
 
@@ -390,20 +598,101 @@ export function SubscriptionAdminPanel() {
           ) : (
             <div className="mt-4 space-y-4">
               <p className="font-mono text-[12px] text-ink-muted">{selected.resumeId}</p>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">套餐档位</span>
+                <select
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value as SubscriptionTier)}
+                  className="rounded-xl border border-line bg-paper px-3 py-2"
+                >
+                  {MANAGED_TIERS.map((t) => (
+                    <option key={t} value={t}>
+                      {SUBSCRIPTION_PLANS[t].labelZh}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">续期天数</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={extendDays}
+                  onChange={(e) => setExtendDays(e.target.value)}
+                  className="rounded-xl border border-line bg-paper px-3 py-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="font-medium">备注（客户名 / 收款方式）</span>
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  className="rounded-xl border border-line bg-paper px-3 py-2"
+                  placeholder="如：张三 · 微信月租"
+                />
+              </label>
               <button
                 type="button"
                 onClick={applyPlan}
-                className="w-full rounded-full border border-ink bg-paper px-4 py-2.5 text-sm font-medium text-ink"
+                disabled={actionBusy}
+                className="w-full rounded-full border border-ink bg-paper px-4 py-2.5 text-sm font-medium text-ink disabled:opacity-50"
               >
                 保存套餐并续期
               </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCustomerStatus("cancelled")}
+                  disabled={actionBusy || selected.subscription?.status === "cancelled"}
+                  className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-[12px] font-medium text-amber-900 disabled:opacity-40"
+                >
+                  停用客户
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerStatus("active")}
+                  disabled={
+                    actionBusy ||
+                    (selected.subscription?.status === "active" &&
+                      isSubscriptionActive(selected.subscription))
+                  }
+                  className="rounded-full border border-emerald-300 bg-emerald-50 px-4 py-2 text-[12px] font-medium text-emerald-900 disabled:opacity-40"
+                >
+                  恢复启用
+                </button>
+                <button
+                  type="button"
+                  onClick={deleteCustomer}
+                  disabled={actionBusy}
+                  className="rounded-full border border-red-300 bg-red-50 px-4 py-2 text-[12px] font-medium text-red-800 disabled:opacity-40"
+                >
+                  永久删除
+                </button>
+              </div>
               {selected.subscription ? (
                 <p className="text-[11px] text-ink-muted">
-                  当前到期：{formatDate(selected.subscription.expiresAt)}
+                  当前状态：{statusLabelFor(selected)} · 到期：
+                  {formatDate(selected.subscription.expiresAt)}
                 </p>
               ) : (
-                <p className="text-[11px] text-ink-muted">当前：存量全开（未设 subscription）</p>
+                <p className="text-[11px] text-ink-muted">
+                  当前：存量全开（未设 subscription）· 可「停用」或「永久删除」清理
+                </p>
               )}
+              <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4">
+                <p className="text-sm font-medium text-ink">链接重置（仅泄露时用）</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
+                  访问口令请让客户在「站点编辑 → 链接安全」自行设置。若怀疑链接泄露，可在此重置令牌。
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void rotateCustomerLinks()}
+                  disabled={actionBusy}
+                  className="mt-3 rounded-full border border-line bg-paper px-4 py-2 text-[12px] font-medium text-ink disabled:opacity-40"
+                >
+                  重置链接（旧链接失效）
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -431,32 +720,89 @@ export function SubscriptionAdminPanel() {
       ) : null}
 
       <div className="mt-8 overflow-hidden rounded-2xl border border-line">
+        <div className="space-y-3 border-b border-line bg-paper/60 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-ink-muted">
+              共 {stats.total} 条 · 已开户 {stats.managed} · 存量 {stats.legacy} ·
+              正常 {stats.active} · 已停用 {stats.cancelled}
+            </p>
+            <p className="text-[11px] text-ink-muted">
+              当前显示 {filteredItems.length} 条
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["managed", "已开户"],
+                ["all", "全部"],
+                ["legacy", "存量全开"],
+                ["active", "正常"],
+                ["cancelled", "已停用"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setListFilter(value)}
+                className={`rounded-full px-3 py-1 text-[11px] font-medium ${
+                  listFilter === value
+                    ? "bg-ink text-paper"
+                    : "border border-line bg-surface text-ink hover:bg-ink/[0.04]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-sm">
+              <span className="font-medium text-ink">搜索 ID / 备注</span>
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="r_xxx 或客户名"
+                className="rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex min-w-[200px] flex-1 flex-col gap-1 text-sm">
+              <span className="font-medium text-ink">粘贴 ID 定位</span>
+              <input
+                value={jumpId}
+                onChange={(e) => setJumpId(e.target.value)}
+                placeholder="r_xxxxxxxxxxxxxxxx"
+                className="rounded-xl border border-line bg-surface px-3 py-2 font-mono text-[12px]"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={jumpToCustomer}
+              disabled={!jumpId.trim()}
+              className="rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium text-ink disabled:opacity-40"
+            >
+              定位客户
+            </button>
+          </div>
+        </div>
         <table className="w-full text-left text-sm">
           <thead className="bg-paper/80 text-[11px] uppercase tracking-wide text-ink-muted">
             <tr>
               <th className="px-3 py-2">resumeId</th>
               <th className="px-3 py-2">套餐</th>
+              <th className="px-3 py-2">状态</th>
               <th className="px-3 py-2">到期</th>
               <th className="px-3 py-2">本月用量</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => {
+            {filteredItems.map((item) => {
               const sub = item.subscription;
-              const tierLabel = sub
-                ? (SUBSCRIPTION_PLANS[sub.tier]?.labelZh ?? sub.tier)
-                : "存量全开";
-              const active =
-                sub &&
-                sub.status === "active" &&
-                (sub.expiresAt == null || sub.expiresAt > Date.now());
+              const tierLabel = tierLabelFor(item);
+              const active = isSubscriptionActive(sub);
+              const statusLabel = statusLabelFor(item);
               return (
                 <tr
                   key={item.resumeId}
-                  onClick={() => {
-                    setSelectedId(item.resumeId);
-                    setGeneratedLinks(null);
-                  }}
+                  onClick={() => selectCustomer(item.resumeId)}
                   className={`cursor-pointer border-t border-line/70 hover:bg-ink/[0.03] ${
                     selectedId === item.resumeId ? "bg-ink/[0.05]" : ""
                   }`}
@@ -471,6 +817,19 @@ export function SubscriptionAdminPanel() {
                     ) : null}
                   </td>
                   <td className="px-3 py-2 text-[12px]">
+                    <span
+                      className={
+                        statusLabel === "正常"
+                          ? "text-emerald-700"
+                          : statusLabel === "存量"
+                            ? "text-ink-muted"
+                            : "text-red-700"
+                      }
+                    >
+                      {statusLabel}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-[12px]">
                     {sub ? daysLeft(sub.expiresAt) : "—"}
                   </td>
                   <td className="px-3 py-2 text-[12px] text-ink-muted">
@@ -479,10 +838,12 @@ export function SubscriptionAdminPanel() {
                 </tr>
               );
             })}
-            {items.length === 0 ? (
+            {filteredItems.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-8 text-center text-ink-muted">
-                  暂无客户，请用上方「生成链接并开通套餐」创建第一位客户。
+                <td colSpan={5} className="px-3 py-8 text-center text-ink-muted">
+                  {items.length === 0
+                    ? "暂无客户，请用上方「生成链接并开通套餐」创建第一位客户。"
+                    : "没有符合筛选条件的客户，试试切换「全部」或清空搜索。"}
                 </td>
               </tr>
             ) : null}
@@ -497,6 +858,10 @@ export function SubscriptionAdminPanel() {
           <li>本页选「月租 / 季租 / 年租」→ 点「生成链接并开通套餐」</li>
           <li>复制 EditURL 发给客户，ViewURL 留给 HR（或让客户自行分享）</li>
           <li>到期前收款 → 列表选中该客户 →「保存套餐并续期」（链接不用换）</li>
+          <li>误开户 / 测试链接 →「停用客户」或「永久删除」；列表默认隐藏存量全开</li>
+          <li>
+            防编辑链接泄露：提醒客户在「站点编辑 → 链接安全」为 EditURL 设口令（ViewURL 给 HR 无需口令）
+          </li>
         </ol>
       </div>
     </div>

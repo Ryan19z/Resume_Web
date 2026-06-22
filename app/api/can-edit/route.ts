@@ -2,6 +2,7 @@ import {
   entitlementsPayload,
   resolveEntitlements,
 } from "@/lib/server/entitlements";
+import { enforceAccessGate, isAccessGatePassed, shouldEnforceEditAccessPin } from "@/lib/server/access-gate";
 import { resolveCanEdit } from "@/lib/server/edit-auth";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { canEditByToken } from "@/lib/server/resume-space-store";
@@ -17,15 +18,36 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get("editToken"),
     );
     if (resumeId) {
+      const gateBlock = await enforceAccessGate(request, resumeId);
+      if (gateBlock) {
+        const gateData = (await gateBlock.json()) as { message?: string };
+        return NextResponse.json({
+          canEdit: false,
+          tokenAuthorized: false,
+          subscriptionActive: false,
+          accessGateRequired: true,
+          accessGatePassed: false,
+          entitlements: entitlementsPayload(await resolveEntitlements(resumeId)),
+          ip: "",
+          reason: gateData.message ?? "需要访问口令。",
+        });
+      }
+
       const tokenOk = editToken
         ? await canEditByToken(resumeId, editToken)
         : false;
       const entitlements = await resolveEntitlements(resumeId);
       const canEdit = tokenOk && entitlements.features.editing;
+      const pinRequired = await shouldEnforceEditAccessPin(resumeId, editToken);
+      const accessGatePassed = pinRequired
+        ? await isAccessGatePassed(request, resumeId)
+        : true;
       return NextResponse.json({
         canEdit,
         tokenAuthorized: tokenOk,
         subscriptionActive: entitlements.active,
+        accessGateRequired: pinRequired,
+        accessGatePassed,
         entitlements: entitlementsPayload(entitlements),
         ip: "",
         reason: canEdit

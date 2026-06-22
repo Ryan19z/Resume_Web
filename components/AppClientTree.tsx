@@ -2,6 +2,7 @@
 
 import { CssLoadRecovery } from "@/components/CssLoadRecovery";
 import { HomeShell } from "@/components/HomeShell";
+import { LinkAccessGate } from "@/components/LinkAccessGate";
 import { forceTeardownDriverTourDom } from "@/components/SiteTourDriver";
 import { InteractionModeProvider } from "@/context/InteractionModeProvider";
 import { LanguageModeProvider } from "@/context/LanguageModeProvider";
@@ -49,12 +50,14 @@ export default function AppClientTree() {
 
   return (
     <LanguageModeProvider>
-      <SiteContentProvider>
-        <InteractionModeProvider>
-          <CssLoadRecovery />
-          <HomeShell />
-        </InteractionModeProvider>
-      </SiteContentProvider>
+      <LinkAccessGate>
+        <SiteContentProvider>
+          <InteractionModeProvider>
+            <CssLoadRecovery />
+            <HomeShell />
+          </InteractionModeProvider>
+        </SiteContentProvider>
+      </LinkAccessGate>
     </LanguageModeProvider>
   );
 }

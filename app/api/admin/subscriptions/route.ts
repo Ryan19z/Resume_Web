@@ -1,5 +1,8 @@
 import { verifyAdminKey } from "@/lib/server/admin-auth";
-import { getResumeSpaceLinks } from "@/lib/server/resume-space-store";
+import {
+  deleteResumeSpace,
+  getResumeSpaceLinks,
+} from "@/lib/server/resume-space-store";
 import {
   listResumeSpacesWithSubscription,
   upsertSubscription,
@@ -122,6 +125,43 @@ export async function PUT(request: NextRequest) {
     console.error("[api/admin/subscriptions] PUT", e);
     return NextResponse.json(
       { ok: false, error: "server_error", message: "更新订阅失败。" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  if (!verifyAdminKey(request)) {
+    return NextResponse.json(
+      { ok: false, error: "forbidden", message: "adminKey 无效或未配置。" },
+      { status: 403 },
+    );
+  }
+
+  const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
+  if (!resumeId) {
+    return NextResponse.json(
+      { ok: false, error: "bad_request", message: "缺少 resumeId。" },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const removed = await deleteResumeSpace(resumeId);
+    if (!removed) {
+      return NextResponse.json(
+        { ok: false, error: "not_found", message: "未找到该 resumeId。" },
+        { status: 404 },
+      );
+    }
+    return NextResponse.json({
+      ok: true,
+      message: `已删除 ${resumeId}，链接已失效。`,
+    });
+  } catch (e) {
+    console.error("[api/admin/subscriptions] DELETE", e);
+    return NextResponse.json(
+      { ok: false, error: "server_error", message: "删除失败。" },
       { status: 500 },
     );
   }
