@@ -24,7 +24,7 @@ export const HR_VIEW_GUIDE: Record<HrViewGuideLang, HrViewGuideContent> = {
     steps: [
       {
         title: "1. 认页面分区",
-        body: "顶部导航「首页 / 履历 / 作品」可点击跳转；也可像普通网页一样向下滚动浏览全文。",
+        body: "顶部导航「首页 / 履历 / 作品」可点击跳转；右上角「链接」可复制本页地址转发同事。",
       },
       {
         title: "2. 先看 HR 速览",
@@ -40,7 +40,7 @@ export const HR_VIEW_GUIDE: Record<HrViewGuideLang, HrViewGuideContent> = {
       },
       {
         title: "5. 语言与设备",
-        body: "若右上角有 EN / 中文，可切换语言版本（以候选人配置为准）。手机与电脑均可直接打开，页面会自动适配屏幕。",
+        body: "语言版本由候选人分享链接时设定；若未锁定，右上角可能出现 EN / 中文。需要另一语言版本请联系候选人。手机与电脑均可直接打开。",
       },
       {
         title: "6. 隐私提示",
@@ -58,7 +58,7 @@ export const HR_VIEW_GUIDE: Record<HrViewGuideLang, HrViewGuideContent> = {
     steps: [
       {
         title: "1. Page sections",
-        body: "Use the top nav Home / Resume / Work to jump, or scroll like a normal webpage.",
+        body: "Use Home / Resume / Work in the top nav; tap Link top-right to copy this page for colleagues.",
       },
       {
         title: "2. Quick summary",
@@ -74,7 +74,7 @@ export const HR_VIEW_GUIDE: Record<HrViewGuideLang, HrViewGuideContent> = {
       },
       {
         title: "5. Language & device",
-        body: "If EN / 中文 appears top-right, switch language when the candidate provides both. Works on mobile and desktop.",
+        body: "Language was set when the candidate shared the link. If not locked, EN / 中文 may appear top-right. Contact the candidate for another language version.",
       },
       {
         title: "6. Privacy note",

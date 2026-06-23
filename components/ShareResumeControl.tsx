@@ -22,6 +22,7 @@ import {
   toPublicPageUrl,
 } from "@/lib/public-site-url";
 import { privacyNotice } from "@/lib/privacy-notices";
+import { getHrShareCopy } from "@/lib/hr-share-copy";
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -50,8 +51,8 @@ function isOnLocalDevHost(): boolean {
 }
 
 export function ShareResumeControl() {
-  const { mode } = useLanguageMode();
-  const { site, canEdit, editPermissionLoaded } = useSiteContent();
+  const { mode, langSwitchLocked } = useLanguageMode();
+  const { site, canEdit, editPermissionLoaded, previewMode } = useSiteContent();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [sheet, setSheet] = useState<Sheet>("menu");
@@ -125,14 +126,33 @@ export function ShareResumeControl() {
   const missingScopedResume =
     open && typeof window !== "undefined" && !hasScopedResumeInUrl(window.location.href);
 
+  const isHrVisitor =
+    editPermissionLoaded && !canEdit && !previewMode;
+  const hrShare = getHrShareCopy(mode);
+
   const shareUrl = useMemo(() => {
     if (!pageUrl) return "";
+    if (isHrVisitor) {
+      return buildShareLink(pageUrl, {
+        lang: mode,
+        lockLang: langSwitchLocked,
+        stripEditSecrets: false,
+      });
+    }
     return buildShareLink(pageUrl, {
       lang: mode,
       lockLang: lockLangOnShare,
       stripEditSecrets: editPermissionLoaded && canEdit,
     });
-  }, [pageUrl, mode, lockLangOnShare, editPermissionLoaded, canEdit]);
+  }, [
+    pageUrl,
+    mode,
+    lockLangOnShare,
+    langSwitchLocked,
+    editPermissionLoaded,
+    canEdit,
+    isHrVisitor,
+  ]);
 
   useBodyScrollLock(open);
 
@@ -257,12 +277,18 @@ export function ShareResumeControl() {
                   id={menuTitleId}
                   className="text-lg font-semibold tracking-[-0.02em] text-ink"
                 >
-                  {mode === "zh" ? "分享简历" : "Share Resume"}
+                  {isHrVisitor
+                    ? hrShare.title
+                    : mode === "zh"
+                      ? "分享简历"
+                      : "Share Resume"}
                 </h2>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
-                  {mode === "zh"
-                    ? "复制链接、发送到邮箱，或生成二维码用手机打开。"
-                    : "Copy link, send by email, or scan a QR code on mobile."}
+                  {isHrVisitor
+                    ? hrShare.subtitle
+                    : mode === "zh"
+                      ? "复制链接、发送到邮箱，或生成二维码用手机打开。"
+                      : "Copy link, send by email, or scan a QR code on mobile."}
                 </p>
               </div>
               <div className="px-5 py-4 sm:px-6">
@@ -279,7 +305,7 @@ export function ShareResumeControl() {
                         : `Share links must include resumeId for an isolated customer space (default template). Without it, ${getPublicSiteOrigin()} shows the site owner's global draft.`}
                     </p>
                   </div>
-                ) : isOnLocalDevHost() && shareUrl ? (
+                ) : !isHrVisitor && isOnLocalDevHost() && shareUrl ? (
                   <div className="mb-4 rounded-xl border border-line/80 bg-paper/80 px-3 py-2.5 text-[11px] leading-relaxed text-ink-muted">
                     <p className="font-medium text-ink">
                       {mode === "zh"
@@ -293,7 +319,7 @@ export function ShareResumeControl() {
                     </p>
                   </div>
                 ) : null}
-                {!missingScopedResume ? (
+                {!missingScopedResume && !isHrVisitor ? (
                   <div className="mb-4 rounded-xl border border-sky-200/70 bg-sky-50/50 px-3 py-2.5 text-[11px] leading-relaxed text-sky-950/90">
                     <p>{privacyNotice("publishedContent", mode)}</p>
                     <p className="mt-1.5">
@@ -307,6 +333,8 @@ export function ShareResumeControl() {
                     </p>
                   </div>
                 ) : null}
+                {!isHrVisitor ? (
+                  <>
                 <p className="text-[11px] font-medium text-ink-muted">
                   {mode === "zh" ? "页面链接" : "Page URL"}
                 </p>
@@ -337,7 +365,9 @@ export function ShareResumeControl() {
                     </span>
                   </span>
                 </label>
-                <div className="mt-2 rounded-xl border border-line bg-paper/90 px-3 py-2.5">
+                  </>
+                ) : null}
+                <div className={`rounded-xl border border-line bg-paper/90 px-3 py-2.5 ${isHrVisitor ? "" : "mt-2"}`}>
                   <p className="break-all font-mono text-[11px] leading-relaxed text-ink/90">
                     {shareUrl || (mode === "zh" ? "加载中…" : "Loading...")}
                   </p>
@@ -350,12 +380,16 @@ export function ShareResumeControl() {
                     className="w-full rounded-full bg-ink px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40 sm:w-auto sm:min-w-[8rem]"
                   >
                     {copied
-                      ? mode === "zh"
-                        ? "已复制"
-                        : "Copied"
-                      : mode === "zh"
-                        ? "复制链接"
-                        : "Copy link"}
+                      ? isHrVisitor
+                        ? hrShare.copied
+                        : mode === "zh"
+                          ? "已复制"
+                          : "Copied"
+                      : isHrVisitor
+                        ? hrShare.copyLink
+                        : mode === "zh"
+                          ? "复制链接"
+                          : "Copy link"}
                   </button>
                   {editPermissionLoaded && canEdit ? (
                     <button
@@ -372,7 +406,11 @@ export function ShareResumeControl() {
                     disabled={!shareUrl}
                     className="w-full rounded-full border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink hover:border-ink/20 disabled:opacity-40 sm:flex-1"
                   >
-                    {mode === "zh" ? "扫码打开" : "Open with QR"}
+                    {isHrVisitor
+                      ? hrShare.qr
+                      : mode === "zh"
+                        ? "扫码打开"
+                        : "Open with QR"}
                   </button>
                 </div>
               </div>
@@ -382,7 +420,11 @@ export function ShareResumeControl() {
                   onClick={() => setOpen(false)}
                   className="w-full rounded-full border border-line py-2.5 text-sm font-medium text-ink-muted hover:bg-ink/[0.04]"
                 >
-                  {mode === "zh" ? "关闭" : "Close"}
+                  {isHrVisitor
+                    ? hrShare.close
+                    : mode === "zh"
+                      ? "关闭"
+                      : "Close"}
                 </button>
               </div>
             </>
@@ -508,12 +550,18 @@ export function ShareResumeControl() {
                   id={qrTitleId}
                   className="text-lg font-semibold tracking-[-0.02em] text-ink"
                 >
-                  {mode === "zh" ? "扫码打开" : "Open with QR"}
+                  {isHrVisitor
+                    ? hrShare.qrTitle
+                    : mode === "zh"
+                      ? "扫码打开"
+                      : "Open with QR"}
                 </h2>
                 <p className="mt-1.5 text-xs leading-relaxed text-ink-muted">
-                  {mode === "zh"
-                    ? "使用手机相机或微信扫一扫打开当前页面。"
-                    : "Scan with mobile camera to open this page."}
+                  {isHrVisitor
+                    ? hrShare.qrSubtitle
+                    : mode === "zh"
+                      ? "使用手机相机或微信扫一扫打开当前页面。"
+                      : "Scan with mobile camera to open this page."}
                 </p>
               </div>
               <div className="flex flex-col items-center gap-3 px-5 py-6 sm:px-6">
@@ -552,7 +600,13 @@ export function ShareResumeControl() {
         onClick={() => setOpen(true)}
         className="shrink-0 rounded-full border border-line bg-surface/95 px-3 py-1.5 text-[11px] font-semibold text-ink shadow-sm backdrop-blur-md transition-colors hover:border-ink/20 hover:bg-surface sm:px-3.5 sm:text-xs"
       >
-        {mode === "zh" ? "分享" : "Share"}
+        {isHrVisitor
+          ? mode === "zh"
+            ? "链接"
+            : "Link"
+          : mode === "zh"
+            ? "分享"
+            : "Share"}
       </button>
       {panel}
     </>
