@@ -1,11 +1,10 @@
+import { normalizeAccessPin } from "@/lib/access-pin-format";
 import {
   clearAccessGateCookie,
-  normalizeAccessPin,
 } from "@/lib/server/access-gate";
-import { requireFeature } from "@/lib/server/entitlements";
-import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
+import { resolveEditPermission } from "@/lib/server/resolve-edit-permission";
+import { sanitizeResumeId } from "@/lib/resume-scope";
 import {
-  canEditByToken,
   clearResumeAccessPin,
   readResumeSpaceMeta,
   setResumeAccessPin,
@@ -19,38 +18,49 @@ async function assertEditor(
   | { ok: false; response: NextResponse }
 > {
   const resumeId = sanitizeResumeId(request.nextUrl.searchParams.get("resumeId"));
-  const editToken = sanitizeResumeToken(
-    request.nextUrl.searchParams.get("editToken"),
-  );
-  if (!resumeId || !editToken) {
+  const editToken = request.nextUrl.searchParams.get("editToken");
+
+  if (resumeId && !editToken?.trim()) {
     return {
       ok: false,
       response: NextResponse.json(
-        { ok: false, error: "forbidden", message: "缺少编辑权限。" },
+        {
+          ok: false,
+          error: "forbidden",
+          message:
+            "请使用完整的编辑链接（URL 须含 editToken）设置口令；本地调试请从管理页复制 EditURL 打开。",
+        },
         { status: 403 },
       ),
     };
   }
-  const tokenOk = await canEditByToken(resumeId, editToken);
-  if (!tokenOk) {
+
+  const perm = await resolveEditPermission(request);
+  if (!perm.ok) {
     return {
       ok: false,
       response: NextResponse.json(
-        { ok: false, error: "forbidden", message: "编辑链接无效。" },
+        { ok: false, error: "forbidden", message: perm.message },
         { status: 403 },
       ),
     };
   }
-  const ent = await requireFeature(resumeId, "editing");
-  if (!ent.ok) {
+
+  if (!resumeId) {
     return {
       ok: false,
       response: NextResponse.json(
-        { ok: false, error: ent.code, message: ent.message },
+        {
+          ok: false,
+          error: "forbidden",
+          message:
+            "编辑口令仅适用于客户专属链接（含 resumeId）。请从管理页复制 EditURL 后设置。",
+        },
         { status: 403 },
       ),
     };
   }
+
   return { ok: true, resumeId };
 }
 
@@ -91,7 +101,8 @@ export async function PUT(request: NextRequest) {
       {
         ok: false,
         error: "bad_request",
-        message: "口令需 4–32 位，且两次输入一致。",
+        message:
+          "口令需 4–32 位，仅支持数字、英文字母、中文及 -_. ，且两次输入一致。",
       },
       { status: 400 },
     );
@@ -109,7 +120,7 @@ export async function PUT(request: NextRequest) {
     ok: true,
     pinEnabled: true,
     message:
-      "编辑口令已保存。此口令仅用于你本人的编辑链接，HR 只读链接不受影响。",
+      "编辑口令已保存。此口令仅用于你本人的编辑链接，HR 只读链接不受影响。请妥善保管，系统不保存明文，忘记后需联系管理员清除后重设。",
   });
   res.cookies.set(clearAccessGateCookie().name, "", clearAccessGateCookie().options);
   return res;
@@ -130,6 +141,6 @@ export async function DELETE(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     pinEnabled: false,
-    message: "已关闭访问口令，持链接者可直接打开。",
+    message: "已关闭访问口令，持编辑链接者可直接打开。",
   });
 }

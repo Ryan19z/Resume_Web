@@ -1,7 +1,8 @@
 "use client";
 
 import { FeatureGateButton } from "@/components/FeatureGateButton";
-import { useSiteContent } from "@/context/SiteContentProvider";
+import { EditorLangChip } from "@/components/EditorLangIndicator";
+import { useSiteContent } from "@/context/SiteContentProvider";import { parseClientResumeScope } from "@/lib/resume-scope";
 import { AnimatePresence, motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import { useEffect, useId, useRef, useState } from "react";
@@ -55,61 +56,86 @@ export function SiteEditorDock() {
 
   if (!editPermissionLoaded || !canEdit || previewMode) return null;
 
+  const scope = parseClientResumeScope();
+  const canManagePin = Boolean(scope.resumeId && scope.editToken);
+
   return (
     <>
       <div
-        id="tour-site-editor"
         ref={rootRef}
         className="pointer-events-auto fixed bottom-5 right-5 z-[66] flex flex-col items-end gap-2 print:hidden sm:bottom-8 sm:right-8"
         style={{
           paddingBottom: "max(0px, env(safe-area-inset-bottom, 0px))",
         }}
       >
+        <EditorLangChip />
+
         <FeatureGateButton
+          id="tour-resume-import"
           feature="smartImport"
           onAllowed={() => openResumeImportModal()}
           className={QUICK_ACTION_CLASS}
           title="上传 PDF/Word，自动识别并填入各区块"
         >
-          <span id="tour-resume-import" className="contents">
-            <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
-              aria-hidden
-            >
-              ↑
-            </span>
-            <span className="min-w-0 pr-0.5">
-              <span className="block leading-tight">智能导入简历</span>
-              <span className="block text-[11px] font-normal text-ink-muted">
-                PDF / Word 自动填入
-              </span>
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
+            aria-hidden
+          >
+            ↑
+          </span>
+          <span className="min-w-0 pr-0.5">
+            <span className="block leading-tight">智能导入简历</span>
+            <span className="block text-[11px] font-normal text-ink-muted">
+              PDF / Word 自动填入
             </span>
           </span>
         </FeatureGateButton>
 
         <FeatureGateButton
+          id="tour-view-log"
           feature="viewLog"
           onAllowed={() => setViewLogOpen(true)}
           className={QUICK_ACTION_CLASS}
           title="查看只读链接何时被打开、来自哪里"
         >
-          <span id="tour-view-log" className="contents">
-            <span
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
-              aria-hidden
-            >
-              ◷
-            </span>
-            <span className="min-w-0 pr-0.5">
-              <span className="block leading-tight">链接访问记录</span>
-              <span className="block text-[11px] font-normal text-ink-muted">
-                打开时间与大致地区
-              </span>
+          <span
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
+            aria-hidden
+          >
+            ◷
+          </span>
+          <span className="min-w-0 pr-0.5">
+            <span className="block leading-tight">链接访问记录</span>
+            <span className="block text-[11px] font-normal text-ink-muted">
+              打开时间与大致地区
             </span>
           </span>
         </FeatureGateButton>
 
-        <div className="relative">
+        {canManagePin ? (
+          <button
+            id="tour-link-security"
+            type="button"
+            onClick={() => setLinkSecurityOpen(true)}
+            className={QUICK_ACTION_CLASS}
+            title="为编辑链接设置访问口令，HR 只读链接不受影响"
+          >
+            <span
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink/[0.06] text-[12px] text-ink"
+              aria-hidden
+            >
+              🔒
+            </span>
+            <span className="min-w-0 pr-0.5">
+              <span className="block leading-tight">链接安全</span>
+              <span className="block text-[11px] font-normal text-ink-muted">
+                编辑口令 · 防链接泄露
+              </span>
+            </span>
+          </button>
+        ) : null}
+
+        <div id="tour-site-editor" className="relative">
           <button
             type="button"
             aria-expanded={open}
@@ -186,21 +212,6 @@ export function SiteEditorDock() {
                   <span className="font-medium text-ink">作品页用词</span>
                   <span className="text-[11px] leading-snug text-ink-muted">
                     标题、说明与卡片上的引导文字
-                  </span>
-                </button>
-                <div className="mx-3 h-px bg-line/80" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    setLinkSecurityOpen(true);
-                  }}
-                  className="flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-ink/[0.04]"
-                >
-                  <span className="font-medium text-ink">链接安全</span>
-                  <span className="text-[11px] leading-snug text-ink-muted">
-                    为编辑链接设置口令（HR 只读链接不受影响）
                   </span>
                 </button>
               </motion.div>

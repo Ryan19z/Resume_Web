@@ -12,6 +12,7 @@ type Props = {
   className?: string;
   children: ReactNode;
   title?: string;
+  id?: string;
 };
 
 export function FeatureGateButton({
@@ -20,6 +21,7 @@ export function FeatureGateButton({
   className,
   children,
   title,
+  id,
 }: Props) {
   const { mode } = useLanguageMode();
   const { entitlements } = useSiteContent();
@@ -27,6 +29,7 @@ export function FeatureGateButton({
 
   return (
     <button
+      id={id}
       type="button"
       onClick={() => {
         if (lockReason) {

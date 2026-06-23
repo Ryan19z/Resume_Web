@@ -14,13 +14,17 @@ function normalizeOrigin(raw: string | undefined): string | null {
   }
 }
 
-/** 读取配置的正式站点 origin，默认 linkola.cn */
+/** 读取配置的正式站点 origin；开发环境未配置时默认 localhost */
 export function getPublicSiteOrigin(): string {
-  return (
+  const configured =
     normalizeOrigin(process.env.NEXT_PUBLIC_SITE_URL) ??
-    normalizeOrigin(process.env.SITE_PUBLIC_URL) ??
-    DEFAULT_PUBLIC_ORIGIN
-  );
+    normalizeOrigin(process.env.SITE_PUBLIC_URL);
+  if (configured) return configured;
+  if (process.env.NODE_ENV === "development") {
+    const port = process.env.PORT?.trim() || "3000";
+    return `http://localhost:${port}`;
+  }
+  return DEFAULT_PUBLIC_ORIGIN;
 }
 
 export function isLocalDevHost(hostname: string): boolean {

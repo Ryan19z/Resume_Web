@@ -2,6 +2,8 @@
 
 import { PlanComparisonTable } from "@/components/admin/PlanComparisonTable";
 import { MANAGED_TIERS, SUBSCRIPTION_PLANS } from "@/lib/subscription-plans";
+import { PRIVACY_CHECKLIST_FOR_OPERATOR } from "@/lib/privacy-notices";
+import Link from "next/link";
 import type { SubscriptionTier } from "@/lib/subscription-types";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -156,6 +158,9 @@ export function SubscriptionAdminPanel() {
   const [listFilter, setListFilter] = useState<ListFilter>("managed");
   const [jumpId, setJumpId] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [customerPinEnabled, setCustomerPinEnabled] = useState<boolean | null>(
+    null,
+  );
 
   useEffect(() => {
     const saved = sessionStorage.getItem(STORAGE_KEY);
@@ -229,6 +234,31 @@ export function SubscriptionAdminPanel() {
       setNote(selected.subscription.note ?? "");
     }
   }, [selected]);
+
+  useEffect(() => {
+    if (!adminKey.trim() || !selectedId) {
+      setCustomerPinEnabled(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(
+          `/api/admin/link-security?adminKey=${encodeURIComponent(adminKey)}&resumeId=${encodeURIComponent(selectedId)}`,
+          { cache: "no-store" },
+        );
+        const d = (await r.json()) as { ok?: boolean; pinEnabled?: boolean };
+        if (!cancelled && d.ok) {
+          setCustomerPinEnabled(Boolean(d.pinEnabled));
+        }
+      } catch {
+        if (!cancelled) setCustomerPinEnabled(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [adminKey, selectedId]);
 
   const provisionNewCustomer = async () => {
     if (!adminKey.trim()) return;
@@ -390,6 +420,41 @@ export function SubscriptionAdminPanel() {
       await load(adminKey);
     } catch (e) {
       setError(e instanceof Error ? e.message : "删除失败");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const clearCustomerPin = async () => {
+    if (!adminKey.trim() || !selectedId) return;
+    if (
+      !window.confirm(
+        `确定清除「${selected?.subscription?.note ?? selectedId}」的编辑口令？\n\n系统无法查看原口令，清除后客户需用 EditURL 重新设置。`,
+      )
+    ) {
+      return;
+    }
+    setActionBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/link-security", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          adminKey,
+          resumeId: selectedId,
+          action: "clearAccessPin",
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string };
+      if (!res.ok || !data.ok) {
+        throw new Error(data.message ?? `HTTP ${res.status}`);
+      }
+      setCustomerPinEnabled(false);
+      setMessage(data.message ?? "已清除编辑口令。");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "操作失败");
     } finally {
       setActionBusy(false);
     }
@@ -583,7 +648,7 @@ export function SubscriptionAdminPanel() {
               {provisioning ? "正在生成…" : "生成链接并开通套餐"}
             </button>
             <p className="text-[11px] leading-relaxed text-ink-muted">
-              访问口令由客户在编辑页自行设置：站点编辑 → 链接安全。
+              访问口令由客户在编辑页自行设置：右下角「链接安全」。
             </p>
           </div>
         </div>
@@ -680,18 +745,39 @@ export function SubscriptionAdminPanel() {
                 </p>
               )}
               <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-4">
-                <p className="text-sm font-medium text-ink">链接重置（仅泄露时用）</p>
+                <p className="text-sm font-medium text-ink">链接与口令</p>
                 <p className="mt-1 text-[11px] leading-relaxed text-ink-muted">
-                  访问口令请让客户在「站点编辑 → 链接安全」自行设置。若怀疑链接泄露，可在此重置令牌。
+                  编辑口令由客户自行设置；系统仅存加密哈希，你无法查看或代设（不涉及窥探客户隐私）。
+                  客户忘记口令时，可点「清除编辑口令」后让客户重设。
                 </p>
-                <button
-                  type="button"
-                  onClick={() => void rotateCustomerLinks()}
-                  disabled={actionBusy}
-                  className="mt-3 rounded-full border border-line bg-paper px-4 py-2 text-[12px] font-medium text-ink disabled:opacity-40"
-                >
-                  重置链接（旧链接失效）
-                </button>
+                <p className="mt-2 text-[11px] text-ink-muted">
+                  客户口令状态：
+                  <span className="font-medium text-ink">
+                    {customerPinEnabled === null
+                      ? " 加载中…"
+                      : customerPinEnabled
+                        ? " 已启用"
+                        : " 未启用"}
+                  </span>
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void clearCustomerPin()}
+                    disabled={actionBusy || !customerPinEnabled}
+                    className="rounded-full border border-amber-300 bg-paper px-4 py-2 text-[12px] font-medium text-amber-900 disabled:opacity-40"
+                  >
+                    清除编辑口令（客户忘记时用）
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void rotateCustomerLinks()}
+                    disabled={actionBusy}
+                    className="rounded-full border border-line bg-paper px-4 py-2 text-[12px] font-medium text-ink disabled:opacity-40"
+                  >
+                    重置链接（泄露时用）
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -852,6 +938,23 @@ export function SubscriptionAdminPanel() {
       </div>
 
       <div className="mt-10 rounded-2xl border border-line bg-paper/50 p-5 text-sm text-ink-muted">
+        <p className="font-semibold text-ink">向客户说明的隐私与数据要点</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-[12px] leading-relaxed">
+          {PRIVACY_CHECKLIST_FOR_OPERATOR.zh.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+        <p className="mt-3 text-[12px]">
+          <Link
+            href="/privacy"
+            className="font-semibold text-ink underline-offset-2 hover:underline"
+          >
+            查看用户隐私政策
+          </Link>
+        </p>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-line bg-paper/50 p-5 text-sm text-ink-muted">
         <p className="font-semibold text-ink">推荐操作流程</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>客户微信/支付宝付款</li>
@@ -860,7 +963,7 @@ export function SubscriptionAdminPanel() {
           <li>到期前收款 → 列表选中该客户 →「保存套餐并续期」（链接不用换）</li>
           <li>误开户 / 测试链接 →「停用客户」或「永久删除」；列表默认隐藏存量全开</li>
           <li>
-            防编辑链接泄露：提醒客户在「站点编辑 → 链接安全」为 EditURL 设口令（ViewURL 给 HR 无需口令）
+            防编辑链接泄露：提醒客户在右下角「链接安全」为 EditURL 设口令（ViewURL 给 HR 无需口令）
           </li>
         </ol>
       </div>

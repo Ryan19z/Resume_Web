@@ -21,6 +21,8 @@ import {
   hasScopedResumeInUrl,
   toPublicPageUrl,
 } from "@/lib/public-site-url";
+import { privacyNotice } from "@/lib/privacy-notices";
+import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -281,13 +283,27 @@ export function ShareResumeControl() {
                   <div className="mb-4 rounded-xl border border-line/80 bg-paper/80 px-3 py-2.5 text-[11px] leading-relaxed text-ink-muted">
                     <p className="font-medium text-ink">
                       {mode === "zh"
-                        ? "链接已使用正式域名"
-                        : "Link uses your public domain"}
+                        ? "链接域名说明"
+                        : "Link domain note"}
                     </p>
                     <p className="mt-1">
                       {mode === "zh"
-                        ? "你在本地编辑客户空间，复制/扫码/发邮件的地址已是 linkola.cn，HR 将看到该客户空间已发布的内容。"
-                        : "You edit locally; shared links use linkola.cn and show this customer space's published content."}
+                        ? `当前分享链接使用 ${getPublicSiteOrigin()}。本地调试时请确保收件人也能访问该地址。`
+                        : `Share link uses ${getPublicSiteOrigin()}. For local dev, ensure recipients can reach this host.`}
+                    </p>
+                  </div>
+                ) : null}
+                {!missingScopedResume ? (
+                  <div className="mb-4 rounded-xl border border-sky-200/70 bg-sky-50/50 px-3 py-2.5 text-[11px] leading-relaxed text-sky-950/90">
+                    <p>{privacyNotice("publishedContent", mode)}</p>
+                    <p className="mt-1.5">
+                      {privacyNotice("shareViewLink", mode)}{" "}
+                      <Link
+                        href={`/privacy?lang=${mode}`}
+                        className="font-semibold text-sky-900/80 underline-offset-2 hover:text-sky-950 hover:underline"
+                      >
+                        {mode === "zh" ? "隐私政策" : "Privacy policy"}
+                      </Link>
                     </p>
                   </div>
                 ) : null}

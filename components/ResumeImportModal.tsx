@@ -8,6 +8,8 @@ import {
   getImportCommitmentBrief,
   getServiceCommitment,
 } from "@/lib/service-commitment";
+import { privacyNotice } from "@/lib/privacy-notices";
+import Link from "next/link";
 import {
   fetchParseResumeCapabilities,
   parseResumeFile,
@@ -475,6 +477,15 @@ export function ResumeImportModal() {
 
             <div className="mb-4 rounded-xl border border-line/80 bg-paper/60 px-3 py-2.5 text-[12px] leading-relaxed text-ink-muted">
               <p>{getImportCommitmentBrief(mode)}</p>
+              <p className="mt-2 text-[11px] text-ink-muted/90">
+                {privacyNotice("importUpload", mode)}{" "}
+                <Link
+                  href={`/privacy?lang=${mode}`}
+                  className="font-semibold text-ink/75 underline-offset-2 hover:text-ink hover:underline"
+                >
+                  {mode === "zh" ? "完整隐私政策" : "Full privacy policy"}
+                </Link>
+              </p>
               <button
                 type="button"
                 onClick={() => setCommitmentOpen((v) => !v)}

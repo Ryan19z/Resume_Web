@@ -1,6 +1,9 @@
+import { normalizeAccessPin } from "@/lib/access-pin-format";
 import { sanitizeResumeId, sanitizeResumeToken } from "@/lib/resume-scope";
 import { canEditByToken, readResumeSpaceMeta } from "@/lib/server/resume-space-store";
 import { createHmac, randomBytes, timingSafeEqual } from "crypto";
+
+export { normalizeAccessPin } from "@/lib/access-pin-format";
 import type { NextRequest, NextResponse } from "next/server";
 
 export type AccessPinRecord = {
@@ -28,13 +31,6 @@ function hashPin(resumeId: string, pin: string, salt: string): string {
   return createHmac("sha256", gateSecret())
     .update(`${resumeId}:${salt}:${pin}`)
     .digest("base64url");
-}
-
-export function normalizeAccessPin(pin: string): string | null {
-  const v = pin.trim();
-  if (v.length < 4 || v.length > 32) return null;
-  if (!/^[0-9A-Za-z\u4e00-\u9fff\-_.]+$/.test(v)) return null;
-  return v;
 }
 
 export function createAccessPinRecord(

@@ -3,6 +3,7 @@
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { parseClientResumeScope } from "@/lib/resume-scope";
+import type { ReactNode } from "react";
 
 export function SubscriptionStatusBanner() {
   const { mode } = useLanguageMode();
@@ -22,28 +23,36 @@ export function SubscriptionStatusBanner() {
   const tierLabel = zh ? entitlements.tierLabelZh : entitlements.tierLabelEn;
   const daysLeft = entitlements.daysLeft;
 
+  const bannerShell = (content: ReactNode) => (
+    <>
+      <div
+        className="pointer-events-none fixed left-0 right-0 z-[63] flex justify-center px-4 print:hidden"
+        style={{ top: "calc(2.875rem + env(safe-area-inset-top, 0px) + 0.35rem)" }}
+      >
+        {content}
+      </div>
+      <div className="pointer-events-none h-[2.35rem] shrink-0 print:hidden" aria-hidden />
+    </>
+  );
+
   if (entitlements.legacyUnlimited && entitlements.active) {
     if (!canEdit) return null;
-    return (
-      <div className="pointer-events-none fixed left-0 right-0 top-[3.65rem] z-[63] flex justify-center px-4 pt-1 print:hidden sm:top-14">
-        <p className="max-w-xl rounded-full border border-line bg-surface/90 px-4 py-2 text-center text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md">
-          {zh
-            ? `套餐：${tierLabel}（未设到期，功能全开）`
-            : `Plan: ${tierLabel} (no expiry, all features)`}
-        </p>
-      </div>
+    return bannerShell(
+      <p className="max-w-xl rounded-full border border-line bg-surface/90 px-4 py-2 text-center text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md">
+        {zh
+          ? `套餐：${tierLabel}（未设到期，功能全开）`
+          : `Plan: ${tierLabel} (no expiry, all features)`}
+      </p>,
     );
   }
 
   if (!entitlements.active) {
-    return (
-      <div className="pointer-events-none fixed left-0 right-0 top-[3.65rem] z-[63] flex justify-center px-4 pt-1 print:hidden sm:top-14">
-        <p className="max-w-xl rounded-full border border-red-200 bg-red-50/95 px-4 py-2 text-center text-[11px] leading-snug text-red-800 shadow-sm backdrop-blur-md">
-          {zh
-            ? `套餐已到期（${tierLabel}），编辑、导入与 HR 访问已暂停，请联系管理员续费。`
-            : `Plan expired (${tierLabel}). Editing, import, and HR view are paused. Please renew.`}
-        </p>
-      </div>
+    return bannerShell(
+      <p className="max-w-xl rounded-full border border-red-200 bg-red-50/95 px-4 py-2 text-center text-[11px] leading-snug text-red-800 shadow-sm backdrop-blur-md">
+        {zh
+          ? `套餐已到期（${tierLabel}），编辑、导入与 HR 访问已暂停，请联系管理员续费。`
+          : `Plan expired (${tierLabel}). Editing, import, and HR view are paused. Please renew.`}
+      </p>,
     );
   }
 
@@ -75,11 +84,9 @@ export function SubscriptionStatusBanner() {
       : `Import ${totalUsed}/${totalLimit} (rules only, no AI)`;
   })();
 
-  return (
-    <div className="pointer-events-none fixed left-0 right-0 top-[3.65rem] z-[63] flex justify-center px-4 pt-1 print:hidden sm:top-14">
-      <p className="max-w-xl rounded-full border border-line bg-surface/90 px-4 py-2 text-center text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md">
-        {zh ? "当前套餐" : "Plan"}：{tierLabel} · {expiryText} · {usageText}
-      </p>
-    </div>
+  return bannerShell(
+    <p className="max-w-xl rounded-full border border-line bg-surface/90 px-4 py-2 text-center text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md">
+      {zh ? "当前套餐" : "Plan"}：{tierLabel} · {expiryText} · {usageText}
+    </p>,
   );
 }

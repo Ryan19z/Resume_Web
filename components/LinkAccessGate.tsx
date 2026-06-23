@@ -10,15 +10,14 @@ type GateState =
   | { phase: "denied"; message: string };
 
 export function LinkAccessGate({ children }: { children: React.ReactNode }) {
-  const scope = parseClientResumeScope();
-  const [gate, setGate] = useState<GateState>(
-    scope.resumeId ? { phase: "loading" } : { phase: "open" },
-  );
+  /** 首帧与 SSR 保持一致为 open，避免 window 上 resumeId 导致水合不匹配 */
+  const [gate, setGate] = useState<GateState>({ phase: "open" });
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const checkGate = useCallback(async () => {
+    const scope = parseClientResumeScope();
     if (!scope.resumeId) {
       setGate({ phase: "open" });
       return;
@@ -63,13 +62,17 @@ export function LinkAccessGate({ children }: { children: React.ReactNode }) {
         message: "无法验证访问权限，请检查网络后刷新重试。",
       });
     }
-  }, [scope.editToken, scope.resumeId, scope.viewToken]);
+  }, []);
 
   useEffect(() => {
+    const scope = parseClientResumeScope();
+    if (!scope.resumeId || !scope.editToken) return;
+    setGate({ phase: "loading" });
     void checkGate();
   }, [checkGate]);
 
   const submitPin = async () => {
+    const scope = parseClientResumeScope();
     if (!scope.resumeId || !pin.trim()) return;
     setSubmitting(true);
     setError(null);
@@ -128,6 +131,9 @@ export function LinkAccessGate({ children }: { children: React.ReactNode }) {
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">{gate.message}</p>
         <p className="mt-3 text-[12px] text-ink-muted">
           此口令仅用于保护编辑链接；HR 只读链接无需口令，可直接打开。
+        </p>
+        <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
+          忘记口令？请联系站点管理员在后台「清除编辑口令」，清除后请用 EditURL 重新打开并设置新口令（管理员无法查看你的口令）。
         </p>
         <label className="mt-6 flex flex-col gap-2 text-sm">
           <span className="font-medium text-ink">编辑口令</span>

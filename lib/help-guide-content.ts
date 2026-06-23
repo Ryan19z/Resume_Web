@@ -4,15 +4,15 @@ export const HELP_GUIDE_TEXT = {
 【第一次使用？建议按下面顺序走一遍】
 
 0) 新手引导
-   每个网络（IP）首次打开本站时，会自动播放分步引导（约 1 分钟）；同一网络下刷新页面不会重复播放。可随时点右上角「使用说明」，在底部「重新播放新手引导」。
+   首次用「编辑链接」打开时，每个网络（IP）会自动播放 9 步分步引导（约 1 分钟）；HR 只读链接不会播放。可随时点右上角「使用说明」，在底部「重新播放新手引导」。
 
 1) 先认清页面结构
    顶部导航：首页 / 履历 / 作品 —— 点击可平滑滚动到对应区域。
    右上角「分享」：复制链接、发邮件或扫码，给 HR / 客户查看。
 
 2) 确认你有没有编辑权限
-   · 有权限：右下角会出现「智能导入简历」「链接访问记录」「站点编辑」。
-   · 无权限：页面为只读浏览，顶栏会提示「只读浏览」；需使用站长发给你的「编辑链接」，或请站长把你的公网 IP 加入白名单后刷新。
+   · 有权限：右下角会出现「智能导入简历」「链接安全」「链接访问记录」「站点编辑」。
+   · 无权限：页面为只读浏览（HR 视角），无使用说明与新手引导；需使用站长发给你的「编辑链接」进入编辑端。
 
 3) （最快）智能导入简历 —— 强烈推荐
    点右下角「智能导入简历」，上传 PDF / Word / 纯文本（.txt）。
@@ -53,6 +53,7 @@ export const HELP_GUIDE_TEXT = {
 【编辑入口速查（有权限时）】
 · 首页就地编辑：点文字即改，停顿后自动保存。
 · 智能导入简历：PDF / Word 一键填入。
+· 链接安全：为编辑链接设置访问口令（HR 只读链接无需口令）。
 · 站点编辑：首屏与形象、履历页用词、作品页用词。
 · 履历 / 作品卡片：进入各分区后增删改条目。
 
@@ -76,15 +77,15 @@ export const HELP_GUIDE_TEXT = {
 [First time here? Follow this order]
 
 0) Onboarding tour
-   The step-by-step tour auto-plays on the first visit from each network (IP); refreshes on the same network will not replay it. Open "Guide" top-right anytime and tap "Replay onboarding tour" at the bottom.
+   On first visit from each network (IP) via your Edit URL, a 9-step tour auto-plays (~1 min). HR view links never show the tour. Open "Guide" top-right anytime and tap "Replay onboarding tour" at the bottom.
 
 1) Learn the layout
    Top nav: Home / Resume / Work — smooth scroll to each section.
    "Share" top-right: copy link, email, or QR for HR / clients.
 
 2) Check edit permission
-   · With permission: bottom-right shows Smart Import, View Log, and Site Editor.
-   · Read-only: a banner appears; use your Edit URL from the site owner, or ask them to whitelist your public IP.
+   · With permission: bottom-right shows Smart Import, Link Security, View Log, and Site Editor.
+   · Read-only (HR view): no guide or onboarding; use your Edit URL from the site owner to edit.
 
 3) (Fastest) Smart resume import — highly recommended
    Tap "Smart Import" bottom-right; upload PDF / Word / plain text (.txt).
@@ -124,6 +125,7 @@ export const HELP_GUIDE_TEXT = {
 [Edit entry cheat sheet]
 · Inline hero edits: click text, auto-save after pause.
 · Smart import: PDF / Word one-click fill.
+· Link security: set an access PIN for your edit link (HR view links stay open).
 · Site Editor: profile, resume copy, portfolio copy.
 · Resume / Work sections: add or edit cards in place.
 

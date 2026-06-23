@@ -11,12 +11,10 @@ import { SiteEditorDock } from "@/components/SiteEditorDock";
 import { SubscriptionStatusBanner } from "@/components/SubscriptionStatusBanner";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteTourAutoStart, SiteTourListener } from "@/components/SiteTourDriver";
-import { TourReadonlySentinels } from "@/components/TourReadonlySentinels";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { TopUtilityBar } from "@/components/TopUtilityBar";
 import { VerticalScrollLayout } from "@/components/VerticalScrollLayout";
 import { AssetOptimizationBanner } from "@/components/AssetOptimizationBanner";
-import { EditorLangIndicator } from "@/components/EditorLangIndicator";
 import { LazyPageMount } from "@/components/LazyPageMount";
 import { HeroPage } from "@/components/pages/HeroPage";
 import { useSiteContent } from "@/context/SiteContentProvider";
@@ -72,7 +70,7 @@ const ResumeImportModal = dynamic(
 
 export function HomeShell() {
   const { mode } = useLanguageMode();
-  const { site, previewMode } = useSiteContent();
+  const { site, previewMode, canEdit, editPermissionLoaded } = useSiteContent();
   const hasResumeContent =
     (site.experience?.length ?? 0) > 0 ||
     (site.projectExperience?.length ?? 0) > 0 ||
@@ -84,13 +82,15 @@ export function HomeShell() {
   return (
     <>
       <HashScrollRestorer />
-      <SiteTourListener />
-      <SiteTourAutoStart />
-      <TourReadonlySentinels />
+      {editPermissionLoaded && canEdit ? (
+        <>
+          <SiteTourListener />
+          <SiteTourAutoStart />
+        </>
+      ) : null}
       <ThemeSwitcher />
       <TopUtilityBar />
       <EditNetworkBanner />
-      <SubscriptionStatusBanner />
       <SiteLoadWarningBanner />
       <PersistErrorBanner />
       <AssetOptimizationBanner />
@@ -98,6 +98,7 @@ export function HomeShell() {
         showResume={showResumeSection}
         showPortfolio={showPortfolioSection}
       />
+      <SubscriptionStatusBanner />
       <HrQuickSummary />
       <VerticalScrollLayout>
         <section
@@ -144,7 +145,6 @@ export function HomeShell() {
       <ResumeDetailOverlay />
       <ResumeImportModal />
       <SiteEditorDock />
-      <EditorLangIndicator />
     </>
   );
 }

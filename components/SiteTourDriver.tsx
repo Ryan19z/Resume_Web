@@ -82,7 +82,7 @@ function buildSteps(): DriveStep[] {
         title: "智能导入简历",
         description:
           "有编辑权限时，可上传 PDF / Word / 文本简历，自动识别并填入姓名、经历、教育、项目与奖项。导入后请在预览里核对，再逐页微调。",
-        side: "top",
+        side: "left",
         align: "end",
       },
     },
@@ -97,12 +97,32 @@ function buildSteps(): DriveStep[] {
       },
     },
     {
+      element: "#resume",
+      popover: {
+        title: "履历分区",
+        description:
+          "工作经历、项目经历与教育背景集中在此。点击卡片可展开详情，支持新增 / 编辑 / 删除条目。",
+        side: "top",
+        align: "center",
+      },
+    },
+    {
+      element: "#portfolio",
+      popover: {
+        title: "作品分区",
+        description:
+          "展示代表作品集：标题、封面与外链。建议至少放 2 个最能证明能力的项目。",
+        side: "top",
+        align: "center",
+      },
+    },
+    {
       element: "#tour-site-editor",
       popover: {
-        title: "站点编辑与访问记录",
+        title: "站点编辑",
         description:
-          "「站点编辑」集中管理首屏形象、履历/作品页文案；上方「链接访问记录」可查看 HR 何时打开只读链接。履历与作品条目请在对应分区卡片上增删改。",
-        side: "top",
+          "集中管理首屏形象、履历页与作品页文案。上方还有「链接安全」「链接访问记录」等快捷入口。",
+        side: "left",
         align: "end",
       },
     },
@@ -155,6 +175,8 @@ const CORE_TOUR_SELECTORS = [
   "#tour-anchors",
   "#tour-top-actions",
   "#tour-hero-edit",
+  "#resume",
+  "#portfolio",
   "#tour-share-resume",
   "#tour-theme",
 ] as const;
@@ -319,13 +341,19 @@ export function SiteTourListener() {
  * 手动「重新播放新手引导」不受 IP 记录影响。
  */
 export function SiteTourAutoStart() {
-  const { previewMode, editPermissionLoaded } = useSiteContent();
+  const { previewMode, editPermissionLoaded, canEdit } = useSiteContent();
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (previewMode) return;
+    if (!editPermissionLoaded) return;
+    /** HR 只读 ViewURL：不自动播放引导，避免干扰浏览 */
+    if (!canEdit) {
+      markSiteTourCompleted();
+      notifySiteTourFinished();
+      return;
+    }
     if (hasCompletedSiteTour()) return;
     if (hasOfferedAutoTourThisSession()) return;
-    if (!editPermissionLoaded) return;
 
     let cancelled = false;
     const shouldAbort = () => cancelled;
@@ -366,6 +394,6 @@ export function SiteTourAutoStart() {
       window.clearTimeout(timer);
       forceTeardownDriverTourDom();
     };
-  }, [previewMode, editPermissionLoaded]);
+  }, [previewMode, editPermissionLoaded, canEdit]);
   return null;
 }

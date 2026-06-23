@@ -2,6 +2,7 @@
 
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
+import { privacyNotice } from "@/lib/privacy-notices";
 import { useEffect, useState } from "react";
 
 export function SiteFooter() {
@@ -153,9 +154,7 @@ export function SiteFooter() {
                 : ""
           }`}
         >
-          {mode === "zh"
-            ? "本页会匿名记录是否被打开及大致地区，帮助候选人确认简历已送达；不保存访问者 IP 明文，也无法识别具体身份。"
-            : "This page anonymously logs opens and approximate region so the candidate knows the resume was seen. No raw IP or personal identity is stored."}
+          {privacyNotice("hrReadOnlyFooter", mode)}
         </p>
       ) : null}
       {qrZoomItem ? (

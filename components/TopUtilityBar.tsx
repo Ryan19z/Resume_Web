@@ -74,16 +74,18 @@ export function TopUtilityBar() {
             {mode === "zh" ? "EN" : "中文"}
           </button>
         ) : null}
-        <button
-          type="button"
-          onClick={() => {
-            forceTeardownDriverTourDom();
-            setHelpOpen(true);
-          }}
-          className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
-        >
-          {mode === "zh" ? "使用说明" : "Guide"}
-        </button>
+        {editPermissionLoaded && canEdit ? (
+          <button
+            type="button"
+            onClick={() => {
+              forceTeardownDriverTourDom();
+              setHelpOpen(true);
+            }}
+            className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
+          >
+            {mode === "zh" ? "使用说明" : "Guide"}
+          </button>
+        ) : null}
       </div>
 
       <AnimatePresence>
@@ -119,8 +121,8 @@ export function TopUtilityBar() {
                 </h2>
                 <p className="mt-1 text-xs text-ink-muted">
                   {mode === "zh"
-                    ? "含完整 9 步上手流程；首次进入会自动播放引导，也可在底部重播。"
-                    : "Full 9-step quick start; onboarding plays on first visit, or replay below."}
+                    ? "含完整 9 步上手流程；首次进入编辑链接时会自动播放引导，也可在底部重播。"
+                    : "Full 9-step quick start; onboarding plays on first edit visit, or replay below."}
                 </p>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-ink/90 sm:px-6">
