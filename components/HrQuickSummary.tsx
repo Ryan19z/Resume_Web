@@ -1,5 +1,7 @@
 "use client";
 
+import { openHrViewGuide } from "@/lib/hr-view-guide-state";
+import { getHrViewGuide } from "@/lib/hr-view-guide-content";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { useMemo, useState } from "react";
@@ -10,6 +12,7 @@ import { useMemo, useState } from "react";
 export function HrQuickSummary() {
   const { site, canEdit, editPermissionLoaded, previewMode } = useSiteContent();
   const { mode } = useLanguageMode();
+  const hrGuide = getHrViewGuide(mode);
   const [collapsed, setCollapsed] = useState(false);
 
   const show = editPermissionLoaded && !canEdit && !previewMode;
@@ -107,6 +110,13 @@ export function HrQuickSummary() {
               >
                 {mode === "zh" ? "查看履历" : "View resume"}
               </a>
+              <button
+                type="button"
+                onClick={() => openHrViewGuide()}
+                className="rounded-full border border-[rgb(var(--selection)/0.28)] bg-[rgb(var(--selection)/0.08)] px-3 py-1.5 font-medium text-[rgb(var(--selection))] transition-colors hover:border-[rgb(var(--selection)/0.4)]"
+              >
+                {hrGuide.openButtonLabel}
+              </button>
             </div>
           </>
         ) : null}

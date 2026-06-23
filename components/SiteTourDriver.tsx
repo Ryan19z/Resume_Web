@@ -7,6 +7,10 @@ import {
 } from "@/lib/site-tour-client";
 import { parseClientResumeScope } from "@/lib/resume-scope";
 import {
+  hasSeenEditorHelpIntro,
+  isEditUrlSession,
+} from "@/lib/editor-help-guide-state";
+import {
   hasCompletedSiteTour,
   hasOfferedAutoTourThisSession,
   markAutoTourOfferedThisSession,
@@ -119,9 +123,9 @@ function buildSteps(): DriveStep[] {
     {
       element: "#tour-site-editor",
       popover: {
-        title: "站点编辑",
+        title: "站点编辑与链接工具",
         description:
-          "集中管理首屏形象、履历页与作品页文案。上方还有「链接安全」「链接访问记录」等快捷入口。",
+          "「站点编辑」可改首屏形象与分区文案。同区域还有独立的「链接安全」（编辑口令）与「链接访问记录」（HR 是否打开 ViewURL）。",
         side: "left",
         align: "end",
       },
@@ -352,6 +356,8 @@ export function SiteTourAutoStart() {
       notifySiteTourFinished();
       return;
     }
+    /** 首次 EditURL：先弹出「使用说明」，用户点「开始 9 步引导」后再播 tour */
+    if (isEditUrlSession() && !hasSeenEditorHelpIntro()) return;
     if (hasCompletedSiteTour()) return;
     if (hasOfferedAutoTourThisSession()) return;
 
@@ -387,7 +393,7 @@ export function SiteTourAutoStart() {
           );
         });
       })();
-    }, 180);
+    }, 900);
 
     return () => {
       cancelled = true;

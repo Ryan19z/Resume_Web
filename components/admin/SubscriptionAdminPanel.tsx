@@ -798,7 +798,7 @@ export function SubscriptionAdminPanel() {
             />
             <LinkCopyField
               label="ViewURL · 发给 HR"
-              hint="仅 viewToken，HR 只读浏览，不含编辑入口。"
+              hint="仅 viewToken，HR 只读浏览；首次打开有「查看说明」，不含编辑入口。"
               value={displayLinks.viewUrl}
             />
           </div>

@@ -5,6 +5,7 @@ import { PersistErrorBanner } from "@/components/PersistErrorBanner";
 import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { HrQuickSummary } from "@/components/HrQuickSummary";
+import { HrViewGuide } from "@/components/HrViewGuide";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
 import { SiteEditorDock } from "@/components/SiteEditorDock";
@@ -100,6 +101,7 @@ export function HomeShell() {
       />
       <SubscriptionStatusBanner />
       <HrQuickSummary />
+      <HrViewGuide />
       <VerticalScrollLayout>
         <section
           id="intro"

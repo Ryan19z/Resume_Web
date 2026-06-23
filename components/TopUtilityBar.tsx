@@ -8,6 +8,15 @@ import {
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { HELP_GUIDE_TEXT } from "@/lib/help-guide-content";
+import {
+  hasOfferedEditorHelpIntroThisSession,
+  hasSeenEditorHelpIntro,
+  isEditUrlSession,
+  markEditorHelpIntroOfferedThisSession,
+  markEditorHelpIntroSeen,
+} from "@/lib/editor-help-guide-state";
+import { openHrViewGuide } from "@/lib/hr-view-guide-state";
+import { getHrViewGuide } from "@/lib/hr-view-guide-content";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useState } from "react";
@@ -25,10 +34,31 @@ export function TopUtilityBar() {
 
   useBodyScrollLock(helpOpen);
 
+  const closeHelp = (markSeen = true) => {
+    if (markSeen) markEditorHelpIntroSeen();
+    setHelpOpen(false);
+  };
+
+  const beginTourFromHelp = () => {
+    markEditorHelpIntroSeen();
+    setHelpOpen(false);
+    window.setTimeout(() => dispatchStartSiteTour(), 320);
+  };
+
+  useEffect(() => {
+    if (!editPermissionLoaded || !canEdit || previewMode) return;
+    if (!isEditUrlSession()) return;
+    if (hasSeenEditorHelpIntro()) return;
+    if (hasOfferedEditorHelpIntroThisSession()) return;
+    markEditorHelpIntroOfferedThisSession();
+    const timer = window.setTimeout(() => setHelpOpen(true), 800);
+    return () => window.clearTimeout(timer);
+  }, [editPermissionLoaded, canEdit, previewMode]);
+
   useEffect(() => {
     if (!helpOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setHelpOpen(false);
+      if (e.key === "Escape") closeHelp(true);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -36,6 +66,8 @@ export function TopUtilityBar() {
 
   const showLangSwitch =
     !langSwitchLocked || (editPermissionLoaded && canEdit);
+  const isHrVisitor = editPermissionLoaded && !canEdit && !previewMode;
+  const hrGuide = getHrViewGuide(mode);
 
   return (
     <>
@@ -74,6 +106,15 @@ export function TopUtilityBar() {
             {mode === "zh" ? "EN" : "中文"}
           </button>
         ) : null}
+        {isHrVisitor ? (
+          <button
+            type="button"
+            onClick={() => openHrViewGuide()}
+            className="rounded-full border border-line bg-surface/90 px-3 py-1.5 text-[11px] font-semibold text-ink-muted shadow-sm backdrop-blur-md transition-colors hover:border-ink/15 hover:text-ink sm:px-4 sm:text-xs"
+          >
+            {hrGuide.openButtonLabel}
+          </button>
+        ) : null}
         {editPermissionLoaded && canEdit ? (
           <button
             type="button"
@@ -100,7 +141,7 @@ export function TopUtilityBar() {
               type="button"
               aria-label={mode === "zh" ? "关闭" : "Close"}
               className="absolute inset-0 bg-ink/35 backdrop-blur-[2px]"
-              onClick={() => setHelpOpen(false)}
+              onClick={() => closeHelp(true)}
             />
             <motion.div
               role="dialog"
@@ -119,10 +160,10 @@ export function TopUtilityBar() {
                 >
                   {mode === "zh" ? "使用说明" : "Guide"}
                 </h2>
-                <p className="mt-1 text-xs text-ink-muted">
+                <p className="mt-1 text-xs leading-relaxed text-ink-muted">
                   {mode === "zh"
-                    ? "含完整 9 步上手流程；首次进入编辑链接时会自动播放引导，也可在底部重播。"
-                    : "Full 9-step quick start; onboarding plays on first edit visit, or replay below."}
+                    ? "下方 9 步与页面分步引导一致。首次进入编辑链接会自动打开本说明，建议点「开始 9 步引导」跟着高亮走一遍。"
+                    : "The 9 steps below match the on-page tour. This dialog opens on first Edit URL visit—tap Start 9-step tour to follow along."}
                 </p>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-sm leading-relaxed text-ink/90 sm:px-6">
@@ -135,8 +176,8 @@ export function TopUtilityBar() {
                     className="rounded-full border border-line bg-paper py-2.5 text-sm font-medium text-ink hover:bg-ink/[0.04]"
                     onClick={() => {
                       resetSiteTourCompletion();
-                      setHelpOpen(false);
-                      window.setTimeout(() => dispatchStartSiteTour(), 300);
+                      closeHelp(false);
+                      window.setTimeout(() => dispatchStartSiteTour(), 320);
                     }}
                   >
                     {mode === "zh"
@@ -145,13 +186,20 @@ export function TopUtilityBar() {
                   </button>
                 </div>
               </div>
-              <div className="shrink-0 border-t border-line px-5 py-3 sm:px-6">
+              <div className="shrink-0 space-y-2 border-t border-line px-5 py-3 sm:px-6">
                 <button
                   type="button"
-                  onClick={() => setHelpOpen(false)}
-                  className="w-full rounded-full bg-ink py-3 text-sm font-medium text-white hover:opacity-90"
+                  onClick={beginTourFromHelp}
+                  className="w-full rounded-full bg-ink py-3 text-sm font-medium text-paper hover:opacity-90"
                 >
-                  {mode === "zh" ? "关闭" : "Close"}
+                  {mode === "zh" ? "开始 9 步引导" : "Start 9-step tour"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => closeHelp(true)}
+                  className="w-full rounded-full border border-line bg-paper py-2.5 text-sm font-medium text-ink-muted hover:border-ink/20 hover:text-ink"
+                >
+                  {mode === "zh" ? "我先自己看看" : "Browse on my own"}
                 </button>
               </div>
             </motion.div>
