@@ -585,12 +585,10 @@ export function SubscriptionAdminPanel() {
             </li>
             <li>
               <strong className="font-medium text-ink">AI 简历分析</strong>
-              ：只有季租/年租开启；走 DeepSeek 等模型的次数，约 2 分/次。
+              ：各档均含 AI 次数（试用 5、月租 15、季租 40、年租 80/月）；走 DeepSeek 等，约 2 分/次。
             </li>
             <li>
-              试用/月租：可导入，但
-              <strong className="font-medium text-ink"> 0 次 AI</strong>
-              ，全是规则引擎（几乎零 API 成本）。
+              AI 用完后本档仍可规则引擎导入（若未超「简历导入总次数」）。
             </li>
           </ul>
         </div>

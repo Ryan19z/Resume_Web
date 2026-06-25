@@ -17,7 +17,7 @@ export type PlanDefinition = {
 export const ESTIMATED_IMPORT_COST_YUAN = 0.02;
 
 export const IMPORT_QUOTA_POLICY_ZH =
-  "对客户只需记住两行：① 每月总共能成功导入几次；② 其中几次走 AI（约 2 分/次）。试用/月租不含 AI，只有规则引擎导入。";
+  "对客户只需记住两行：① 每月总共能成功导入几次；② 其中几次走 AI（约 2 分/次）。试用 5 次、月租 15 次、季租/年租更多。";
 
 /** 客户可见：每月 AI 简历分析次数说明 */
 export function customerAiResumeAnalysisLabel(tier: SubscriptionTier): string {
@@ -62,13 +62,13 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, PlanDefinition> = {
       editing: true,
       publicView: true,
       smartImport: true,
-      aiParse: false,
+      aiParse: true,
       viewLog: true,
       shareEmail: false,
     },
     quotas: {
       smartImportPerMonth: 15,
-      aiParsePerMonth: 0,
+      aiParsePerMonth: 5,
     },
   },
   monthly: {
@@ -80,13 +80,13 @@ export const SUBSCRIPTION_PLANS: Record<SubscriptionTier, PlanDefinition> = {
       editing: true,
       publicView: true,
       smartImport: true,
-      aiParse: false,
+      aiParse: true,
       viewLog: true,
       shareEmail: true,
     },
     quotas: {
       smartImportPerMonth: 100,
-      aiParsePerMonth: 0,
+      aiParsePerMonth: 15,
     },
   },
   quarterly: {
