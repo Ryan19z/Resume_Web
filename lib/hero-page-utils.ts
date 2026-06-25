@@ -1,4 +1,9 @@
 import type { HeroAsideMode } from "./types";
+import {
+  DEMO_SAMPLE_VIDEO_MP4,
+  PLACEHOLDER_IMAGES,
+  PORTFOLIO_LINK_PLACEHOLDER,
+} from "./media-defaults";
 
 export type SpotlightKind =
   | "image"
@@ -142,6 +147,49 @@ export function parseContactEntries(raw: string): ContactEntry[] {
 const DEFAULT_SPOTLIGHT_TITLE_ZH = "个人核心优势展示窗";
 const DEFAULT_SPOTLIGHT_SUMMARY_PREFIX_ZH = "可展示你最拿得出手";
 
+const DEFAULT_SPOTLIGHT_TITLES = new Set([
+  DEFAULT_SPOTLIGHT_TITLE_ZH,
+  "个人重点展示",
+  "Core strength showcase",
+  "Showcase",
+]);
+
+const DEFAULT_SPOTLIGHT_SUMMARY_PREFIXES = [
+  DEFAULT_SPOTLIGHT_SUMMARY_PREFIX_ZH,
+  "可展示代码、摄影作品",
+  "Show your best proof",
+  "Describe impact",
+];
+
+const PLACEHOLDER_MEDIA_URLS = new Set<string>([
+  DEMO_SAMPLE_VIDEO_MP4,
+  PORTFOLIO_LINK_PLACEHOLDER,
+  ...Object.values(PLACEHOLDER_IMAGES),
+]);
+
+/** 占位/demo 链接不算用户实际上传的重点展示内容 */
+export function isMeaningfulSpotlightMediaUrl(url?: string): boolean {
+  const trimmed = url?.trim() ?? "";
+  if (!trimmed) return false;
+  return !PLACEHOLDER_MEDIA_URLS.has(trimmed);
+}
+
+export function sanitizeSpotlightMediaLinks(
+  links: SpotlightMediaLinks,
+): SpotlightMediaLinks {
+  return {
+    image: isMeaningfulSpotlightMediaUrl(links.image) ? links.image.trim() : "",
+    gallery: links.gallery
+      .map((u) => u.trim())
+      .filter(isMeaningfulSpotlightMediaUrl),
+    video: isMeaningfulSpotlightMediaUrl(links.video) ? links.video.trim() : "",
+    link: isMeaningfulSpotlightMediaUrl(links.link) ? links.link.trim() : "",
+    document: isMeaningfulSpotlightMediaUrl(links.document)
+      ? links.document.trim()
+      : "",
+  };
+}
+
 export function resolveHeroAsideMode(mode?: HeroAsideMode): HeroAsideMode {
   return mode === "portrait" || mode === "hidden" ? mode : "showcase";
 }
@@ -151,24 +199,23 @@ export function hasSpotlightMediaContent(
   code: string,
 ): boolean {
   if (code.trim()) return true;
-  if (links.image.trim()) return true;
-  if (links.gallery.some((u) => u.trim())) return true;
-  if (links.video.trim()) return true;
-  if (links.link.trim()) return true;
-  if (links.document.trim()) return true;
+  if (isMeaningfulSpotlightMediaUrl(links.image)) return true;
+  if (links.gallery.some((u) => isMeaningfulSpotlightMediaUrl(u))) return true;
+  if (isMeaningfulSpotlightMediaUrl(links.video)) return true;
+  if (isMeaningfulSpotlightMediaUrl(links.link)) return true;
+  if (isMeaningfulSpotlightMediaUrl(links.document)) return true;
   return false;
 }
 
 export function hasCustomSpotlightText(title: string, summary: string): boolean {
   const t = title.trim();
   const s = summary.trim();
-  if (t && t !== DEFAULT_SPOTLIGHT_TITLE_ZH && t !== "个人重点展示" && t !== "Showcase") {
+  if (t && !DEFAULT_SPOTLIGHT_TITLES.has(t)) {
     return true;
   }
   if (
     s &&
-    !s.startsWith(DEFAULT_SPOTLIGHT_SUMMARY_PREFIX_ZH) &&
-    !s.startsWith("Describe impact")
+    !DEFAULT_SPOTLIGHT_SUMMARY_PREFIXES.some((prefix) => s.startsWith(prefix))
   ) {
     return true;
   }
@@ -192,6 +239,56 @@ export function hasPortraitContent(portraitUrl?: string): boolean {
 }
 
 export type VisitorAsideView = "showcase" | "portrait";
+
+export type AsideTabView = VisitorAsideView | "hidden";
+
+/** 编辑/预览：根据实际上传内容决定展示哪些切换按钮 */
+export function resolveAsideTabViews(options: {
+  spotlightTitle: string;
+  spotlightSummary: string;
+  mediaLinks: SpotlightMediaLinks;
+  spotlightCode: string;
+  portraitUrl?: string;
+  includeHidden: boolean;
+}): AsideTabView[] {
+  const hasShowcase = hasShowcaseContent(
+    options.spotlightTitle,
+    options.spotlightSummary,
+    options.mediaLinks,
+    options.spotlightCode,
+  );
+  const hasPortrait = hasPortraitContent(options.portraitUrl);
+  const views: AsideTabView[] = [];
+  if (hasShowcase) views.push("showcase");
+  if (hasPortrait) views.push("portrait");
+  if (options.includeHidden) views.push("hidden");
+  return views;
+}
+
+/** 当前应展示的面板（模式与内容不一致时回退到有内容的一项） */
+export function resolveEffectiveAsidePanel(options: {
+  canInline: boolean;
+  heroAsideMode: HeroAsideMode;
+  visitorAside: ReturnType<typeof resolveVisitorAside>;
+  visitorAsideView: VisitorAsideView | null;
+}): HeroAsideMode {
+  const { canInline, heroAsideMode, visitorAside, visitorAsideView } = options;
+  if (canInline) {
+    if (heroAsideMode === "hidden") return "hidden";
+    const hasShowcase = visitorAside.views.includes("showcase");
+    const hasPortrait = visitorAside.views.includes("portrait");
+    if (heroAsideMode === "showcase" && hasShowcase) return "showcase";
+    if (heroAsideMode === "portrait" && hasPortrait) return "portrait";
+    if (hasPortrait) return "portrait";
+    if (hasShowcase) return "showcase";
+    return "hidden";
+  }
+  if (!visitorAside.show || !visitorAside.defaultView) return "hidden";
+  if (visitorAsideView && visitorAside.views.includes(visitorAsideView)) {
+    return visitorAsideView;
+  }
+  return visitorAside.defaultView;
+}
 
 /** 访客/预览：根据实际内容决定展示哪几项、是否可切换 */
 export function resolveVisitorAside(options: {

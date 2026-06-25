@@ -245,7 +245,7 @@ function normalizeHeroSpotlight(
     return {
       title,
       summary,
-      media: fallback.media,
+      media: { kind: "image", url: "" },
       mediaLinks,
       documentName,
     };
@@ -314,7 +314,7 @@ function normalizeHeroSpotlight(
   return {
     title,
     summary,
-    media: fallback.media,
+    media: { kind: "image", url: "" },
     mediaLinks,
     documentName,
   };

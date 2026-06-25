@@ -12,15 +12,18 @@ import {
   parseContactEntries,
   resolveHeroAsideMode,
   resolveVisitorAside,
+  resolveAsideTabViews,
+  resolveEffectiveAsidePanel,
   hasShowcaseContent,
   hasPortraitContent,
+  sanitizeSpotlightMediaLinks,
   type ContactQrDraft,
   type RoleFitDraft,
   type SpotlightKind,
   type SpotlightMediaLinks,
   type VisitorAsideView,
 } from "@/lib/hero-page-utils";
-import type { HeroAsideMode } from "@/lib/types";
+import type { HeroAsideMode, HeroSpotlight } from "@/lib/types";
 import {
   applyVideoSnapshot,
   readVideoSnapshot,
@@ -36,6 +39,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
+function buildSpotlightMediaLinksFromSite(
+  sp: HeroSpotlight,
+): SpotlightMediaLinks {
+  const media = sp.media;
+  const mediaUrl = media && "url" in media ? media.url : "";
+  return sanitizeSpotlightMediaLinks({
+    image:
+      sp.mediaLinks?.image ?? (media?.kind === "image" ? mediaUrl : ""),
+    gallery:
+      sp.mediaLinks?.gallery ??
+      (media?.kind === "gallery" ? media.urls : []) ??
+      [],
+    video:
+      sp.mediaLinks?.video ?? (media?.kind === "video" ? mediaUrl : ""),
+    link: sp.mediaLinks?.link ?? (media?.kind === "link" ? mediaUrl : ""),
+    document:
+      sp.mediaLinks?.document ??
+      (media?.kind === "document" ? mediaUrl : ""),
+  });
+}
 
 function parsePeriodStartScore(period?: string): number {
   const raw = (period ?? "").trim();
@@ -134,27 +158,9 @@ export function HeroPage() {
   const [spotlightKind, setSpotlightKind] = useState<SpotlightKind>(
     (site.heroSpotlight?.media?.kind as SpotlightKind | undefined) ?? "image",
   );
-  const [spotlightMediaLinks, setSpotlightMediaLinks] = useState<SpotlightMediaLinks>(() => {
-    const media = site.heroSpotlight?.media;
-    const mediaUrl = media && "url" in media ? media.url : "";
-    return {
-      image:
-        site.heroSpotlight?.mediaLinks?.image ??
-        (media?.kind === "image" ? mediaUrl : ""),
-      gallery:
-        site.heroSpotlight?.mediaLinks?.gallery ??
-        (media?.kind === "gallery" ? media.urls : []),
-      video:
-        site.heroSpotlight?.mediaLinks?.video ??
-        (media?.kind === "video" ? mediaUrl : ""),
-      link:
-        site.heroSpotlight?.mediaLinks?.link ??
-        (media?.kind === "link" ? mediaUrl : ""),
-      document:
-        site.heroSpotlight?.mediaLinks?.document ??
-        (media?.kind === "document" ? mediaUrl : ""),
-    };
-  });
+  const [spotlightMediaLinks, setSpotlightMediaLinks] = useState<SpotlightMediaLinks>(
+    () => buildSpotlightMediaLinksFromSite(site.heroSpotlight ?? fallbackSpotlight),
+  );
   const [spotlightCode, setSpotlightCode] = useState(
     site.heroSpotlight?.media?.kind === "code"
       ? site.heroSpotlight.media.code
@@ -278,25 +284,7 @@ export function HeroPage() {
       (sp.media?.kind as SpotlightKind | undefined) ??
         "image",
     );
-    const media = sp.media;
-    const mediaUrl = media && "url" in media ? media.url : "";
-    setSpotlightMediaLinks({
-      image:
-        sp.mediaLinks?.image ??
-        (media?.kind === "image" ? mediaUrl : ""),
-      gallery:
-        sp.mediaLinks?.gallery ??
-        (media?.kind === "gallery" ? media.urls : []),
-      video:
-        sp.mediaLinks?.video ??
-        (media?.kind === "video" ? mediaUrl : ""),
-      link:
-        sp.mediaLinks?.link ??
-        (media?.kind === "link" ? mediaUrl : ""),
-      document:
-        sp.mediaLinks?.document ??
-        (media?.kind === "document" ? mediaUrl : ""),
-    });
+    setSpotlightMediaLinks(buildSpotlightMediaLinksFromSite(sp));
     setGallerySlideIndex(0);
     setSpotlightCode(sp.media?.kind === "code" ? sp.media.code : "");
     setSpotlightCodeLang(sp.media?.kind === "code" ? (sp.media.language ?? "") : "");
@@ -577,18 +565,39 @@ export function HeroPage() {
       portraitUrl,
     ],
   );
-  const showAside = useMemo(
-    () => (canInline ? true : visitorAside.show),
-    [canInline, visitorAside.show],
+  const asideTabViews = useMemo(
+    () =>
+      resolveAsideTabViews({
+        spotlightTitle,
+        spotlightSummary,
+        mediaLinks: spotlightMediaLinks,
+        spotlightCode,
+        portraitUrl,
+        includeHidden: canInline,
+      }),
+    [
+      canInline,
+      spotlightTitle,
+      spotlightSummary,
+      spotlightMediaLinks,
+      spotlightCode,
+      portraitUrl,
+    ],
   );
-  const effectiveAsidePanel = useMemo((): HeroAsideMode => {
-    if (canInline) return heroAsideMode;
-    if (!visitorAside.show || !visitorAside.defaultView) return "hidden";
-    if (visitorAsideView && visitorAside.views.includes(visitorAsideView)) {
-      return visitorAsideView;
-    }
-    return visitorAside.defaultView;
-  }, [canInline, heroAsideMode, visitorAside, visitorAsideView]);
+  const showAside = useMemo(
+    () => (canInline ? asideTabViews.length > 0 : visitorAside.show),
+    [canInline, asideTabViews.length, visitorAside.show],
+  );
+  const effectiveAsidePanel = useMemo(
+    (): HeroAsideMode =>
+      resolveEffectiveAsidePanel({
+        canInline,
+        heroAsideMode,
+        visitorAside,
+        visitorAsideView,
+      }),
+    [canInline, heroAsideMode, visitorAside, visitorAsideView],
+  );
   const asideEyebrow =
     effectiveAsidePanel === "portrait"
       ? i18n.portraitTitle
@@ -1578,14 +1587,14 @@ export function HeroPage() {
                   {i18n.asideModeLabel}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {(
-                    [
-                      ["showcase", i18n.asideModeShowcase],
-                      ["portrait", i18n.asideModePortrait],
-                      ["hidden", i18n.asideModeHidden],
-                    ] as const
-                  ).map(([value, label]) => {
-                    const active = heroAsideMode === value;
+                  {asideTabViews.map((value) => {
+                    const label =
+                      value === "showcase"
+                        ? i18n.asideModeShowcase
+                        : value === "portrait"
+                          ? i18n.asideModePortrait
+                          : i18n.asideModeHidden;
+                    const active = effectiveAsidePanel === value;
                     return (
                       <button
                         key={value}
@@ -1701,7 +1710,9 @@ export function HeroPage() {
                   </>
                 ) : null}
                 {portraitUrl.trim() ? (
-                  <div className={`overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : ""}`}>
+                  <div
+                    className={`mx-auto max-w-[220px] overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : "mt-2"}`}
+                  >
                     <button
                       type="button"
                       onClick={() => setPortraitHdPreviewOpen(true)}
@@ -1711,7 +1722,7 @@ export function HeroPage() {
                       <img
                         src={portraitUrl.trim()}
                         alt={portraitCaption.trim() || i18n.portraitAlt}
-                        className="aspect-[3/4] w-full object-cover object-top transition-opacity group-hover:opacity-95"
+                        className="aspect-[3/4] max-h-[280px] w-full object-cover object-top transition-opacity group-hover:opacity-95"
                         loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
