@@ -64,7 +64,7 @@ export function AccessPinBanner() {
         className="w-full max-w-xl rounded-2xl border border-amber-300/90 bg-amber-50/95 px-4 py-3 text-amber-950 shadow-sm backdrop-blur-md"
       >
         <p className="text-[11px] leading-snug">
-          此 EditURL 已启用编辑口令。请输入口令后即可继续编辑并保存到服务器。
+          此编辑链接已启用编辑口令。请输入口令后即可继续编辑并保存到服务器。
         </p>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
           <input
@@ -93,7 +93,7 @@ export function AccessPinBanner() {
           <p className="mt-2 text-[11px] text-amber-900/80">{persistError}</p>
         ) : null}
         <p className="mt-2 text-[10px] leading-relaxed text-amber-900/70">
-          忘记口令？请联系管理员在后台「清除编辑口令」后，用 EditURL 重新打开并设置新口令。
+          忘记口令？请联系管理员在后台「清除编辑口令」后，用编辑链接重新打开并设置新口令。
         </p>
       </div>
     </div>

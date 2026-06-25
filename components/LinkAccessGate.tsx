@@ -144,7 +144,7 @@ export function LinkAccessGate({ children }: { children: React.ReactNode }) {
           此口令仅用于保护编辑链接；HR 只读链接无需口令，可直接打开。
         </p>
         <p className="mt-2 text-[11px] leading-relaxed text-ink-muted">
-          忘记口令？请联系站点管理员在后台「清除编辑口令」，清除后请用 EditURL 重新打开并设置新口令（管理员无法查看你的口令）。
+          忘记口令？请联系站点管理员在后台「清除编辑口令」，清除后请用编辑链接重新打开并设置新口令（管理员无法查看你的口令）。
         </p>
         <label className="mt-6 flex flex-col gap-2 text-sm">
           <span className="font-medium text-ink">编辑口令</span>

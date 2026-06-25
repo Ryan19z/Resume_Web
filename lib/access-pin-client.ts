@@ -18,7 +18,7 @@ export async function verifyEditAccessPin(
 ): Promise<{ ok: boolean; message?: string }> {
   const scope = parseClientResumeScope();
   if (!scope.resumeId || !scope.editToken) {
-    return { ok: false, message: "请使用完整 EditURL 打开后再验证口令。" };
+    return { ok: false, message: "请使用完整编辑链接打开后再验证口令。" };
   }
   const trimmed = pin.trim();
   if (!trimmed) {

@@ -125,7 +125,7 @@ function buildSteps(): DriveStep[] {
       popover: {
         title: "站点编辑与链接工具",
         description:
-          "「站点编辑」可改首屏形象与分区文案。同区域还有独立的「链接安全」（编辑口令）与「链接访问记录」（HR 是否打开 ViewURL）。",
+          "「站点编辑」可改首屏形象与分区文案。同区域还有独立的「链接安全」（编辑口令）与「链接访问记录」（HR 是否打开只读链接）。",
         side: "left",
         align: "end",
       },

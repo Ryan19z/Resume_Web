@@ -9,9 +9,9 @@ export const SERVICE_COMMITMENT = {
     weProvide: {
       heading: "我们提供什么",
       items: [
-        "独立 EditURL / ViewURL，HR 可在手机与电脑打开只读页面。",
+        "独立编辑链接与只读链接，HR 可在手机与电脑打开只读页面。",
         "编辑后自动发布到服务器，访客看到最新内容。",
-        "HR 打开 ViewURL 时的匿名访问记录（不含明文 IP）。",
+        "HR 打开只读链接时的匿名访问记录（不保存完整 IP 地址）。",
         "智能导入：从 PDF / Word / 文本快速生成初稿，减少手工录入时间。",
         "导入预览页的质量评分与核对清单，帮助你在填入前判断可能要改的地方。",
       ],
@@ -36,9 +36,9 @@ export const SERVICE_COMMITMENT = {
     weProvide: {
       heading: "What we provide",
       items: [
-        "Dedicated Edit / View URLs; HR can open a read-only page on mobile and desktop.",
+        "Dedicated edit and read-only links; HR can open a read-only page on mobile and desktop.",
         "Publish to server after edits so visitors see the latest content.",
-        "Anonymous view logs when HR opens the View URL (no raw IP stored).",
+        "Anonymous view logs when HR opens the read-only link (no full IP address stored).",
         "Smart import: draft from PDF / Word / text to save manual entry time.",
         "Quality score and checklist on the import preview before you apply.",
       ],

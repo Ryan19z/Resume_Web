@@ -5,7 +5,7 @@ export const HELP_GUIDE_TEXT = {
 【9 步上手流程（与页面分步引导一致）】
 
 1) 分区导航与分享
-   顶部「首页 / 履历 / 作品」可平滑滚动；右侧「分享」可复制 ViewURL、发邮件或生成二维码给 HR。
+   顶部「首页 / 履历 / 作品」可平滑滚动；右侧「分享」可复制只读链接、发邮件或生成二维码给 HR。
 
 2) 预览与使用说明
    右上角「预览」模拟 HR 只读视角；「使用说明」即本页；可切换 EN / 中文（若未锁定语言）。
@@ -27,10 +27,10 @@ export const HELP_GUIDE_TEXT = {
 
 7) 站点编辑与链接工具
    「站点编辑」：首屏与形象、履历页用词、作品页用词（口令设置不在此菜单内）。
-   同区域独立入口：「链接安全」（EditURL 口令）、「链接访问记录」（HR 是否打开 ViewURL）。
+   同区域独立入口：「链接安全」（编辑口令）、「链接访问记录」（HR 是否打开只读链接）。
 
 8) 分享简历
-   满意后点「分享」：复制链接（自动去掉 editToken）、二维码或发邮件。
+   满意后点「分享」：复制只读链接、二维码或发邮件。
    localhost 调试时对方打不开，需部署到公网后再分享。
 
 9) 主题与背景
@@ -50,11 +50,11 @@ export const HELP_GUIDE_TEXT = {
 · 履历与作品卡片：进入对应分区后增删改。
 
 【保存与分享前】
-· EditURL：改动同步到服务器发布版，HR 的 ViewURL 看到最新内容。
+· 编辑链接：改动同步到服务器发布版，HR 的只读链接看到最新内容。
 · 分享前自查：姓名、岗位、联系方式；至少 1 段教育与若干经历 / 作品；手机竖屏预览一遍。
 
 【常见问题】
-· 看不到编辑按钮 → 确认使用完整 EditURL（含 editToken），或联系管理员。
+· 看不到编辑按钮 → 确认使用完整编辑链接，或联系管理员。
 · 导入字段不对 → 手动改；尽量用文字版 PDF/Word。
 · 视频无法播放 → 用 YouTube / B站 公开页链接。
 · 页面点不动 → 刷新；若刚中断引导，也请先刷新。
@@ -63,7 +63,7 @@ export const HELP_GUIDE_TEXT = {
 [9 steps — matches the on-page guided tour]
 
 1) Nav & share
-   Top Home / Resume / Work scrolls smoothly; Share copies View URL, email, or QR for HR.
+   Top Home / Resume / Work scrolls smoothly; Share copies the read-only link, email, or QR for HR.
 
 2) Preview & guide
    Preview simulates HR read-only view; this dialog is the full guide; switch EN / 中文 when allowed.
@@ -88,7 +88,7 @@ export const HELP_GUIDE_TEXT = {
    Separate buttons: Link Security (edit PIN), View Log (HR opens).
 
 8) Share
-   Share: copy link (edit token stripped), QR, or email.
+   Share: copy read-only link, QR, or email.
    localhost links are not reachable for others — deploy first.
 
 9) Theme & background
@@ -108,11 +108,11 @@ export const HELP_GUIDE_TEXT = {
 · Resume & Work cards: edit in each section.
 
 [Save & pre-share]
-· Edit URL syncs to server publish; HR View URL shows latest content.
+· Edit link syncs to server publish; HR read-only link shows latest content.
 · Check name, role, contacts; education + experience/portfolio; preview on mobile.
 
 [FAQ]
-· No edit UI → use full Edit URL with editToken, or contact admin.
+· No edit UI → use your full edit link, or contact admin.
 · Import mismatch → edit manually; prefer text-based files.
 · Video fails → public YouTube / Bilibili URLs.
 · Page frozen → refresh, especially after interrupting the tour.

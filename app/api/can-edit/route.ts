@@ -52,9 +52,9 @@ export async function GET(request: NextRequest) {
         entitlements: entitlementsPayload(entitlements),
         ip: "",
         reason: canEdit
-          ? "编辑令牌已授权。"
+          ? "编辑链接已授权。"
           : !tokenOk
-            ? "缺少或无效的 editToken，当前链接仅可只读浏览。"
+          ? "缺少或无效的编辑链接，当前页面仅可只读浏览。"
             : !entitlements.active
               ? "套餐已到期，编辑与发布已暂停，请联系管理员续费。"
               : "当前套餐未包含在线编辑，请升级套餐。",

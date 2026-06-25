@@ -296,7 +296,7 @@ export function ShareResumeControl() {
                   <div className="mb-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5 text-[11px] leading-relaxed text-amber-950/90">
                     <p className="font-semibold">
                       {mode === "zh"
-                        ? "请用客户 EditURL 打开后再分享"
+                        ? "请用编辑链接打开后再分享"
                         : "Open with a customer Edit URL first"}
                     </p>
                     <p className="mt-1 text-amber-950/85">

@@ -168,8 +168,8 @@ export function LinkSecurityModal({ open, onClose }: Props) {
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-ink-muted">
           {mode === "zh"
-            ? "口令仅保护你的编辑链接（EditURL）。HR 使用的只读链接（ViewURL）无需口令，可直接浏览。"
-            : "PIN protects your edit link only. HR view links open without a PIN."}
+            ? "口令仅保护你的编辑链接。给 HR 的只读链接无需口令，可直接浏览。"
+            : "PIN protects your edit link only. The read-only link for HR opens without a PIN."}
         </p>
         <p className="mt-2 rounded-xl border border-line/80 bg-paper/60 px-3 py-2 text-[11px] leading-relaxed text-ink-muted">
           {privacyNotice("editPin", mode)}
@@ -181,8 +181,8 @@ export function LinkSecurityModal({ open, onClose }: Props) {
         {!scopeReady ? (
           <p className="mt-6 text-sm leading-relaxed text-red-700">
             {mode === "zh"
-              ? "当前页面不是完整的编辑链接（URL 须含 resumeId 与 editToken）。请从管理页复制 EditURL 打开后再设置口令。"
-              : "This page is not a full edit link (resumeId and editToken required). Open your Edit URL first."}
+              ? "当前页面不是完整的编辑链接。请从管理页复制编辑链接打开后再设置口令。"
+              : "This page is not a full edit link. Open your edit link from the admin page first."}
           </p>
         ) : loading ? (
           <p className="mt-6 text-sm text-ink-muted">

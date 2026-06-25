@@ -44,7 +44,7 @@ export const HR_VIEW_GUIDE: Record<HrViewGuideLang, HrViewGuideContent> = {
       },
       {
         title: "6. 隐私提示",
-        body: "页脚会匿名记录本次是否打开及大致地区，帮助候选人确认简历已送达；不保存您的 IP 明文，也无法识别具体身份。",
+        body: "页脚会匿名记录本次是否打开及大致地区，帮助候选人确认简历已送达；不保存完整 IP 地址，也无法识别您的具体身份。记录仅供候选人确认查看情况。",
       },
     ],
     footerNote: "本页为只读浏览，您无法编辑内容。如有疑问请联系发送链接的候选人。",
@@ -78,7 +78,7 @@ export const HR_VIEW_GUIDE: Record<HrViewGuideLang, HrViewGuideContent> = {
       },
       {
         title: "6. Privacy note",
-        body: "The footer logs that this page was opened and approximate region so the candidate knows it was seen—no raw IP or personal identity.",
+        body: "The footer logs that this page was opened and approximate region so the candidate knows it was seen—no full IP address or personal identity. Logs are for the candidate's confirmation only.",
       },
     ],
     footerNote: "This page is read-only. Contact the candidate who shared the link if you have questions.",

@@ -28,7 +28,7 @@ async function assertEditor(
           ok: false,
           error: "forbidden",
           message:
-            "请使用完整的编辑链接（URL 须含 editToken）设置口令；本地调试请从管理页复制 EditURL 打开。",
+            "请使用完整的编辑链接设置口令；本地调试请从管理页复制编辑链接打开。",
         },
         { status: 403 },
       ),
@@ -54,7 +54,7 @@ async function assertEditor(
           ok: false,
           error: "forbidden",
           message:
-            "编辑口令仅适用于客户专属链接（含 resumeId）。请从管理页复制 EditURL 后设置。",
+            "编辑口令仅适用于客户专属编辑链接。请从管理页复制编辑链接后设置。",
         },
         { status: 403 },
       ),
@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
     ok: true,
     pinEnabled: Boolean(meta?.accessPin),
     message: meta?.accessPin
-      ? "已启用编辑口令，打开 EditURL 时需输入口令。"
-      : "未设置编辑口令，EditURL 持链者可编辑；ViewURL 始终只读免口令。",
+      ? "已启用编辑口令，打开编辑链接时需输入口令。"
+      : "未设置编辑口令，持编辑链接者可编辑；只读链接始终免口令。",
   });
 }
 
