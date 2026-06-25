@@ -1,5 +1,6 @@
 "use client";
 
+import { SITE_PAPER_SECTION_X } from "@/components/SitePaperFrame";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { privacyNotice } from "@/lib/privacy-notices";
@@ -42,10 +43,8 @@ export function SiteFooter() {
 
   return (
     <footer
-      className={`border-t border-line/70 bg-paper text-left ${
-        readonlyVisitor
-          ? "px-6 sm:px-12"
-          : "px-6 py-8 sm:px-12"
+      className={`border-t border-line/45 bg-surface text-left ${SITE_PAPER_SECTION_X} ${
+        readonlyVisitor ? "" : "py-8"
       }`}
     >
       {hasContact ? (

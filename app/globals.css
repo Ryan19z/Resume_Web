@@ -303,3 +303,20 @@ html[data-theme="ocean"] {
   margin: 0 auto;
   overflow: hidden;
 }
+
+/* 整站白纸框：视口两侧露出页面背景，纸张略浮于桌面 */
+.site-paper-desk {
+  position: relative;
+}
+
+.site-paper-sheet {
+  position: relative;
+  isolation: isolate;
+}
+
+html[data-theme="ink"] .site-paper-sheet {
+  box-shadow:
+    0 1px 0 rgb(0 0 0 / 0.35),
+    0 8px 24px rgb(0 0 0 / 0.45),
+    0 24px 48px rgb(0 0 0 / 0.35);
+}

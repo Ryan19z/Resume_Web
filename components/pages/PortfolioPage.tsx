@@ -1,5 +1,6 @@
 "use client";
 
+import { SITE_PAPER_SECTION_X } from "@/components/SitePaperFrame";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { defaultSiteContent } from "@/lib/default-site-content";
@@ -393,7 +394,7 @@ export function PortfolioPage() {
     : pc;
 
   return (
-    <div className="px-5 pb-16 pt-14 sm:px-10 sm:pb-20 sm:pt-20 md:px-16 lg:px-24">
+    <div className={`${SITE_PAPER_SECTION_X} pb-16 pt-12 sm:pb-20 sm:pt-16 md:pt-20`}>
       <header className="mb-10 max-w-2xl">
         {canInline ? (
           <>

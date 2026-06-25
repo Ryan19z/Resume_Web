@@ -16,6 +16,7 @@ import { SiteTourAutoStart, SiteTourListener } from "@/components/SiteTourDriver
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import { TopUtilityBar } from "@/components/TopUtilityBar";
 import { VerticalScrollLayout } from "@/components/VerticalScrollLayout";
+import { SitePaperFrame } from "@/components/SitePaperFrame";
 import { AssetOptimizationBanner } from "@/components/AssetOptimizationBanner";
 import { LazyPageMount } from "@/components/LazyPageMount";
 import { HeroPage } from "@/components/pages/HeroPage";
@@ -105,10 +106,11 @@ export function HomeShell() {
       <HrQuickSummary />
       <HrViewGuide />
       <VerticalScrollLayout>
+        <SitePaperFrame>
         <section
           id="intro"
           aria-label={mode === "zh" ? "首页" : "Home"}
-          className="border-b border-line/50"
+          className="border-b border-line/45"
         >
           <HeroPage />
         </section>
@@ -116,7 +118,7 @@ export function HomeShell() {
           <section
             id="resume"
             aria-label={mode === "zh" ? "履历" : "Resume"}
-            className="border-b border-line/50"
+            className="border-b border-line/45"
           >
             <LazyPageMount
               sectionId="resume"
@@ -141,6 +143,7 @@ export function HomeShell() {
           </section>
         ) : null}
         <SiteFooter />
+        </SitePaperFrame>
       </VerticalScrollLayout>
       <ProfileSetupModal />
       <PageBackgroundModal />

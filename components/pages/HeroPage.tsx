@@ -1,6 +1,6 @@
 "use client";
 
-import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
+import { SITE_PAPER_SECTION_X } from "@/components/SitePaperFrame";
 import { HeroSpotlightModals } from "@/components/hero/HeroSpotlightModals";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
@@ -948,10 +948,10 @@ export function HeroPage() {
   }
 
   return (
-    <div className="relative px-6 pt-6 pb-12 sm:px-10 sm:pt-7 sm:pb-14 md:px-14 md:pt-8 md:pb-16 lg:px-16">
+    <div className={`relative ${SITE_PAPER_SECTION_X} pt-8 pb-10 sm:pt-10 sm:pb-12 md:pt-12 md:pb-14`}>
       <div
-        className={`mx-auto grid max-w-6xl grid-cols-1 gap-10 ${
-          showAside ? "lg:grid-cols-12 lg:items-start lg:gap-10" : ""
+        className={`mx-auto grid w-full grid-cols-1 gap-10 ${
+          showAside ? "lg:grid-cols-12 lg:items-start lg:gap-x-16 lg:gap-y-10" : ""
         }`}
       >
         <div className={`flex min-w-0 flex-col ${showAside ? "lg:col-span-7" : ""}`}>

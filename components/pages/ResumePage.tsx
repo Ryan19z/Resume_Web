@@ -1,5 +1,6 @@
 "use client";
 
+import { SITE_PAPER_SECTION_X } from "@/components/SitePaperFrame";
 import { EducationEditorPanel } from "@/components/EducationEditorPanel";
 import { ExperienceEditorModal } from "@/components/ExperienceEditorModal";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
@@ -305,7 +306,7 @@ export function ResumePage() {
   ]);
 
   return (
-    <div className="relative isolate px-5 pb-20 pt-14 sm:px-10 sm:pb-24 sm:pt-20 md:px-16 lg:px-24">
+    <div className={`relative isolate ${SITE_PAPER_SECTION_X} pb-16 pt-12 sm:pb-20 sm:pt-16 md:pt-20`}>
       <header className="mb-12 max-w-xl">
         {canInline ? (
           <>
