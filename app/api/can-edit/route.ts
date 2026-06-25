@@ -37,11 +37,12 @@ export async function GET(request: NextRequest) {
         ? await canEditByToken(resumeId, editToken)
         : false;
       const entitlements = await resolveEntitlements(resumeId);
-      const canEdit = tokenOk && entitlements.features.editing;
       const pinRequired = await shouldEnforceEditAccessPin(resumeId, editToken);
       const accessGatePassed = pinRequired
         ? await isAccessGatePassed(request, resumeId)
         : true;
+      const canEdit =
+        tokenOk && entitlements.features.editing && (!pinRequired || accessGatePassed);
       return NextResponse.json({
         canEdit,
         tokenAuthorized: tokenOk,

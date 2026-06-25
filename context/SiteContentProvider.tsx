@@ -25,6 +25,7 @@ import {
   applyMappedImportToSite,
   type MappedResumeImport,
 } from "@/lib/resume-parse-mapper";
+import { ACCESS_GATE_VERIFIED_EVENT } from "@/lib/access-pin-client";
 import { DEFAULT_CLIENT_ENTITLEMENTS } from "@/lib/client-entitlements";
 import type { ClientEntitlements } from "@/lib/subscription-types";
 import { newExperienceItem } from "@/lib/experience-factory";
@@ -129,6 +130,8 @@ type SiteContentContextValue = {
   canEdit: boolean;
   editPermissionLoaded: boolean;
   editPermissionHint: string;
+  accessGateRequired: boolean;
+  accessGatePassed: boolean;
   tokenAuthorized: boolean;
   subscriptionActive: boolean;
   resumeScopeActive: boolean;
@@ -257,6 +260,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const [canEdit, setCanEdit] = useState(false);
   const [editPermissionLoaded, setEditPermissionLoaded] = useState(false);
   const [editPermissionHint, setEditPermissionHint] = useState("");
+  const [accessGateRequired, setAccessGateRequired] = useState(false);
+  const [accessGatePassed, setAccessGatePassed] = useState(true);
   const [tokenAuthorized, setTokenAuthorized] = useState(false);
   const [subscriptionActive, setSubscriptionActive] = useState(true);
   const [entitlements, setEntitlements] = useState<ClientEntitlements>(
@@ -281,10 +286,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const siteRef = useRef(site);
   const editPermissionLoadedRef = useRef(editPermissionLoaded);
   const canEditRef = useRef(canEdit);
+  const accessGateRequiredRef = useRef(accessGateRequired);
+  const accessGatePassedRef = useRef(accessGatePassed);
   profileRef.current = profile;
   siteRef.current = site;
   editPermissionLoadedRef.current = editPermissionLoaded;
   canEditRef.current = canEdit;
+  accessGateRequiredRef.current = accessGateRequired;
+  accessGatePassedRef.current = accessGatePassed;
 
   const showPersistError = useCallback((message: string) => {
     setPersistError(message);
@@ -351,6 +360,11 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       }
 
       if (!canEditRef.current) {
+        if (localOk) dismissPersistError();
+        return;
+      }
+
+      if (accessGateRequiredRef.current && !accessGatePassedRef.current) {
         if (localOk) dismissPersistError();
         return;
       }
@@ -536,10 +550,16 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         canEdit?: boolean;
         tokenAuthorized?: boolean;
         subscriptionActive?: boolean;
+        accessGateRequired?: boolean;
+        accessGatePassed?: boolean;
         entitlements?: ClientEntitlements;
         reason?: string;
       };
-      setCanEdit(Boolean(d.canEdit));
+      const pinRequired = Boolean(d.accessGateRequired);
+      const pinPassed = d.accessGatePassed !== false;
+      setAccessGateRequired(pinRequired);
+      setAccessGatePassed(pinPassed);
+      setCanEdit(Boolean(d.canEdit) && (!pinRequired || pinPassed));
       setTokenAuthorized(Boolean(d.tokenAuthorized ?? d.canEdit));
       setSubscriptionActive(Boolean(d.subscriptionActive ?? true));
       if (d.entitlements && typeof d.entitlements === "object") {
@@ -573,6 +593,14 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshEntitlements();
+  }, [refreshEntitlements]);
+
+  useEffect(() => {
+    const onVerified = () => {
+      void refreshEntitlements();
+    };
+    window.addEventListener(ACCESS_GATE_VERIFIED_EVENT, onVerified);
+    return () => window.removeEventListener(ACCESS_GATE_VERIFIED_EVENT, onVerified);
   }, [refreshEntitlements]);
 
   const setPreviewMode = useCallback((v: boolean) => {
@@ -986,6 +1014,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       canEdit,
       editPermissionLoaded,
       editPermissionHint,
+      accessGateRequired,
+      accessGatePassed,
       tokenAuthorized,
       subscriptionActive,
       resumeScopeActive,
@@ -1044,6 +1074,8 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       canEdit,
       editPermissionLoaded,
       editPermissionHint,
+      accessGateRequired,
+      accessGatePassed,
       tokenAuthorized,
       subscriptionActive,
       resumeScopeActive,

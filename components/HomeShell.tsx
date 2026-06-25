@@ -1,5 +1,6 @@
 "use client";
 
+import { AccessPinBanner } from "@/components/AccessPinBanner";
 import { EditNetworkBanner } from "@/components/EditNetworkBanner";
 import { PersistErrorBanner } from "@/components/PersistErrorBanner";
 import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
@@ -92,6 +93,7 @@ export function HomeShell() {
       <ThemeSwitcher />
       <TopUtilityBar />
       <EditNetworkBanner />
+      <AccessPinBanner />
       <SiteLoadWarningBanner />
       <PersistErrorBanner />
       <AssetOptimizationBanner />

@@ -1,12 +1,20 @@
 "use client";
 
 import { useSiteContent } from "@/context/SiteContentProvider";
+import { isAccessPinErrorMessage } from "@/lib/access-pin-client";
 
 /** 本地快照写入失败时在顶栏下方提示（如图片过大导致 quota 超限） */
 export function PersistErrorBanner() {
-  const { persistError, dismissPersistError } = useSiteContent();
+  const { persistError, dismissPersistError, accessGateRequired, accessGatePassed } =
+    useSiteContent();
 
   if (!persistError) return null;
+  if (
+    isAccessPinErrorMessage(persistError) ||
+    (accessGateRequired && !accessGatePassed)
+  ) {
+    return null;
+  }
 
   return (
     <div className="pointer-events-auto fixed left-0 right-0 top-[3.65rem] z-[65] flex justify-center px-4 pt-1 print:hidden sm:top-14">

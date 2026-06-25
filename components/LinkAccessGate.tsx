@@ -1,17 +1,23 @@
 "use client";
 
+import {
+  ACCESS_GATE_VERIFIED_EVENT,
+  ACCESS_PIN_CONFIG_CHANGED_EVENT,
+  verifyEditAccessPin,
+} from "@/lib/access-pin-client";
 import { parseClientResumeScope } from "@/lib/resume-scope";
 import { useCallback, useEffect, useState } from "react";
 
 type GateState =
+  | { phase: "boot" }
   | { phase: "loading" }
   | { phase: "open" }
   | { phase: "locked"; message: string }
   | { phase: "denied"; message: string };
 
 export function LinkAccessGate({ children }: { children: React.ReactNode }) {
-  /** 首帧与 SSR 保持一致为 open，避免 window 上 resumeId 导致水合不匹配 */
-  const [gate, setGate] = useState<GateState>({ phase: "open" });
+  const [mounted, setMounted] = useState(false);
+  const [gate, setGate] = useState<GateState>({ phase: "boot" });
   const [pin, setPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,9 +33,10 @@ export function LinkAccessGate({ children }: { children: React.ReactNode }) {
       setGate({ phase: "open" });
       return;
     }
+    setGate({ phase: "loading" });
     const params = new URLSearchParams();
     params.set("resumeId", scope.resumeId);
-    if (scope.editToken) params.set("editToken", scope.editToken);
+    params.set("editToken", scope.editToken);
     if (scope.viewToken) params.set("viewToken", scope.viewToken);
     try {
       const r = await fetch(`/api/access-gate?${params}`, { cache: "no-store" });
@@ -65,52 +72,56 @@ export function LinkAccessGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const scope = parseClientResumeScope();
-    if (!scope.resumeId || !scope.editToken) return;
-    setGate({ phase: "loading" });
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     void checkGate();
-  }, [checkGate]);
+  }, [mounted, checkGate]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const onVerified = () => {
+      setPin("");
+      setError(null);
+      setGate({ phase: "open" });
+    };
+    const onConfigChanged = () => {
+      void checkGate();
+    };
+    window.addEventListener(ACCESS_GATE_VERIFIED_EVENT, onVerified);
+    window.addEventListener(ACCESS_PIN_CONFIG_CHANGED_EVENT, onConfigChanged);
+    return () => {
+      window.removeEventListener(ACCESS_GATE_VERIFIED_EVENT, onVerified);
+      window.removeEventListener(ACCESS_PIN_CONFIG_CHANGED_EVENT, onConfigChanged);
+    };
+  }, [mounted, checkGate]);
 
   const submitPin = async () => {
-    const scope = parseClientResumeScope();
-    if (!scope.resumeId || !pin.trim()) return;
     setSubmitting(true);
     setError(null);
-    try {
-      const r = await fetch("/api/access-gate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          resumeId: scope.resumeId,
-          pin: pin.trim(),
-          editToken: scope.editToken,
-          viewToken: scope.viewToken,
-        }),
-      });
-      const d = (await r.json()) as { ok?: boolean; message?: string };
-      if (!r.ok || !d.ok) {
-        setError(d.message ?? "口令错误");
-        return;
-      }
-      setPin("");
-      setGate({ phase: "open" });
-    } catch {
-      setError("验证失败，请重试。");
-    } finally {
+    const result = await verifyEditAccessPin(pin);
+    if (!result.ok) {
+      setError(result.message ?? "口令错误");
       setSubmitting(false);
+      return;
     }
+    setPin("");
+    setGate({ phase: "open" });
+    setSubmitting(false);
   };
 
-  if (gate.phase === "open") {
-    return <>{children}</>;
-  }
-
-  if (gate.phase === "loading") {
+  if (!mounted || gate.phase === "boot" || gate.phase === "loading") {
     return (
       <div className="flex min-h-[100dvh] items-center justify-center bg-paper text-sm text-ink-muted">
         正在验证访问权限…
       </div>
     );
+  }
+
+  if (gate.phase === "open") {
+    return <>{children}</>;
   }
 
   if (gate.phase === "denied") {

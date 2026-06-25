@@ -8,6 +8,7 @@ import {
   appendResumeScopeToPath,
   parseClientResumeScope,
 } from "@/lib/resume-scope";
+import { notifyAccessPinConfigChanged } from "@/lib/access-pin-client";
 import { motion } from "framer-motion";
 import { useCallback, useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
@@ -104,6 +105,7 @@ export function LinkSecurityModal({ open, onClose }: Props) {
       setPin("");
       setConfirmPin("");
       setMessage(data.message ?? "已保存。");
+      notifyAccessPinConfigChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "保存失败");
     } finally {
@@ -135,6 +137,7 @@ export function LinkSecurityModal({ open, onClose }: Props) {
       }
       setPinEnabled(false);
       setMessage(data.message ?? "已关闭。");
+      notifyAccessPinConfigChanged();
     } catch (e) {
       setError(e instanceof Error ? e.message : "操作失败");
     } finally {
