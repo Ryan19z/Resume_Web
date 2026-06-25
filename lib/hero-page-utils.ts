@@ -242,7 +242,7 @@ export type VisitorAsideView = "showcase" | "portrait";
 
 export type AsideTabView = VisitorAsideView | "hidden";
 
-/** 编辑/预览：根据实际上传内容决定展示哪些切换按钮 */
+/** 预览/HR：根据实际上传内容决定展示哪些切换按钮（编辑模式始终显示全部选项） */
 export function resolveAsideTabViews(options: {
   spotlightTitle: string;
   spotlightSummary: string;
@@ -274,14 +274,7 @@ export function resolveEffectiveAsidePanel(options: {
 }): HeroAsideMode {
   const { canInline, heroAsideMode, visitorAside, visitorAsideView } = options;
   if (canInline) {
-    if (heroAsideMode === "hidden") return "hidden";
-    const hasShowcase = visitorAside.views.includes("showcase");
-    const hasPortrait = visitorAside.views.includes("portrait");
-    if (heroAsideMode === "showcase" && hasShowcase) return "showcase";
-    if (heroAsideMode === "portrait" && hasPortrait) return "portrait";
-    if (hasPortrait) return "portrait";
-    if (hasShowcase) return "showcase";
-    return "hidden";
+    return heroAsideMode;
   }
   if (!visitorAside.show || !visitorAside.defaultView) return "hidden";
   if (visitorAsideView && visitorAside.views.includes(visitorAsideView)) {

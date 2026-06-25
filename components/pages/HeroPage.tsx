@@ -12,7 +12,6 @@ import {
   parseContactEntries,
   resolveHeroAsideMode,
   resolveVisitorAside,
-  resolveAsideTabViews,
   resolveEffectiveAsidePanel,
   hasShowcaseContent,
   hasPortraitContent,
@@ -39,6 +38,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000;
+
+const EDITOR_ASIDE_TABS: HeroAsideMode[] = ["showcase", "portrait", "hidden"];
 
 function buildSpotlightMediaLinksFromSite(
   sp: HeroSpotlight,
@@ -565,28 +566,9 @@ export function HeroPage() {
       portraitUrl,
     ],
   );
-  const asideTabViews = useMemo(
-    () =>
-      resolveAsideTabViews({
-        spotlightTitle,
-        spotlightSummary,
-        mediaLinks: spotlightMediaLinks,
-        spotlightCode,
-        portraitUrl,
-        includeHidden: canInline,
-      }),
-    [
-      canInline,
-      spotlightTitle,
-      spotlightSummary,
-      spotlightMediaLinks,
-      spotlightCode,
-      portraitUrl,
-    ],
-  );
   const showAside = useMemo(
-    () => (canInline ? asideTabViews.length > 0 : visitorAside.show),
-    [canInline, asideTabViews.length, visitorAside.show],
+    () => (canInline ? true : visitorAside.show),
+    [canInline, visitorAside.show],
   );
   const effectiveAsidePanel = useMemo(
     (): HeroAsideMode =>
@@ -1587,14 +1569,14 @@ export function HeroPage() {
                   {i18n.asideModeLabel}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {asideTabViews.map((value) => {
+                  {EDITOR_ASIDE_TABS.map((value) => {
                     const label =
                       value === "showcase"
                         ? i18n.asideModeShowcase
                         : value === "portrait"
                           ? i18n.asideModePortrait
                           : i18n.asideModeHidden;
-                    const active = effectiveAsidePanel === value;
+                    const active = heroAsideMode === value;
                     return (
                       <button
                         key={value}
@@ -1711,7 +1693,7 @@ export function HeroPage() {
                 ) : null}
                 {portraitUrl.trim() ? (
                   <div
-                    className={`mx-auto max-w-[220px] overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : "mt-2"}`}
+                    className={`mx-auto w-full max-w-[300px] overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : "mt-2"}`}
                   >
                     <button
                       type="button"
@@ -1722,7 +1704,7 @@ export function HeroPage() {
                       <img
                         src={portraitUrl.trim()}
                         alt={portraitCaption.trim() || i18n.portraitAlt}
-                        className="aspect-[3/4] max-h-[280px] w-full object-cover object-top transition-opacity group-hover:opacity-95"
+                        className="aspect-[3/4] max-h-[400px] w-full object-cover object-top transition-opacity group-hover:opacity-95"
                         loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
