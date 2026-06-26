@@ -3,17 +3,75 @@
 import { SITE_PAPER_SECTION_X } from "@/components/SitePaperFrame";
 import { EducationEditorPanel } from "@/components/EducationEditorPanel";
 import { ExperienceEditorModal } from "@/components/ExperienceEditorModal";
+import { RepresentativeProjectOverlay } from "@/components/RepresentativeProjectOverlay";
+import { useInteractionMode } from "@/context/InteractionModeProvider";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { defaultSiteContent } from "@/lib/default-site-content";
+import {
+  educationCardHasMoreBullets,
+  experienceCardHasMoreKeyResults,
+  getEducationCardBullets,
+  getExperienceCardKeyResults,
+} from "@/lib/experience-card-display";
 import { SEAMLESS_INPUT } from "@/lib/inline-edit-styles";
-import type { EducationItem, ExperienceItem } from "@/lib/types";
+import {
+  representativeProjectHasOpenableMedia,
+  representativeProjectMediaLabel,
+} from "@/lib/representative-project-labels";
+import type { EducationItem, ExperienceItem, RepresentativeProject } from "@/lib/types";
 import { resolveEducationDisplay } from "@/lib/education-display";
+import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
+
+function SpreadRepProjectItem({
+  project,
+  locale,
+  onOpenRepProject,
+}: {
+  project: RepresentativeProject;
+  locale: "zh" | "en";
+  onOpenRepProject: (project: RepresentativeProject) => void;
+}) {
+  const openable = representativeProjectHasOpenableMedia(project.media);
+  const mediaLabel = project.media
+    ? representativeProjectMediaLabel(project.media, locale)
+    : "";
+
+  if (!openable) {
+    return (
+      <div className="rounded-lg border border-line/70 bg-paper/45 px-3 py-2 text-sm leading-relaxed">
+        <span className="font-medium text-ink">{project.title}</span>
+        {project.description?.trim() ? (
+          <span className="text-ink-muted"> — {project.description.trim()}</span>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpenRepProject(project);
+      }}
+      className="micro-card w-full rounded-lg border border-line/70 bg-paper/45 px-3 py-2.5 text-left transition-colors hover:border-[rgb(var(--selection)/0.28)] hover:bg-[rgb(var(--selection)/0.06)]"
+    >
+      <span className="font-medium text-ink">{project.title}</span>
+      {project.description?.trim() ? (
+        <span className="text-ink-muted"> — {project.description.trim()}</span>
+      ) : null}
+      <p className="mt-1.5 text-[12px] font-medium text-[rgb(var(--selection))]">
+        {locale === "zh" ? `点击查看${mediaLabel} →` : `View ${mediaLabel} →`}
+      </p>
+    </button>
+  );
+}
 
 const listVariants = {
   hidden: {},
@@ -31,6 +89,108 @@ const itemVariants = {
   },
 };
 
+function ExperienceCardBody({
+  item,
+  hrSpreadMode,
+  cardCta,
+  keyResultsHeading,
+  repProjectsHeading,
+  locale,
+  onOpenRepProject,
+}: {
+  item: ExperienceItem;
+  hrSpreadMode: boolean;
+  cardCta: string;
+  keyResultsHeading: string;
+  repProjectsHeading: string;
+  locale: "zh" | "en";
+  onOpenRepProject: (project: RepresentativeProject) => void;
+}) {
+  const summary = item.summary?.trim() ?? "";
+  const keyResults = getExperienceCardKeyResults(item, hrSpreadMode);
+  const hasMoreResults =
+    !hrSpreadMode && experienceCardHasMoreKeyResults(item);
+  const repProjects = (item.representativeProjects ?? []).filter(
+    (p) => p.title?.trim() || p.description?.trim(),
+  );
+  const showRepList = hrSpreadMode && repProjects.length > 0;
+  const openableRepCount = repProjects.filter((p) =>
+    representativeProjectHasOpenableMedia(p.media),
+  ).length;
+
+  return (
+    <>
+      {summary ? (
+        <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
+          {summary}
+        </p>
+      ) : null}
+      {keyResults.length > 0 ? (
+        <div className="mt-3">
+          {hrSpreadMode ? (
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+              {keyResultsHeading}
+            </p>
+          ) : null}
+          <ul className="flex flex-col gap-1.5">
+            {keyResults.map((line, i) => (
+              <li
+                key={`${item.id}-kr-${i}`}
+                className="flex gap-2.5 text-sm leading-relaxed text-ink/88"
+              >
+                <span
+                  className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-ink/35"
+                  aria-hidden
+                />
+                <span>{line}</span>
+              </li>
+            ))}
+          </ul>
+          {hasMoreResults ? (
+            <p className="mt-2 text-[12px] text-ink-muted">
+              {locale === "zh"
+                ? `还有 ${(item.keyResults ?? []).filter((x) => String(x ?? "").trim()).length - keyResults.length} 条成果，可开启 HR 摊开模式或点击查看详情`
+                : `${(item.keyResults ?? []).filter((x) => String(x ?? "").trim()).length - keyResults.length} more outcomes — enable HR spread mode or open details`}
+            </p>
+          ) : null}
+        </div>
+      ) : !summary ? (
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          {locale === "zh" ? "点击查看详细成果与代表项目。" : "Open for outcomes and projects."}
+        </p>
+      ) : null}
+      {showRepList ? (
+        <div className="mt-4 border-t border-line/60 pt-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+            {repProjectsHeading}
+          </p>
+          <ul className="mt-2 space-y-2">
+            {repProjects.map((project) => (
+              <li key={project.id}>
+                <SpreadRepProjectItem
+                  project={project}
+                  locale={locale}
+                  onOpenRepProject={onOpenRepProject}
+                />
+              </li>
+            ))}
+          </ul>
+          {openableRepCount > 0 ? (
+            <p className="mt-2 text-[11px] text-ink-muted">
+              {locale === "zh"
+                ? "点击上方项目可直接预览图片、视频或文档"
+                : "Tap a project above to preview images, video, or documents"}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {!hrSpreadMode ? (
+        <p className="mt-4 text-[13px] font-medium text-ink-muted">{cardCta}</p>
+      ) : null}
+    </>
+  );
+}
+
 function ExperienceSection({
   items,
   onOpen,
@@ -42,6 +202,11 @@ function ExperienceSection({
   sectionEyebrow,
   cardCta,
   headerExtra,
+  hrSpreadMode,
+  keyResultsHeading,
+  repProjectsHeading,
+  locale,
+  onOpenRepProject,
 }: {
   items: ExperienceItem[];
   onOpen: (id: string) => void;
@@ -53,6 +218,11 @@ function ExperienceSection({
   sectionEyebrow: ReactNode;
   cardCta: string;
   headerExtra?: ReactNode;
+  hrSpreadMode: boolean;
+  keyResultsHeading: string;
+  repProjectsHeading: string;
+  locale: "zh" | "en";
+  onOpenRepProject: (project: RepresentativeProject) => void;
 }) {
   return (
     <div className="mb-14">
@@ -70,13 +240,6 @@ function ExperienceSection({
         animate="show"
       >
         {items.map((c) => (
-          (() => {
-            const cardSummary =
-              c.summary?.trim() ||
-              (Array.isArray(c.keyResults) && c.keyResults.length > 0
-                ? c.keyResults[0]
-                : "");
-            return (
           <motion.li
             key={c.id}
             role="listitem"
@@ -84,10 +247,17 @@ function ExperienceSection({
             className="micro-card list-none rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(0,0,0,0.08)] backdrop-blur-sm print:break-inside-avoid"
           >
             <div className="flex flex-col sm:flex-row">
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpen(c.id)}
-                className="flex-1 px-6 py-5 text-left transition-colors hover:bg-ink/[0.03]"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpen(c.id);
+                  }
+                }}
+                className="flex-1 cursor-pointer px-6 py-5 text-left transition-colors hover:bg-ink/[0.03]"
               >
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                   <h3 className="text-base font-semibold tracking-[-0.01em]">
@@ -98,15 +268,16 @@ function ExperienceSection({
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-ink-muted">{c.subtitle}</p>
-                {cardSummary ? (
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
-                    {cardSummary}
-                  </p>
-                ) : null}
-                <p className="mt-4 text-[13px] font-medium text-ink-muted">
-                  {cardCta}
-                </p>
-              </button>
+                <ExperienceCardBody
+                  item={c}
+                  hrSpreadMode={hrSpreadMode}
+                  cardCta={cardCta}
+                  keyResultsHeading={keyResultsHeading}
+                  repProjectsHeading={repProjectsHeading}
+                  locale={locale}
+                  onOpenRepProject={onOpenRepProject}
+                />
+              </div>
               {showExpEdit ? (
                 <div className="flex shrink-0 border-t border-line print:hidden sm:border-l sm:border-t-0">
                   <button
@@ -127,8 +298,6 @@ function ExperienceSection({
               ) : null}
             </div>
           </motion.li>
-            );
-          })()
         ))}
       </motion.ul>
     </div>
@@ -139,10 +308,18 @@ function EducationSection({
   items,
   onOpen,
   cardCta,
+  hrSpreadMode,
+  locale,
+  repProjectsHeading,
+  onOpenRepProject,
 }: {
   items: EducationItem[];
   onOpen: (id: string) => void;
   cardCta: string;
+  hrSpreadMode: boolean;
+  locale: "zh" | "en";
+  repProjectsHeading: string;
+  onOpenRepProject: (project: RepresentativeProject) => void;
 }) {
   return (
     <div>
@@ -155,6 +332,15 @@ function EducationSection({
       >
         {items.map((c) => {
           const { school, major } = resolveEducationDisplay(c);
+          const bullets = getEducationCardBullets(c.campusHighlights ?? [], hrSpreadMode);
+          const hasMoreBullets =
+            !hrSpreadMode && educationCardHasMoreBullets(c.campusHighlights ?? []);
+          const repProjects = (c.representativeProjects ?? []).filter(
+            (p) => p.title?.trim() || p.description?.trim(),
+          );
+          const openableRepCount = repProjects.filter((p) =>
+            representativeProjectHasOpenableMedia(p.media),
+          ).length;
           return (
           <motion.li
             key={c.id}
@@ -162,10 +348,17 @@ function EducationSection({
             variants={itemVariants}
             className="list-none print:break-inside-avoid"
           >
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => onOpen(c.id)}
-              className="micro-card w-full rounded-2xl border border-line bg-surface px-6 py-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-transform duration-200 hover:border-[rgb(var(--selection)/0.25)] active:scale-[0.99]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpen(c.id);
+                }
+              }}
+              className="micro-card w-full cursor-pointer rounded-2xl border border-line bg-surface px-6 py-5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.08)] backdrop-blur-sm transition-transform duration-200 hover:border-[rgb(var(--selection)/0.25)] active:scale-[0.99]"
             >
               <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
                 <h3 className="text-base font-semibold tracking-[-0.01em]">
@@ -176,10 +369,65 @@ function EducationSection({
                 </span>
               </div>
               <p className="mt-1 text-sm text-ink-muted">{major}</p>
-              <p className="mt-4 text-[13px] font-medium text-ink-muted">
-                {cardCta}
-              </p>
-            </button>
+              {c.summary?.trim() ? (
+                <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-ink/85">
+                  {c.summary.trim()}
+                </p>
+              ) : null}
+              {bullets.length > 0 ? (
+                <ul className={`flex flex-col gap-1.5 ${c.summary?.trim() ? "mt-3" : "mt-3"}`}>
+                  {bullets.map((line, i) => (
+                    <li
+                      key={`${c.id}-edu-${i}`}
+                      className="flex gap-2.5 text-sm leading-relaxed text-ink/88"
+                    >
+                      <span
+                        className="mt-[0.55rem] h-1 w-1 shrink-0 rounded-full bg-ink/35"
+                        aria-hidden
+                      />
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {hasMoreBullets ? (
+                <p className="mt-2 text-[12px] text-ink-muted">
+                  {locale === "zh"
+                    ? "还有更多校园成果，可开启 HR 摊开模式或点击查看详情"
+                    : "More campus highlights — enable HR spread mode or open details"}
+                </p>
+              ) : null}
+              {hrSpreadMode && repProjects.length > 0 ? (
+                <div className="mt-4 border-t border-line/60 pt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-muted">
+                    {repProjectsHeading}
+                  </p>
+                  <ul className="mt-2 space-y-2">
+                    {repProjects.map((project) => (
+                      <li key={project.id}>
+                        <SpreadRepProjectItem
+                          project={project}
+                          locale={locale}
+                          onOpenRepProject={onOpenRepProject}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                  {openableRepCount > 0 ? (
+                    <p className="mt-2 text-[11px] text-ink-muted">
+                      {locale === "zh"
+                        ? "点击上方项目可直接预览图片、视频或文档"
+                        : "Tap a project above to preview images, video, or documents"}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+              {!hrSpreadMode ? (
+                <p className="mt-4 text-[13px] font-medium text-ink-muted">
+                  {cardCta}
+                </p>
+              ) : null}
+            </div>
           </motion.li>
         );
         })}
@@ -190,6 +438,20 @@ function EducationSection({
 
 export function ResumePage() {
   const { mode } = useLanguageMode();
+  const { hrSpreadMode } = useInteractionMode();
+  const [activeRepProject, setActiveRepProject] =
+    useState<RepresentativeProject | null>(null);
+  useBodyScrollLock(Boolean(activeRepProject));
+
+  useEffect(() => {
+    if (!activeRepProject) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveRepProject(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [activeRepProject]);
+
   const {
     site,
     openExperienceDetail,
@@ -385,6 +647,11 @@ export function ResumePage() {
             )
           }
           cardCta={canInline ? expCardCta : rc.experienceCardCta}
+          hrSpreadMode={hrSpreadMode}
+          keyResultsHeading={rc.keyResultsHeading}
+          repProjectsHeading={rc.repProjectsHeading}
+          locale={mode}
+          onOpenRepProject={setActiveRepProject}
           headerExtra={
             showAuthorTools ? (
               <button
@@ -423,6 +690,11 @@ export function ResumePage() {
             <span>{rc.projectExperienceSectionEyebrow ?? "项目经历"}</span>
           }
           cardCta={mode === "zh" ? "查看项目详情 →" : "View project →"}
+          hrSpreadMode={hrSpreadMode}
+          keyResultsHeading={rc.keyResultsHeading}
+          repProjectsHeading={rc.repProjectsHeading}
+          locale={mode}
+          onOpenRepProject={setActiveRepProject}
           headerExtra={
             showAuthorTools ? (
               <button
@@ -519,6 +791,10 @@ export function ResumePage() {
             items={education}
             onOpen={openEducationDetail}
             cardCta={canInline ? eduCardCta : rc.educationCardCta}
+            hrSpreadMode={hrSpreadMode}
+            locale={mode}
+            repProjectsHeading={rc.repProjectsHeading}
+            onOpenRepProject={setActiveRepProject}
           />
         )}
       </div>
@@ -529,6 +805,11 @@ export function ResumePage() {
         experienceId={expEditorId}
         section={expEditorSection}
         onClose={() => setExpEditorId(null)}
+      />
+      <RepresentativeProjectOverlay
+        project={activeRepProject}
+        onClose={() => setActiveRepProject(null)}
+        locale={mode}
       />
     </div>
   );

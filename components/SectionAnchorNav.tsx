@@ -8,7 +8,7 @@ const NAV_CLASS =
 
 /** 占位高度须与导航栏总高约一致（含安全区上边距） */
 const SPACER_STYLE = {
-  height: "calc(2.875rem + env(safe-area-inset-top, 0px))",
+  height: "calc(2.5rem + env(safe-area-inset-top, 0px))",
 } as const;
 
 /**

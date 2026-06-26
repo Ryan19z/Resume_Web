@@ -509,10 +509,12 @@ export function HeroPage() {
         ? "当前链接不是可直接播放的视频流。B站/YouTube 网页链接会自动嵌入，其它请使用 .mp4/.webm 直链。"
         : "This URL is not a direct playable stream. Bilibili/YouTube pages are auto-embedded, otherwise use a direct .mp4/.webm URL.",
     openInNewTab: mode === "zh" ? "新窗口打开" : "Open in new tab",
-    hdPreview: mode === "zh" ? "高清预览" : "HD preview",
     hdPreviewTitle: mode === "zh" ? "高清内容预览" : "HD content preview",
-    hdPreviewHint:
-      mode === "zh" ? "点击可全屏查看细节" : "Open full-screen detail view",
+    portraitZoomHint:
+      mode === "zh" ? "双击放大查看" : "Double-click to zoom",
+    portraitZoomTitle: mode === "zh" ? "证件照放大预览" : "Zoomed portrait",
+    mediaZoomHint:
+      mode === "zh" ? "双击放大查看" : "Double-click to zoom",
     galleryUploadHint:
       mode === "zh"
         ? "可一次选择多张照片，支持多次追加与删除。"
@@ -733,6 +735,19 @@ export function HeroPage() {
     () => setPortraitHdPreviewOpen(false),
     [],
   );
+  const openSpotlightHdPreview = useCallback(() => {
+    if (
+      spotlightPreview.kind === "video" &&
+      resolvedVideo?.mode === "direct" &&
+      inlineVideoRef.current
+    ) {
+      videoResumeSnapshotRef.current = readVideoSnapshotFn(
+        inlineVideoRef.current,
+      );
+      inlineVideoRef.current.pause();
+    }
+    setSpotlightHdPreviewOpen(true);
+  }, [spotlightPreview.kind, resolvedVideo?.mode, readVideoSnapshotFn]);
   const onBeforeCloseHdPreview = useCallback(() => {
     if (resolvedVideo?.mode === "direct" && hdVideoRef.current) {
       videoResumeSnapshotRef.current = readVideoSnapshotFn(hdVideoRef.current);
@@ -948,13 +963,13 @@ export function HeroPage() {
   }
 
   return (
-    <div className={`relative ${SITE_PAPER_SECTION_X} pt-8 pb-10 sm:pt-10 sm:pb-12 md:pt-12 md:pb-14`}>
+    <div className={`relative ${SITE_PAPER_SECTION_X} pt-6 pb-10 sm:pt-7 sm:pb-12 md:pt-8 md:pb-14`}>
       <div
         className={`mx-auto grid w-full grid-cols-1 gap-10 ${
-          showAside ? "lg:grid-cols-12 lg:items-start lg:gap-x-16 lg:gap-y-10" : ""
+          showAside ? "lg:grid-cols-12 lg:items-start lg:gap-x-12 lg:gap-y-10" : ""
         }`}
       >
-        <div className={`flex min-w-0 flex-col ${showAside ? "lg:col-span-7" : ""}`}>
+        <div className={`flex min-w-0 flex-col ${showAside ? "lg:col-span-8" : ""}`}>
           <motion.div
             id="tour-hero-edit"
             initial={false}
@@ -1552,7 +1567,7 @@ export function HeroPage() {
 
         {showAside ? (
         <motion.aside
-          className="min-w-0 lg:col-span-5 lg:pt-0"
+          className="min-w-0 lg:col-span-4 lg:pt-0"
           initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{
@@ -1562,7 +1577,7 @@ export function HeroPage() {
             delay: 0.05,
           }}
         >
-          <div className="rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_12px_24px_-20px_rgba(0,0,0,0.28)]">
+          <div className="rounded-2xl border border-line bg-surface p-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.08),0_12px_24px_-20px_rgba(0,0,0,0.28)]">
             {canInline ? (
               <div className="mb-4">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
@@ -1693,36 +1708,36 @@ export function HeroPage() {
                 ) : null}
                 {portraitUrl.trim() ? (
                   <div
-                    className={`mx-auto w-full max-w-[300px] overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : "mt-2"}`}
+                    className={`mx-auto w-full max-w-[220px] overflow-hidden rounded-xl border border-line/90 bg-paper/55 p-2 ${canInline ? "mt-4" : "mt-2"}`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setPortraitHdPreviewOpen(true)}
-                      className="group block w-full overflow-hidden rounded-lg text-left"
-                      title={i18n.hdPreviewHint}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      className="group block w-full cursor-zoom-in overflow-hidden rounded-lg"
+                      title={i18n.portraitZoomHint}
+                      onDoubleClick={() => setPortraitHdPreviewOpen(true)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setPortraitHdPreviewOpen(true);
+                        }
+                      }}
                     >
                       <img
                         src={portraitUrl.trim()}
                         alt={portraitCaption.trim() || i18n.portraitAlt}
-                        className="aspect-[3/4] max-h-[400px] w-full object-cover object-top transition-opacity group-hover:opacity-95"
+                        className="aspect-[3/4] max-h-[300px] w-full object-cover object-top transition-opacity group-hover:opacity-95"
                         loading="lazy"
                         decoding="async"
                         referrerPolicy="no-referrer"
+                        draggable={false}
                       />
-                    </button>
+                    </div>
                     {portraitCaption.trim() ? (
-                      <p className="mt-2 px-1 text-center text-sm text-ink-muted">
+                      <p className="mt-2 px-1 text-center text-xs leading-relaxed text-ink-muted">
                         {portraitCaption.trim()}
                       </p>
                     ) : null}
-                    <button
-                      type="button"
-                      onClick={() => setPortraitHdPreviewOpen(true)}
-                      className="mt-2 w-full rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
-                      title={i18n.hdPreviewHint}
-                    >
-                      {i18n.hdPreview}
-                    </button>
                   </div>
                 ) : canInline ? (
                   <div className="mt-4 rounded-xl border border-dashed border-line/80 bg-paper/50 px-4 py-8 text-center text-sm text-ink-muted">
@@ -1988,16 +2003,21 @@ export function HeroPage() {
               ) : null}
 
               {spotlightPreview.kind === "gallery" && galleryUrls.length > 0 ? (
-                <div className="max-h-[420px] overflow-hidden rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1">
-                  <div className="relative">
+                <div className="max-h-[360px] overflow-hidden rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1">
+                  <div
+                    className="relative cursor-zoom-in"
+                    title={i18n.mediaZoomHint}
+                    onDoubleClick={openSpotlightHdPreview}
+                  >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={activeGalleryUrl}
                       alt={spotlightTitle}
-                      className="h-auto max-h-[360px] w-full rounded-md object-contain"
+                      className="h-auto max-h-[300px] w-full rounded-md object-contain"
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
+                      draggable={false}
                     />
                     {galleryUrls.length > 1 ? (
                       <>
@@ -2051,87 +2071,63 @@ export function HeroPage() {
                       </div>
                     </div>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => setSpotlightHdPreviewOpen(true)}
-                    className="mt-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
-                    title={i18n.hdPreviewHint}
-                  >
-                    {i18n.hdPreview}
-                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "image" && spotlightPreview.url ? (
-                <div className="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1">
+                <div
+                  className="max-h-[360px] cursor-zoom-in overflow-auto rounded-lg border border-line/60 bg-[#0b0f19]/5 p-1"
+                  title={i18n.mediaZoomHint}
+                  onDoubleClick={openSpotlightHdPreview}
+                >
                   <img
                     src={spotlightPreview.url}
                     alt={spotlightTitle}
-                    className="h-auto w-full rounded-md object-contain"
+                    className="h-auto max-h-[300px] w-full rounded-md object-contain"
                     loading="lazy"
                   decoding="async"
                   referrerPolicy="no-referrer"
+                  draggable={false}
                 />
-                  <button
-                    type="button"
-                    onClick={() => setSpotlightHdPreviewOpen(true)}
-                    className="mt-2 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
-                    title={i18n.hdPreviewHint}
-                  >
-                    {i18n.hdPreview}
-                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "video" &&
               spotlightPreview.url &&
               resolvedVideo?.mode === "embed" ? (
-                <div className="overflow-hidden rounded-lg border border-line/60 bg-black/80">
+                <div
+                  className="cursor-zoom-in overflow-hidden rounded-lg border border-line/60 bg-black/80"
+                  title={i18n.mediaZoomHint}
+                  onDoubleClick={openSpotlightHdPreview}
+                >
                   <div className="aspect-video w-full">
                     <iframe
                       src={resolvedVideo.src}
                       title={spotlightTitle || "embedded video"}
-                      className="h-full w-full"
+                      className="h-full w-full pointer-events-none"
                       loading="lazy"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
                       allowFullScreen
                       referrerPolicy="no-referrer"
                     />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setSpotlightHdPreviewOpen(true)}
-                    className="m-2 rounded-full border border-line/70 bg-surface/90 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
-                    title={i18n.hdPreviewHint}
-                  >
-                    {i18n.hdPreview}
-                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "video" &&
               spotlightPreview.url &&
               resolvedVideo?.mode === "direct" ? (
-                <div className="max-h-[420px] overflow-auto rounded-lg border border-line/60 bg-black/80 p-1">
+                <div
+                  className="max-h-[360px] cursor-zoom-in overflow-auto rounded-lg border border-line/60 bg-black/80 p-1"
+                  title={i18n.mediaZoomHint}
+                  onDoubleClick={openSpotlightHdPreview}
+                >
                   <video
                     ref={inlineVideoRef}
                     src={resolvedVideo.src}
                     controls
                     preload="metadata"
                     playsInline
-                    className="h-auto max-h-[410px] w-full rounded-md object-contain"
+                    className="h-auto max-h-[300px] w-full rounded-md object-contain"
+                    onClick={(e) => e.stopPropagation()}
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (inlineVideoRef.current) {
-                        videoResumeSnapshotRef.current = readVideoSnapshotFn(inlineVideoRef.current);
-                        inlineVideoRef.current.pause();
-                      }
-                      setSpotlightHdPreviewOpen(true);
-                    }}
-                    className="mt-2 rounded-full border border-line/70 bg-surface/90 px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:border-ink/20"
-                    title={i18n.hdPreviewHint}
-                  >
-                    {i18n.hdPreview}
-                  </button>
                 </div>
               ) : null}
               {spotlightPreview.kind === "video" &&
@@ -2229,6 +2225,7 @@ export function HeroPage() {
           qrZoomTitle: i18n.qrZoomTitle,
           qrZoomClose: i18n.qrZoomClose,
           hdPreviewTitle: i18n.hdPreviewTitle,
+          portraitZoomTitle: i18n.portraitZoomTitle,
           galleryPrev: i18n.galleryPrev,
           galleryNext: i18n.galleryNext,
           galleryCount: i18n.galleryCount,

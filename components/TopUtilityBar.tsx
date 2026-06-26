@@ -1,5 +1,6 @@
 "use client";
 
+import { HrSpreadModeToggle } from "@/components/HrSpreadModeToggle";
 import {
   dispatchStartSiteTour,
   forceTeardownDriverTourDom,
@@ -73,10 +74,7 @@ export function TopUtilityBar() {
     <>
       <div
         id="tour-top-actions"
-        className="fixed right-3 z-[61] flex flex-col items-end gap-2 print:hidden sm:right-5"
-        style={{
-          top: "calc(3.35rem + env(safe-area-inset-top, 0px))",
-        }}
+        className="pointer-events-auto fixed right-3 top-[calc(2.5rem+env(safe-area-inset-top,0px)+0.35rem)] z-[65] flex flex-col items-end gap-2 print:hidden sm:right-5 sm:top-[calc(3.35rem+env(safe-area-inset-top,0px))] sm:z-[61]"
       >
         {editPermissionLoaded && canEdit ? (
           <button
@@ -97,6 +95,7 @@ export function TopUtilityBar() {
                 : "Preview"}
           </button>
         ) : null}
+        {editPermissionLoaded ? <HrSpreadModeToggle /> : null}
         {showLangSwitch ? (
           <button
             type="button"

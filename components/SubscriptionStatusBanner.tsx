@@ -26,19 +26,22 @@ export function SubscriptionStatusBanner() {
   const bannerShell = (content: ReactNode) => (
     <>
       <div
-        className="pointer-events-none fixed left-0 right-0 z-[63] flex justify-center px-4 print:hidden"
-        style={{ top: "calc(2.875rem + env(safe-area-inset-top, 0px) + 0.35rem)" }}
+        className="pointer-events-none fixed left-0 right-0 z-[60] flex justify-start px-3 pr-[5.75rem] max-sm:items-start sm:z-[63] sm:justify-center sm:px-4 sm:pr-4 print:hidden"
+        style={{ top: "calc(2.5rem + env(safe-area-inset-top, 0px) + 0.35rem)" }}
       >
         {content}
       </div>
-      <div className="pointer-events-none h-[2.35rem] shrink-0 print:hidden" aria-hidden />
+      <div
+        className="pointer-events-none h-[3.75rem] shrink-0 sm:h-[2.35rem] print:hidden"
+        aria-hidden
+      />
     </>
   );
 
   if (entitlements.legacyUnlimited && entitlements.active) {
     if (!canEdit) return null;
     return bannerShell(
-      <p className="max-w-xl rounded-full border border-line bg-surface/90 px-4 py-2 text-center text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md">
+      <p className="max-w-xl rounded-full border border-line bg-surface/90 px-3 py-2 text-left text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md max-sm:max-w-full sm:px-4 sm:text-center">
         {zh
           ? `套餐：${tierLabel}（未设到期，功能全开）`
           : `Plan: ${tierLabel} (no expiry, all features)`}
@@ -48,7 +51,7 @@ export function SubscriptionStatusBanner() {
 
   if (!entitlements.active) {
     return bannerShell(
-      <p className="max-w-xl rounded-full border border-red-200 bg-red-50/95 px-4 py-2 text-center text-[11px] leading-snug text-red-800 shadow-sm backdrop-blur-md">
+      <p className="max-w-xl rounded-full border border-red-200 bg-red-50/95 px-3 py-2 text-left text-[11px] leading-snug text-red-800 shadow-sm backdrop-blur-md max-sm:max-w-full sm:px-4 sm:text-center">
         {zh
           ? `套餐已到期（${tierLabel}），编辑、导入与 HR 访问已暂停，请联系管理员续费。`
           : `Plan expired (${tierLabel}). Editing, import, and HR view are paused. Please renew.`}
@@ -85,7 +88,7 @@ export function SubscriptionStatusBanner() {
   })();
 
   return bannerShell(
-    <p className="max-w-xl rounded-full border border-line bg-surface/90 px-4 py-2 text-center text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md">
+    <p className="max-w-xl rounded-full border border-line bg-surface/90 px-3 py-2 text-left text-[11px] leading-snug text-ink-muted shadow-sm backdrop-blur-md max-sm:max-w-full sm:px-4 sm:text-center">
       {zh ? "当前套餐" : "Plan"}：{tierLabel} · {expiryText} · {usageText}
     </p>,
   );

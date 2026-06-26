@@ -5,7 +5,6 @@ import { EditNetworkBanner } from "@/components/EditNetworkBanner";
 import { PersistErrorBanner } from "@/components/PersistErrorBanner";
 import { SiteLoadWarningBanner } from "@/components/SiteLoadWarningBanner";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
-import { HrQuickSummary } from "@/components/HrQuickSummary";
 import { HrViewGuide } from "@/components/HrViewGuide";
 import { HashScrollRestorer } from "@/components/HashScrollRestorer";
 import { SectionAnchorNav } from "@/components/SectionAnchorNav";
@@ -103,7 +102,6 @@ export function HomeShell() {
         showPortfolio={showPortfolioSection}
       />
       <SubscriptionStatusBanner />
-      <HrQuickSummary />
       <HrViewGuide />
       <VerticalScrollLayout>
         <SitePaperFrame>

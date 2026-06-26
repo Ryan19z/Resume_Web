@@ -15,6 +15,7 @@ type ModalsI18n = {
   qrZoomTitle: string;
   qrZoomClose: string;
   hdPreviewTitle: string;
+  portraitZoomTitle: string;
   galleryPrev: string;
   galleryNext: string;
   galleryCount: (current: number, total: number) => string;
@@ -265,7 +266,7 @@ export function HeroSpotlightModals({
           />
           <div className="relative z-[1] w-full max-w-3xl rounded-2xl border border-line bg-surface p-3 shadow-[0_20px_48px_rgba(0,0,0,0.35)]">
             <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-ink">{i18n.hdPreviewTitle}</p>
+              <p className="text-sm font-semibold text-ink">{i18n.portraitZoomTitle}</p>
               <button
                 type="button"
                 className="rounded-full border border-line px-3 py-1 text-xs text-ink-muted transition-colors hover:border-ink/20 hover:text-ink"
