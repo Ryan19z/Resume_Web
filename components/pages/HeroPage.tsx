@@ -134,7 +134,7 @@ export function HeroPage() {
     mode,
   );
   const [roleFits, setRoleFits] = useState<RoleFitDraft[]>(
-    Array.isArray(site.roleFitEntries) && site.roleFitEntries.length > 0
+    Array.isArray(site.roleFitEntries)
       ? site.roleFitEntries
       : buildDefaultRoleFits(mode, heroProofDefaults),
   );
@@ -230,9 +230,7 @@ export function HeroPage() {
   useEffect(() => {
     skipAutoSaveRef.current = true;
     const s = siteRef.current;
-    const lines = Array.isArray(s.heroPreviewLines)
-      ? s.heroPreviewLines
-      : ["", "", ""];
+    const lines = Array.isArray(s.heroPreviewLines) ? s.heroPreviewLines : [];
     setName(s.name ?? "");
     setTargetRole(s.targetRole ?? "");
     setTagline(s.tagline ?? "");
@@ -275,7 +273,7 @@ export function HeroPage() {
       mode,
     );
     setRoleFits(
-      Array.isArray(s.roleFitEntries) && s.roleFitEntries.length > 0
+      Array.isArray(s.roleFitEntries)
         ? s.roleFitEntries
         : buildDefaultRoleFits(mode, proofs),
     );
@@ -411,12 +409,10 @@ export function HeroPage() {
       )
       .slice(0, 3);
   }, [experiences]);
-  const roleCards =
-    roleFits.length > 0 ? roleFits : buildDefaultRoleFits(mode, heroProofDefaults);
   const skillTags = skills;
-  const highlightsForCards = useMemo(
-    () => (highlights.length > 0 ? highlights : ["", "", ""]).slice(0, 10),
-    [highlights],
+  const displaySkillTags = useMemo(
+    () => skills.map((t) => t.trim()).filter(Boolean),
+    [skills],
   );
   const i18n = {
     highlights:
@@ -1260,12 +1256,13 @@ export function HeroPage() {
               ) : null}
             </div>
 
+            {canInline || highlights.length > 0 ? (
             <div className="mt-6">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                 {i18n.highlights}
               </p>
               <div className="grid gap-2 sm:grid-cols-3">
-                {highlightsForCards.map((line, idx) => (
+                {highlights.map((line, idx) => (
                   <div
                     key={`hl-${idx}`}
                     className="micro-card rounded-xl border border-line/80 bg-surface/55 p-3"
@@ -1281,11 +1278,9 @@ export function HeroPage() {
                           value={line}
                           onChange={(e) => {
                             const v = e.target.value;
-                            setHighlights((prev) => {
-                              const next = [...prev];
-                              next[idx] = v;
-                              return next;
-                            });
+                            setHighlights((prev) =>
+                              prev.map((item, i) => (i === idx ? v : item)),
+                            );
                           }}
                           placeholder={i18n.highlightPlaceholder}
                     maxLength={120}
@@ -1338,6 +1333,7 @@ export function HeroPage() {
                 </div>
               ) : null}
             </div>
+            ) : null}
 
             {visitorLines.length > 0 && !canInline ? (
               <ul className="mt-4 max-w-xl space-y-2 border-l-2 border-line pl-4 text-sm leading-relaxed text-ink/90 sm:text-[15px]">
@@ -1347,12 +1343,13 @@ export function HeroPage() {
               </ul>
             ) : null}
 
+            {canInline || displaySkillTags.length > 0 ? (
             <div className="mt-6">
               <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
                 {i18n.skillTags}
               </p>
               <div className="flex flex-wrap gap-2">
-                {skillTags.map((tag, idx) =>
+                {(canInline ? skillTags : displaySkillTags).map((tag, idx) =>
                   canInline ? (
                     <span
                       key={`${tag}-${idx}`}
@@ -1407,6 +1404,7 @@ export function HeroPage() {
                 </div>
               ) : null}
             </div>
+            ) : null}
           </motion.div>
 
           {recentExperiences.length > 0 ? (
@@ -1434,12 +1432,13 @@ export function HeroPage() {
             </div>
           ) : null}
 
+          {canInline || roleFits.length > 0 ? (
           <div className="mt-8 border-t border-line/60 pt-6">
             <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-muted">
               {i18n.roleFit}
             </p>
             <div className="grid gap-2 sm:grid-cols-2">
-              {roleCards.map((role) => (
+              {roleFits.map((role) => (
                 <article
                   key={role.id}
                   className="micro-card rounded-xl border border-line/80 bg-surface/50 p-3"
@@ -1568,6 +1567,7 @@ export function HeroPage() {
               </div>
             ) : null}
           </div>
+          ) : null}
 
           <motion.p
             className="mt-10 text-xs text-ink-muted/85 sm:mt-12"
