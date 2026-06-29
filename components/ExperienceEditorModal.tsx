@@ -37,6 +37,7 @@ export function ExperienceEditorModal({
   }, [canEdit, editPermissionLoaded, onClose]);
   const titleId = useId();
   const [draft, setDraft] = useState<ExperienceItem | null>(null);
+  const [keyResultsText, setKeyResultsText] = useState("");
 
   const experienceList =
     section === "projectExperience"
@@ -55,9 +56,16 @@ export function ExperienceEditorModal({
   useEffect(() => {
     if (!open || !source) {
       setDraft(null);
+      setKeyResultsText("");
       return;
     }
-    setDraft(cloneExp(source));
+    const next = cloneExp(source);
+    setDraft(next);
+    setKeyResultsText(
+      (Array.isArray(next.keyResults) ? next.keyResults : [])
+        .map((line) => String(line ?? ""))
+        .join("\n"),
+    );
   }, [open, source]);
 
   useBodyScrollLock(open);
@@ -75,10 +83,17 @@ export function ExperienceEditorModal({
 
   const save = () => {
     if (!draft || !experienceId) return;
+    const payload: ExperienceItem = {
+      ...draft,
+      keyResults: keyResultsText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean),
+    };
     if (section === "projectExperience") {
-      updateProjectExperienceItem(experienceId, draft);
+      updateProjectExperienceItem(experienceId, payload);
     } else {
-      updateExperienceItem(experienceId, draft);
+      updateExperienceItem(experienceId, payload);
     }
     onClose();
   };
@@ -161,23 +176,23 @@ export function ExperienceEditorModal({
                   className="resize-y rounded-xl border border-line bg-paper px-3 py-2.5 outline-none focus:border-ink/20"
                 />
               </label>
-              <div>
-                <p className="mb-2 text-sm font-medium">关键成果（每行一条）</p>
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="font-medium">关键成果</span>
+                <span className="text-xs text-ink-muted">
+                  可直接写多段内容；换行会自动拆成多条成果，也可一次性粘贴。
+                </span>
                 <textarea
-                  value={(Array.isArray(draft.keyResults) ? draft.keyResults : []).join("\n")}
-                  onChange={(e) =>
-                    setDraft({
-                      ...draft,
-                      keyResults: e.target.value
-                        .split("\n")
-                        .map((s) => s.trim())
-                        .filter(Boolean),
-                    })
+                  value={keyResultsText}
+                  onChange={(e) => setKeyResultsText(e.target.value)}
+                  rows={6}
+                  placeholder={
+                    section === "projectExperience"
+                      ? "例如：\n负责核心模块开发，按期上线\n性能优化后响应时间降低 40%"
+                      : "例如：\n对欧美 B 端客户进行售后支持，累计处理 200+ 问题\n主导某功能从 0 到 1 落地，用户留存提升 12%"
                   }
-                  rows={5}
-                  className="w-full resize-none rounded-xl border border-line bg-paper px-3 py-2.5 font-mono text-[13px] outline-none focus:border-ink/20"
+                  className="resize-y rounded-xl border border-line bg-paper px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-ink/20"
                 />
-              </div>
+              </label>
               <RepresentativeProjectsFields
                 projects={draft.representativeProjects}
                 onChange={(list) =>
