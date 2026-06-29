@@ -45,6 +45,40 @@ function contentTypeForExt(ext: string): string {
   }
 }
 
+async function resolveUploadFileStat(safeName: string, ext: string) {
+  if (!safeName || !isAllowedUploadExt(ext)) return null;
+  const filePath = await resolveExistingUploadFilePath(safeName);
+  if (!filePath) return null;
+  const stat = await fs.stat(filePath);
+  return { filePath, stat, ext };
+}
+
+export async function HEAD(
+  request: NextRequest,
+  context: { params: Promise<{ name: string }> },
+) {
+  const { name } = await context.params;
+  const safeName = safeBaseName(name);
+  const ext = path.extname(safeName).toLowerCase();
+  try {
+    const resolved = await resolveUploadFileStat(safeName, ext);
+    if (!resolved) throw new Error("not_file");
+    const { stat } = resolved;
+    const headers = new Headers();
+    headers.set("Content-Type", contentTypeForExt(ext));
+    headers.set("Content-Length", String(stat.size));
+    headers.set("Accept-Ranges", "bytes");
+    headers.set("Cache-Control", "private, max-age=300");
+    headers.set("X-Content-Type-Options", "nosniff");
+    return new NextResponse(null, { status: 200, headers });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "not_found", message: "文件不存在。" },
+      { status: 404 },
+    );
+  }
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ name: string }> },
@@ -60,9 +94,9 @@ export async function GET(
   }
 
   try {
-    const filePath = await resolveExistingUploadFilePath(safeName);
-    if (!filePath) throw new Error("not_file");
-    const stat = await fs.stat(filePath);
+    const resolved = await resolveUploadFileStat(safeName, ext);
+    if (!resolved) throw new Error("not_file");
+    const { filePath, stat } = resolved;
     const fileSize = stat.size;
     const range = request.headers.get("range");
     const isRangeRequest = typeof range === "string" && range.startsWith("bytes=");

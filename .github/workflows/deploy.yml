@@ -110,6 +110,20 @@ jobs:
               echo "❌ release 内缺少 server.js"
               exit 1
             fi
+            echo "[deploy] 刷新演示 resume（r_demo_classic001）..."
+            ADMIN_KEY=""
+            if [ -f "${DEPLOY_PATH}/.env.local" ]; then
+              ADMIN_KEY=$(grep -E '^RESUME_SPACE_ADMIN_KEY=' "${DEPLOY_PATH}/.env.local" | head -1 | cut -d= -f2- | tr -d '\r"' | tr -d "'")
+            fi
+            if [ -n "$ADMIN_KEY" ]; then
+              sleep 2
+              curl -fsS -X POST "http://127.0.0.1:3000/api/admin/seed-demo" \
+                -H "Content-Type: application/json" \
+                -d "{\"adminKey\":\"${ADMIN_KEY}\"}" && echo " demo seed OK" \
+                || echo " demo seed 未成功（可稍后手动 POST /api/admin/seed-demo）"
+            else
+              echo " 跳过 demo seed（未找到 RESUME_SPACE_ADMIN_KEY）"
+            fi
             [ -f "${DEPLOY_PATH}/.env.local" ] && ln -sf "${DEPLOY_PATH}/.env.local" "${RELEASE_DIR}/.env.local" || true
             export SITE_PUBLISH_PATH="${DEPLOY_PATH}/data/published-site.json"
             echo "[deploy] 重启 PM2（加载 .env.local 白名单）..."
@@ -129,5 +143,8 @@ jobs:
             fi
             pm2 save 2>/dev/null || true
             pm2 list
+            if [ -f "${DEPLOY_PATH}/.env.local" ] && ! grep -qE '^OPENAI_API_KEY=.+' "${DEPLOY_PATH}/.env.local"; then
+              echo "⚠️  未配置 OPENAI_API_KEY：含 AI 的套餐将只能规则导入，请在 ${DEPLOY_PATH}/.env.local 填入 DeepSeek Key 后 pm2 restart resume-web"
+            fi
             echo "[deploy] 健康检查..."
             curl -fsS --connect-timeout 5 --max-time 15 "http://127.0.0.1:3000/api/health" -o /dev/null && echo "HTTP OK" || echo "HTTP 检查未通过（站点可能仍在启动）"

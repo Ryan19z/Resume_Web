@@ -217,6 +217,7 @@ function sanitizeParsed(raw: unknown): ParsedResume | null {
     if (looksWork(merged)) {
       const exists = experience.some(
         (e) =>
+          e &&
           e.title === title &&
           e.company === org &&
           e.period.replace(/\s/g, "") === period.replace(/\s/g, ""),
@@ -235,6 +236,7 @@ function sanitizeParsed(raw: unknown): ParsedResume | null {
 
     const existsProject = projects.some(
       (p) =>
+        p &&
         p.title === title &&
         (p.period ?? "").replace(/\s/g, "") === period.replace(/\s/g, ""),
     );
@@ -245,6 +247,7 @@ function sanitizeParsed(raw: unknown): ParsedResume | null {
         period,
         description: summary,
         bullets: bullets.length ? bullets : summary ? [summary] : [],
+        link: undefined,
       });
     }
   }

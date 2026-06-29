@@ -143,11 +143,18 @@ export async function POST(request: NextRequest) {
     const heuristicProjects = heuristic.parsed.projects;
 
     const preferLlmParam = request.nextUrl.searchParams.get("llm") !== "0";
-    let preferLlm = preferLlmParam && isLlmParseAvailable();
-    if (preferLlm) {
+    let preferLlm = false;
+    if (preferLlmParam) {
       const aiQuota = await requireParseQuota(resumeId || undefined, true);
-      if (!aiQuota.ok) {
-        preferLlm = false;
+      if (aiQuota.ok) {
+        if (isLlmParseAvailable()) {
+          preferLlm = true;
+        } else {
+          warnings.push(
+            "您的套餐含 AI 解析次数，但服务器尚未配置 AI 接口（请在服务器 .env.local 设置 OPENAI_API_KEY 与 DeepSeek/OpenAI 地址），已改用规则引擎。",
+          );
+        }
+      } else if (aiQuota.code === "quota_exceeded") {
         warnings.push(aiQuota.message);
       }
     }

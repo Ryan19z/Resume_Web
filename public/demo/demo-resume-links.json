@@ -1,0 +1,15 @@
+{
+  "resumeId": "r_demo_classic001",
+  "created": false,
+  "disclaimer": "本页为产品功能演示用虚构样例，人物与经历均为示例数据。",
+  "editUrlLocal": "http://localhost:3000/?resumeId=r_demo_classic001&editToken=demo_edit_classic_20260626&viewToken=demo_view_classic_20260626",
+  "viewUrlLocal": "http://localhost:3000/?resumeId=r_demo_classic001&viewToken=demo_view_classic_20260626",
+  "editUrlProd": "https://linkola.cn/?resumeId=r_demo_classic001&editToken=demo_edit_classic_20260626&viewToken=demo_view_classic_20260626",
+  "viewUrlProd": "https://linkola.cn/?resumeId=r_demo_classic001&viewToken=demo_view_classic_20260626",
+  "bundleFile": "data\\demo-classic-sample.bundle.json",
+  "pdfZh": "public/demo/classic-sample-resume-zh.pdf",
+  "pdfEn": "public/demo/classic-sample-resume-en.pdf",
+  "htmlZh": "public/demo/classic-sample-resume-zh.html",
+  "htmlEn": "public/demo/classic-sample-resume-en.html",
+  "note": "viewUrlProd 为线上对比链接；本地调试请先 npm run dev 后打开 viewUrlLocal"
+}

@@ -26,6 +26,31 @@ export function hasEntitlementFeature(
   return entitlements.features[feature];
 }
 
+/** 套餐是否仍含可用 AI 解析次数（试用 / 月租 / 季租 / 年租等含 aiParse 的档位） */
+export function hasAiParseQuotaRemaining(
+  entitlements: ClientEntitlements,
+): boolean {
+  if (!entitlements.active || !entitlements.features.aiParse) return false;
+  if (entitlements.legacyUnlimited) return true;
+  const limit = entitlements.quotas.aiParsePerMonth;
+  if (limit <= 0) return false;
+  return entitlements.usage.aiParseUsed < limit;
+}
+
+export function aiParseQuotaExhaustedMessage(
+  entitlements: ClientEntitlements,
+  lang: "zh" | "en",
+): string | null {
+  if (!entitlements.features.aiParse || entitlements.legacyUnlimited) return null;
+  const limit = entitlements.quotas.aiParsePerMonth;
+  if (limit <= 0) return null;
+  const used = entitlements.usage.aiParseUsed;
+  if (used < limit) return null;
+  return lang === "zh"
+    ? `本月 AI 解析次数已用完（${used}/${limit}），本次将使用规则引擎。`
+    : `AI parse quota used up (${used}/${limit}); rule engine will be used.`;
+}
+
 export function featureLockReason(
   entitlements: ClientEntitlements,
   feature: keyof PlanFeatures,

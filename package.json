@@ -12,6 +12,9 @@
     "lint": "next lint",
     "test:resume-parse": "node scripts/test-resume-parse.mjs",
     "reset:site": "tsx scripts/reset-site-default.ts",
+    "seed:demo": "tsx scripts/seed-demo-classic-sample.ts",
+    "demo:pdf": "tsx scripts/generate-classic-sample-pdf.ts",
+    "demo:ppt": "python scripts/build-comparison-ppt.py",
     "share:tunnel": "lt --port 3000",
     "share:cf": "cloudflared tunnel --url http://127.0.0.1:3000 --protocol http2",
     "share:cf:quic": "cloudflared tunnel --url http://127.0.0.1:3000"
@@ -31,13 +34,16 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/pdf-parse": "^1.1.4",
+    "@types/pdfkit": "^0.17.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.16.0",
     "eslint-config-next": "^15.1.0",
     "localtunnel": "^2.0.2",
+    "pdfkit": "^0.19.1",
     "postcss": "^8.4.49",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.4",
     "typescript": "^5.7.0"

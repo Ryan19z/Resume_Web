@@ -1,6 +1,8 @@
 "use client";
 
 import { SITE_PAPER_SECTION_X } from "@/components/SitePaperFrame";
+import { DocumentEmbedPreview } from "@/components/DocumentEmbedPreview";
+import { DocumentFullscreenPreview } from "@/components/DocumentFullscreenPreview";
 import { HeroSpotlightModals } from "@/components/hero/HeroSpotlightModals";
 import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
@@ -184,6 +186,8 @@ export function HeroPage() {
   );
   const [spotlightUploadBusy, setSpotlightUploadBusy] = useState(false);
   const [spotlightUploadMessage, setSpotlightUploadMessage] = useState("");
+  const [spotlightDocSize, setSpotlightDocSize] = useState<number | undefined>(undefined);
+  const [documentFullscreenOpen, setDocumentFullscreenOpen] = useState(false);
   const [spotlightHdPreviewOpen, setSpotlightHdPreviewOpen] = useState(false);
   const [portraitHdPreviewOpen, setPortraitHdPreviewOpen] = useState(false);
   const [heroAsideMode, setHeroAsideMode] = useState<HeroAsideMode>(() =>
@@ -503,6 +507,7 @@ export function HeroPage() {
         ? "视频上传支持 0-1024MB；超大 4K 文件建议用云盘/对象存储直链。"
         : "Video upload supports 0-1024MB; for larger 4K files, use cloud/object-storage links.",
     openDocument: mode === "zh" ? "打开文档" : "Open document",
+    viewDocument: mode === "zh" ? "查看文件" : "View file",
     downloadDocument: mode === "zh" ? "下载文件" : "Download file",
     videoUnsupported:
       mode === "zh"
@@ -758,10 +763,17 @@ export function HeroPage() {
     ok?: boolean;
     url?: string;
     fileName?: string;
+    size?: number;
     message?: string;
   }> {
     const text = await resp.text();
-    let data: { ok?: boolean; url?: string; fileName?: string; message?: string } = {};
+    let data: {
+      ok?: boolean;
+      url?: string;
+      fileName?: string;
+      size?: number;
+      message?: string;
+    } = {};
     try {
       data = JSON.parse(text) as typeof data;
     } catch {
@@ -800,6 +812,7 @@ export function HeroPage() {
     ok?: boolean;
     url?: string;
     fileName?: string;
+    size?: number;
     message?: string;
   }> {
     const controller = new AbortController();
@@ -873,6 +886,7 @@ export function HeroPage() {
       if (spotlightKind === "document") {
         setSpotlightMediaLinks((prev) => ({ ...prev, document: data.url ?? "" }));
         setSpotlightDocName(data.fileName ?? file.name);
+        setSpotlightDocSize(typeof data.size === "number" ? data.size : file.size);
       } else if (spotlightKind === "image") {
         setSpotlightMediaLinks((prev) => ({ ...prev, image: data.url ?? "" }));
       } else if (spotlightKind === "gallery") {
@@ -2170,12 +2184,20 @@ export function HeroPage() {
                     fileName={spotlightPreview.fileName}
                     title={spotlightPreview.fileName || spotlightTitle || "document"}
                     locale={mode}
+                    heightClassName="h-[280px]"
                   />
                   <div className="rounded-lg border border-dashed border-line/80 bg-surface px-4 py-4 text-sm text-ink">
                     <p className="font-medium">
                       {spotlightPreview.fileName || spotlightPreview.url.split("/").pop()}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setDocumentFullscreenOpen(true)}
+                        className="rounded-full border border-ink/20 bg-ink px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+                      >
+                        {i18n.viewDocument}
+                      </button>
                       <a
                         href={spotlightPreview.url}
                         target="_blank"
@@ -2193,8 +2215,8 @@ export function HeroPage() {
                       >
                         {i18n.downloadDocument}
                       </a>
-                </div>
-            </div>
+                    </div>
+                  </div>
                 </div>
               ) : null}
               {spotlightPreview.kind !== "code" &&
@@ -2249,6 +2271,17 @@ export function HeroPage() {
         onGallerySlideChange={setGallerySlideIndex}
         hdVideoRef={hdVideoRef}
       />
+      {spotlightPreview.kind === "document" && spotlightPreview.url ? (
+        <DocumentFullscreenPreview
+          open={documentFullscreenOpen}
+          onClose={() => setDocumentFullscreenOpen(false)}
+          url={spotlightPreview.url}
+          fileName={spotlightPreview.fileName}
+          title={spotlightPreview.fileName || spotlightTitle || "document"}
+          fileSizeBytes={spotlightDocSize}
+          locale={mode}
+        />
+      ) : null}
     </div>
   );
 }

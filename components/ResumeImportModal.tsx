@@ -5,6 +5,10 @@ import { useLanguageMode } from "@/context/LanguageModeProvider";
 import { useSiteContent } from "@/context/SiteContentProvider";
 import { fieldLabel } from "@/lib/resume-parse-mapper";
 import {
+  aiParseQuotaExhaustedMessage,
+  hasAiParseQuotaRemaining,
+} from "@/lib/client-entitlements";
+import {
   getImportCommitmentBrief,
   getServiceCommitment,
 } from "@/lib/service-commitment";
@@ -193,8 +197,11 @@ export function ResumeImportModal() {
   const mappedRef = useRef<Parameters<typeof applyImportedResume>[0] | null>(
     null,
   );
+  const planHasAiQuota = hasAiParseQuotaRemaining(entitlements);
   const planAllowsAi = entitlements.features.aiParse;
-  const willUseAi = llmAvailable && planAllowsAi;
+  const aiQuotaExhaustedNote = aiParseQuotaExhaustedMessage(entitlements, mode);
+  const willUseAi = planHasAiQuota && llmAvailable;
+  const requestAiParse = planHasAiQuota;
   const {
     progress: parseProgress,
     stageIndex: parseStageIndex,
@@ -215,7 +222,11 @@ export function ResumeImportModal() {
           aiOnDetail: (provider: string, model: string) =>
             `已配置 AI（${provider} · ${model}），上传后将优先使用 AI 解析`,
           aiOnNote: "实际解析方式以预览页标识为准",
-          aiOff: "使用规则引擎解析（请在 .env.local 配置 OPENAI_API_KEY 启用 AI）",
+          aiOff: "使用规则引擎解析（当前套餐不含 AI 或未配置服务端 AI）",
+          aiOffServer:
+            "您的套餐含 AI 解析次数，但服务器尚未配置 DeepSeek/OpenAI（OPENAI_API_KEY），当前只能规则导入。请联系管理员配置后重试。",
+          aiOffQuota:
+            "本月 AI 解析次数已用完，本次将使用规则引擎；导入总次数仍可用。",
           planRuleOnly:
             "当前套餐使用规则引擎导入（不含 AI 深度解析）。",
           planRuleOnlyNote: "上传后将按规则识别字段，复杂排版请导入后手动核对。",
@@ -265,7 +276,11 @@ export function ResumeImportModal() {
           aiOnDetail: (provider: string, model: string) =>
             `AI configured (${provider} · ${model}); uploads prefer AI parsing`,
           aiOnNote: "Actual method is shown on the preview badge",
-          aiOff: "Rule-based parsing (set OPENAI_API_KEY in .env.local for AI)",
+          aiOff: "Rule-based parsing (plan has no AI or server AI not configured)",
+          aiOffServer:
+            "Your plan includes AI parses, but the server has no AI API key (OPENAI_API_KEY). Rule import only until configured.",
+          aiOffQuota:
+            "AI parse quota used up this month; rule engine will be used. Import quota still applies.",
           planRuleOnly:
             "Your plan uses rule-based import only (no AI deep parsing).",
           planRuleOnlyNote:
@@ -320,20 +335,26 @@ export function ResumeImportModal() {
   })();
 
   const parseModeBanner = (() => {
-    if (!planAllowsAi) {
+    if (!entitlements.features.aiParse) {
       return {
         main: i18n.planRuleOnly,
         note: i18n.planRuleOnlyNote,
       };
     }
-    if (willUseAi && llmProvider && llmModel) {
+    if (aiQuotaExhaustedNote) {
+      return { main: i18n.aiOffQuota, note: aiQuotaExhaustedNote };
+    }
+    if (planHasAiQuota && llmProvider && llmModel) {
       return {
         main: i18n.aiOnDetail(llmProvider, llmModel),
         note: i18n.aiOnNote,
       };
     }
-    if (willUseAi) {
+    if (planHasAiQuota && llmAvailable) {
       return { main: i18n.aiOn, note: i18n.aiOnNote };
+    }
+    if (planHasAiQuota && !llmAvailable) {
+      return { main: i18n.aiOffServer, note: undefined };
     }
     return { main: i18n.aiOff, note: undefined };
   })();
@@ -383,7 +404,7 @@ export function ResumeImportModal() {
     setFileName(file.name);
     setStep("parsing");
 
-    const tryAi = llmAvailable && planAllowsAi;
+    const tryAi = requestAiParse;
     const result = await parseResumeFile(file, {
       preferLlm: tryAi ? undefined : false,
     });

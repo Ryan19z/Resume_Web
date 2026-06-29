@@ -38,3 +38,34 @@ export function classifyDocumentPreview(
   if (LEGACY_OFFICE_EXTS.has(ext)) return "legacy-office";
   return "unsupported";
 }
+
+/** 浏览器内嵌预览建议上限：超过则提示下载（PDF 可稍大） */
+export const DOCUMENT_INLINE_PREVIEW_MAX_BYTES = 20 * 1024 * 1024;
+export const DOCUMENT_PDF_INLINE_PREVIEW_MAX_BYTES = 50 * 1024 * 1024;
+
+export function shouldSuggestDownloadOnly(
+  sizeBytes: number | undefined,
+  kind: DocumentPreviewKind,
+): boolean {
+  if (!sizeBytes || sizeBytes <= 0) return false;
+  if (kind === "pdf") return sizeBytes > DOCUMENT_PDF_INLINE_PREVIEW_MAX_BYTES;
+  if (kind === "legacy-office" || kind === "unsupported") return true;
+  return sizeBytes > DOCUMENT_INLINE_PREVIEW_MAX_BYTES;
+}
+
+export function documentDownloadHref(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}download=1`;
+}
+
+export async function fetchDocumentByteSize(url: string): Promise<number | undefined> {
+  try {
+    const resp = await fetch(url, { method: "HEAD", cache: "no-store" });
+    if (!resp.ok) return undefined;
+    const len = resp.headers.get("content-length");
+    if (!len) return undefined;
+    const n = Number(len);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}

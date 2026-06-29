@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>XXX — Classic résumé sample</title>
+  <style>
+    @page { size: A4; margin: 14mm 13mm; }
+    * { box-sizing: border-box; }
+    body { font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif; color: #1a1a1a; font-size: 10.5pt; line-height: 1.5; margin: 0; }
+    .page { max-width: 210mm; margin: 0 auto; padding: 8mm 0 10mm; }
+    .header { position: relative; text-align: center; padding-right: 96px; min-height: 112px; margin-bottom: 10px; }
+    .header h1 { font-size: 24pt; margin: 0 0 8px; letter-spacing: 0.08em; }
+    .header p { margin: 4px 0; font-size: 10pt; }
+    .photo { position: absolute; top: 0; right: 0; width: 86px; height: 108px; object-fit: cover; border: 1px solid #ddd; border-radius: 4px; }
+    .block { margin-top: 14px; }
+    .block h2 { font-size: 12pt; margin: 0 0 6px; font-weight: 700; }
+    .rule { height: 0; border-top: 1px solid #222; margin-bottom: 10px; }
+    .row-head { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; margin: 2px 0 4px; }
+    .row-right { font-weight: 400; color: #555; white-space: nowrap; }
+    .muted { color: #555; margin: 0 0 4px; }
+    .plain-list { margin: 0 0 8px; padding-left: 0; list-style: none; }
+    .plain-list li { margin: 2px 0; padding-left: 1.1em; text-indent: -1.1em; }
+    .plain-list li::before { content: "· "; }
+    .skill-note { margin: 0 0 6px; }
+    .disclaimer { margin-top: 18px; font-size: 8pt; color: #888; text-align: center; }
+    @media print { .page { padding: 0; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="header">
+      <img class="photo" src="https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&amp;h=1000&amp;fit=crop&amp;q=85" alt="" />
+      <h1>XXX</h1>
+      <p>Objective: Senior Front-End Engineer | Hangzhou | Remote OK | Available now</p>
+      <p>28 | Male | Hangzhou, CN | 6 years experience</p>
+      <p>13800138000 | demo@example.com</p>
+    </header>
+    <section class="block"><h2>Education</h2><div class="rule"></div><div class="row-head"><span class="row-left">Sample University - 计算机科学 · 本科</span><span class="row-right">2015 ~ 2019</span></div><p>GPA 3.7/4 (top 10%); coursework in algorithms, OS, networks, software engineering, databases.</p><ul class="plain-list"><li>全国大学生数学建模竞赛省一等奖。</li><li>校级优秀毕业论文：面向弱网环境的资源调度策略。</li><li>学生技术社团负责人，组织每学期黑客松。</li><li>课程笔记开源仓库累计 star 800+（演示数据）。</li></ul></section>
+    <section class="block"><h2>Experience</h2><div class="rule"></div><div class="row-head"><span class="row-left">Sample Tech Co. · Core product - Senior Front-End Engineer</span><span class="row-right">2022 ~ 至今</span></div><p class="muted">Web UX, performance, and design system with weekly design/product sync.</p><ul class="plain-list"><li>将核心页面 LCP 从 3.1s 优化到 1.4s，转化率提升约 8%。</li><li>搭建组件库与设计令牌，跨 5 条业务线复用。</li><li>推动 WCAG 2.1 AA 可访问性规范落地。</li></ul><div class="row-head"><span class="row-left">Sample startup team - Front-End Engineer</span><span class="row-right">2019 ~ 2022</span></div><p class="muted">Built marketing site, signup funnel, and internal console from scratch.</p><ul class="plain-list"><li>搭建营销落地页体系，支持多活动并行与 A/B 配置。</li><li>实现注册到激活的关键路径埋点与可视化漏斗。</li><li>引入 CI 预览环境，设计验收周期缩短 40%。</li></ul><div class="row-head"><span class="row-left">Personal open-source practice · full-stack - Linkola online résumé platform</span><span class="row-right">2024 ~ 2025</span></div><p class="muted">Multi-tenant visual résumé site on Next.js with edit/view links and smart import.</p><ul class="plain-list"><li>实现 IP 白名单 + Token 双模式鉴权与发布快照持久化。</li><li>GitHub Actions 构建后 SCP 部署至阿里云轻量服务器。</li><li>智能导入支持 PDF / Word，规则引擎 + 可选 AI 解析。</li></ul></section>
+    <section class="block"><h2>Skills</h2><div class="rule"></div><p class="skill-note">Languages: CET-6 English; comfortable with technical docs and async written communication.</p><p class="skill-note">Engineering: React, Next.js, TypeScript; performance tuning and design-system delivery.</p><p class="skill-note">Collaboration: works across product, design, and backend to ship iteratively.</p><p class="skill-note">Proficient in: React / Next.js · TypeScript · Performance · Design systems · Accessibility · Cross-functional delivery</p></section>
+    <section class="block"><h2>Honors &amp; Certificates</h2><div class="rule"></div><ul class="plain-list"><li>Provincial first prize, Mathematical Modeling Contest (demo)</li><li>CET-6 English certificate</li><li>Outstanding undergraduate thesis</li><li>Open-source contributor (demo)</li></ul></section>
+    <section class="block"><h2>Summary</h2><div class="rule"></div><p>6 years in front-end engineering—Web performance, design systems, and measurable delivery. Proactive, structured, and delivery-focused. Cares about code quality and user experience under fast iteration. Calm collaborator seeking teams that value craft and measurable outcomes.</p></section>
+    <p class="disclaimer">Fictional demo profile for product showcase only—not a real person.</p>
+  </div>
+</body>
+</html>
