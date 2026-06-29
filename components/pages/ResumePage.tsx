@@ -24,7 +24,8 @@ import { resolveEducationDisplay } from "@/lib/education-display";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useInlineEditAutosave } from "@/lib/use-inline-edit-autosave";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
 
@@ -520,10 +521,6 @@ export function ResumePage() {
   const [eduCardCta, setEduCardCta] = useState(() => rc.educationCardCta ?? "");
 
   const siteSnap = JSON.stringify(rc);
-  const saveRef = useRef(updateResumeCopy);
-  saveRef.current = updateResumeCopy;
-  const skipAutoSaveRef = useRef(true);
-
   useEffect(() => {
     const next = site.resumeCopy ?? defaultSiteContent.resumeCopy;
     setPageEyebrow(next.pageEyebrow ?? "");
@@ -535,27 +532,19 @@ export function ResumePage() {
     setEduCardCta(next.educationCardCta ?? "");
   }, [siteSnap]);
 
-  useEffect(() => {
-    if (!canInline) {
-      skipAutoSaveRef.current = true;
-      return;
-    }
-    if (skipAutoSaveRef.current) {
-      skipAutoSaveRef.current = false;
-      return;
-    }
-    const t = window.setTimeout(() => {
-      saveRef.current({
-        pageEyebrow,
-        pageTitle,
-        pageIntro,
-        experienceSectionEyebrow: expSectionEyebrow,
-        educationSectionEyebrow: eduSectionEyebrow,
-        experienceCardCta: expCardCta,
-        educationCardCta: eduCardCta,
-      });
-    }, DEBOUNCE_MS);
-    return () => window.clearTimeout(t);
+  const saveRef = useRef(updateResumeCopy);
+  saveRef.current = updateResumeCopy;
+
+  const saveResumeCopy = useCallback(() => {
+    saveRef.current({
+      pageEyebrow,
+      pageTitle,
+      pageIntro,
+      experienceSectionEyebrow: expSectionEyebrow,
+      educationSectionEyebrow: eduSectionEyebrow,
+      experienceCardCta: expCardCta,
+      educationCardCta: eduCardCta,
+    });
   }, [
     pageEyebrow,
     pageTitle,
@@ -564,8 +553,23 @@ export function ResumePage() {
     eduSectionEyebrow,
     expCardCta,
     eduCardCta,
-    canInline,
   ]);
+
+  useInlineEditAutosave(
+    "resume-page",
+    canInline,
+    saveResumeCopy,
+    [
+      pageEyebrow,
+      pageTitle,
+      pageIntro,
+      expSectionEyebrow,
+      eduSectionEyebrow,
+      expCardCta,
+      eduCardCta,
+    ],
+    { debounceMs: DEBOUNCE_MS, resetToken: siteSnap },
+  );
 
   return (
     <div className={`relative isolate ${SITE_PAPER_SECTION_X} pb-16 pt-12 sm:pb-20 sm:pt-16 md:pt-20`}>

@@ -36,6 +36,7 @@ import { appendResumeScopeToPath, parseClientResumeScope } from "@/lib/resume-sc
 import { ensureUploadFileName } from "@/lib/upload-asset-client";
 import { documentAcceptList } from "@/lib/upload-mime";
 import { motion } from "framer-motion";
+import { useInlineEditAutosave } from "@/lib/use-inline-edit-autosave";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
@@ -110,7 +111,10 @@ export function HeroPage() {
           }))
           .filter((x) => x.src || x.caption)
       : [];
-    if (fromList.length > 0) return fromList;
+    if (Array.isArray(site.heroContactQrs)) {
+      if (fromList.length > 0) return fromList;
+      return [{ id: randomId("qr-"), src: "", caption: "" }];
+    }
     const legacySrc = String(site.heroContactQrSrc ?? "").trim();
     const legacyCaption = String(site.heroContactQrCaption ?? "").trim();
     if (legacySrc || legacyCaption) {
@@ -228,7 +232,6 @@ export function HeroPage() {
   siteRef.current = site;
 
   useEffect(() => {
-    skipAutoSaveRef.current = true;
     const s = siteRef.current;
     const lines = Array.isArray(s.heroPreviewLines) ? s.heroPreviewLines : [];
     setName(s.name ?? "");
@@ -246,7 +249,13 @@ export function HeroPage() {
           }))
           .filter((x) => x.src || x.caption)
       : [];
-    if (qrsFromList.length > 0) {
+    if (Array.isArray(s.heroContactQrs)) {
+      setHeroContactQrs(
+        qrsFromList.length > 0
+          ? qrsFromList.slice(0, 8)
+          : [{ id: randomId("qr-"), src: "", caption: "" }],
+      );
+    } else if (qrsFromList.length > 0) {
       setHeroContactQrs(qrsFromList.slice(0, 8));
     } else {
       const legacySrc = String(s.heroContactQrSrc ?? "").trim();
@@ -307,75 +316,63 @@ export function HeroPage() {
 
   const saveRef = useRef(updateQuickHeroFields);
   saveRef.current = updateQuickHeroFields;
-  const skipAutoSaveRef = useRef(true);
 
-  useEffect(() => {
-    if (!canInline) {
-      skipAutoSaveRef.current = true;
-      return;
-    }
-    if (skipAutoSaveRef.current) {
-      skipAutoSaveRef.current = false;
-      return;
-    }
-    const t = window.setTimeout(() => {
-      saveRef.current({
-        name,
-        tagline,
-        targetRole,
-        contactEmail,
-        contactPhone,
-        contactExtra,
-        heroContactQrs,
-        heroPreviewLines: highlights,
-        transferableSkills: skills,
-        roleFitEntries: roleFits,
-        heroSpotlight: {
-          title: spotlightTitle.trim() || fallbackSpotlight.title,
-          summary: spotlightSummary.trim() || fallbackSpotlight.summary,
-          media:
-            spotlightKind === "code"
+  const saveHeroFields = useCallback(() => {
+    saveRef.current({
+      name,
+      tagline,
+      targetRole,
+      contactEmail,
+      contactPhone,
+      contactExtra,
+      heroContactQrs,
+      heroPreviewLines: highlights,
+      transferableSkills: skills,
+      roleFitEntries: roleFits,
+      heroSpotlight: {
+        title: spotlightTitle.trim() || fallbackSpotlight.title,
+        summary: spotlightSummary.trim() || fallbackSpotlight.summary,
+        media:
+          spotlightKind === "code"
+            ? {
+                kind: "code",
+                code: spotlightCode.trim() || "// your best code here",
+                language: spotlightCodeLang.trim() || undefined,
+              }
+            : spotlightKind === "document"
               ? {
-                  kind: "code",
-                  code: spotlightCode.trim() || "// your best code here",
-                  language: spotlightCodeLang.trim() || undefined,
+                  kind: "document",
+                  url: spotlightMediaLinks.document.trim(),
+                  fileName: spotlightDocName.trim() || undefined,
                 }
-              : spotlightKind === "document"
+              : spotlightKind === "gallery"
                 ? {
-                    kind: "document",
-                    url: spotlightMediaLinks.document.trim(),
-                    fileName: spotlightDocName.trim() || undefined,
+                    kind: "gallery",
+                    urls: spotlightMediaLinks.gallery
+                      .map((u) => u.trim())
+                      .filter(Boolean),
                   }
-                : spotlightKind === "gallery"
-                  ? {
-                      kind: "gallery",
-                      urls: spotlightMediaLinks.gallery
-                        .map((u) => u.trim())
-                        .filter(Boolean),
-                    }
-                  : {
-                      kind: spotlightKind,
-                      url: spotlightMediaLinks[spotlightKind].trim(),
-                    },
-          mediaLinks: {
-            image: spotlightMediaLinks.image.trim(),
-            gallery: spotlightMediaLinks.gallery
-              .map((u) => u.trim())
-              .filter(Boolean),
-            video: spotlightMediaLinks.video.trim(),
-            link: spotlightMediaLinks.link.trim(),
-            document: spotlightMediaLinks.document.trim(),
-          },
-          documentName: spotlightDocName.trim() || undefined,
+                : {
+                    kind: spotlightKind,
+                    url: spotlightMediaLinks[spotlightKind].trim(),
+                  },
+        mediaLinks: {
+          image: spotlightMediaLinks.image.trim(),
+          gallery: spotlightMediaLinks.gallery
+            .map((u) => u.trim())
+            .filter(Boolean),
+          video: spotlightMediaLinks.video.trim(),
+          link: spotlightMediaLinks.link.trim(),
+          document: spotlightMediaLinks.document.trim(),
         },
-        heroAsideMode,
-        heroPortrait: {
-          url: portraitUrl.trim(),
-          caption: portraitCaption.trim() || undefined,
-        },
-      });
-    }, DEBOUNCE_MS);
-    return () => window.clearTimeout(t);
+        documentName: spotlightDocName.trim() || undefined,
+      },
+      heroAsideMode,
+      heroPortrait: {
+        url: portraitUrl.trim(),
+        caption: portraitCaption.trim() || undefined,
+      },
+    });
   }, [
     name,
     tagline,
@@ -397,8 +394,38 @@ export function HeroPage() {
     heroAsideMode,
     portraitUrl,
     portraitCaption,
-    canInline,
+    fallbackSpotlight.title,
+    fallbackSpotlight.summary,
   ]);
+
+  useInlineEditAutosave(
+    "hero-page",
+    canInline,
+    saveHeroFields,
+    [
+      name,
+      tagline,
+      targetRole,
+      contactEmail,
+      contactPhone,
+      contactExtra,
+      heroContactQrs,
+      highlights,
+      skills,
+      roleFits,
+      spotlightTitle,
+      spotlightSummary,
+      spotlightKind,
+      spotlightMediaLinks,
+      spotlightCode,
+      spotlightCodeLang,
+      spotlightDocName,
+      heroAsideMode,
+      portraitUrl,
+      portraitCaption,
+    ],
+    { debounceMs: DEBOUNCE_MS, resetToken: siteSnap },
+  );
 
   const visitorLines = highlights;
   const recentExperiences = useMemo(() => {

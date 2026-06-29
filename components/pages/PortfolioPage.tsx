@@ -13,7 +13,8 @@ import { isReasonableHttpUrl } from "@/lib/is-reasonable-http-url";
 import { randomId } from "@/lib/random-id";
 import type { PortfolioCopy, PortfolioProject } from "@/lib/types";
 import { motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useInlineEditAutosave } from "@/lib/use-inline-edit-autosave";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 550;
 
@@ -34,6 +35,10 @@ function ProjectCard({
 }) {
   const poster = project.posterSrc ?? project.coverSrc;
   const hasCover = Boolean(project.coverSrc?.trim());
+  const safeHref =
+    project.href && project.href !== "#" && isReasonableHttpUrl(project.href)
+      ? project.href
+      : null;
   if (!hasCover) {
     return (
       <motion.article
@@ -66,9 +71,9 @@ function ProjectCard({
             {project.description}
           </p>
         ) : null}
-        {project.href && project.href !== "#" && isReasonableHttpUrl(project.href) ? (
+        {safeHref ? (
           <a
-            href={project.href}
+            href={safeHref}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-4 inline-flex text-sm font-medium text-ink-muted underline-offset-2 hover:text-ink hover:underline"
@@ -102,37 +107,63 @@ function ProjectCard({
           {mode === "zh" ? "删除" : "Delete"}
         </button>
       ) : null}
-      <a
-        href={project.href}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="relative block aspect-[16/10] overflow-hidden bg-line/40"
-      >
-        <img
-          src={project.coverSrc}
-          alt={project.title}
-          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-          loading={index < 2 ? "eager" : "lazy"}
-          decoding="async"
-          referrerPolicy="no-referrer"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80" />
-        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 text-white">
-          <div className="min-w-0">
-            <h3 className="truncate text-base font-bold tracking-[-0.02em] drop-shadow-sm">
-              {project.title}
-            </h3>
-            {project.description ? (
-              <p className="mt-0.5 truncate text-xs font-medium text-white/90 drop-shadow-sm">
-                {project.description}
-              </p>
-            ) : null}
+      {safeHref ? (
+        <a
+          href={safeHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="relative block aspect-[16/10] overflow-hidden bg-line/40"
+        >
+          <img
+            src={project.coverSrc}
+            alt={project.title}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            loading={index < 2 ? "eager" : "lazy"}
+            decoding="async"
+            referrerPolicy="no-referrer"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80" />
+          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 text-white">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-bold tracking-[-0.02em] drop-shadow-sm">
+                {project.title}
+              </h3>
+              {project.description ? (
+                <p className="mt-0.5 truncate text-xs font-medium text-white/90 drop-shadow-sm">
+                  {project.description}
+                </p>
+              ) : null}
+            </div>
+            <span className="shrink-0 rounded-full bg-surface/25 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide backdrop-blur-md">
+              {pageCopy.openLinkLabel}
+            </span>
           </div>
-          <span className="shrink-0 rounded-full bg-surface/25 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide backdrop-blur-md">
-            {pageCopy.openLinkLabel}
-          </span>
+        </a>
+      ) : (
+        <div className="relative block aspect-[16/10] overflow-hidden bg-line/40">
+          <img
+            src={project.coverSrc}
+            alt={project.title}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+            loading={index < 2 ? "eager" : "lazy"}
+            decoding="async"
+            referrerPolicy="no-referrer"
+          />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-80" />
+          <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between gap-2 text-white">
+            <div className="min-w-0">
+              <h3 className="truncate text-base font-bold tracking-[-0.02em] drop-shadow-sm">
+                {project.title}
+              </h3>
+              {project.description ? (
+                <p className="mt-0.5 truncate text-xs font-medium text-white/90 drop-shadow-sm">
+                  {project.description}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
-      </a>
+      )}
       <div className="flex items-center gap-3 border-t border-line/80 p-4">
         <div className="relative h-11 w-16 shrink-0 overflow-hidden rounded-lg bg-line/50">
           <img
@@ -337,10 +368,6 @@ export function PortfolioPage() {
   );
 
   const siteSnap = JSON.stringify(pc);
-  const saveRef = useRef(updatePortfolioCopy);
-  saveRef.current = updatePortfolioCopy;
-  const skipAutoSaveRef = useRef(true);
-
   useEffect(() => {
     const next = site.portfolioCopy ?? defaultSiteContent.portfolioCopy;
     setPageEyebrow(next.pageEyebrow ?? "");
@@ -351,26 +378,18 @@ export function PortfolioPage() {
     setPosterThumbCaption(next.posterThumbCaption ?? "");
   }, [siteSnap]);
 
-  useEffect(() => {
-    if (!canInline) {
-      skipAutoSaveRef.current = true;
-      return;
-    }
-    if (skipAutoSaveRef.current) {
-      skipAutoSaveRef.current = false;
-      return;
-    }
-    const t = window.setTimeout(() => {
-      saveRef.current({
-        pageEyebrow,
-        pageTitle,
-        pageIntro,
-        openLinkLabel,
-        posterThumbTitle,
-        posterThumbCaption,
-      });
-    }, DEBOUNCE_MS);
-    return () => window.clearTimeout(t);
+  const saveRef = useRef(updatePortfolioCopy);
+  saveRef.current = updatePortfolioCopy;
+
+  const savePortfolioCopy = useCallback(() => {
+    saveRef.current({
+      pageEyebrow,
+      pageTitle,
+      pageIntro,
+      openLinkLabel,
+      posterThumbTitle,
+      posterThumbCaption,
+    });
   }, [
     pageEyebrow,
     pageTitle,
@@ -378,8 +397,22 @@ export function PortfolioPage() {
     openLinkLabel,
     posterThumbTitle,
     posterThumbCaption,
-    canInline,
   ]);
+
+  useInlineEditAutosave(
+    "portfolio-page",
+    canInline,
+    savePortfolioCopy,
+    [
+      pageEyebrow,
+      pageTitle,
+      pageIntro,
+      openLinkLabel,
+      posterThumbTitle,
+      posterThumbCaption,
+    ],
+    { debounceMs: DEBOUNCE_MS, resetToken: siteSnap },
+  );
 
   const cardCopy: PortfolioCopy = canInline
     ? {

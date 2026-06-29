@@ -48,8 +48,7 @@ function cloneSite(): SiteContent {
 
 function normalizeStringArray(raw: unknown, fallback: string[]): string[] {
   if (!Array.isArray(raw)) return [...fallback];
-  const out = raw.map((x) => String(x ?? "").trim()).filter(Boolean);
-  return out.length > 0 ? out : [...fallback];
+  return raw.map((x) => String(x ?? "").trim()).filter(Boolean);
 }
 
 function normalizeAchievementBlock(
@@ -74,9 +73,10 @@ function normalizeAchievementBlocks(
   raw: unknown,
   fallback: AchievementBlock[],
 ): AchievementBlock[] {
-  if (!Array.isArray(raw) || raw.length === 0) {
+  if (!Array.isArray(raw)) {
     return fallback.map((b) => ({ ...b, bullets: [...b.bullets] }));
   }
+  if (raw.length === 0) return [];
   return raw.map((item, i) =>
     normalizeAchievementBlock(
       item,
@@ -194,7 +194,7 @@ function normalizeRepProjectsArray(
       media: normalizedMedia,
     });
   }
-  return out.length > 0 ? out : [...fallback];
+  return out;
 }
 
 function normalizeHeroSpotlight(
@@ -357,22 +357,25 @@ function migrateExperienceItem(
   }
   const achievements = e.achievements as AchievementBlock[] | undefined;
   if (achievements?.length) {
-    const keyResults =
-      achievements[0]?.bullets?.length
-        ? achievements[0].bullets.map((x) => String(x ?? "").trim()).filter(Boolean)
-        : fallback.keyResults;
+    const keyResults = Array.isArray(achievements[0]?.bullets)
+      ? achievements[0].bullets
+          .map((x) => String(x ?? "").trim())
+          .filter(Boolean)
+      : fallback.keyResults;
     const repLines = achievements[1]?.bullets ?? [];
     const representativeProjects: ExperienceItem["representativeProjects"] =
-      repLines.length > 0
-        ? repLines.map((text, i) => ({
-            id: `mig-${String(e.id)}-${i}`,
-            title: text.slice(0, 80),
-            description: "",
-            media: {
-              kind: "image" as const,
-              url: placeholderWideByIndex(i),
-            },
-          }))
+      Array.isArray(achievements[1]?.bullets)
+        ? repLines.length > 0
+          ? repLines.map((text, i) => ({
+              id: `mig-${String(e.id)}-${i}`,
+              title: text.slice(0, 80),
+              description: "",
+              media: {
+                kind: "image" as const,
+                url: placeholderWideByIndex(i),
+              },
+            }))
+          : []
         : fallback.representativeProjects;
     return {
       id: String(e.id ?? fallback.id),
@@ -639,9 +642,11 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     Array.isArray(base.heroContactQrs) ? base.heroContactQrs : [],
   );
   const heroContactQrs =
-    heroContactQrsNormalized.length > 0
+    Array.isArray(heroContactQrsRaw)
       ? heroContactQrsNormalized
-      : normalizeHeroContactQrs(heroContactQrsFromLegacy, []);
+      : heroContactQrsNormalized.length > 0
+        ? heroContactQrsNormalized
+        : normalizeHeroContactQrs(heroContactQrsFromLegacy, []);
 
   const heroContactQrSrcRaw = (s as SiteContent).heroContactQrSrc;
   const heroContactQrSrc =
@@ -691,17 +696,16 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
     heroContactQrCaption,
     name: s.name?.trim() || base.name,
     tagline: s.tagline?.trim() || base.tagline,
-    experience:
-      Array.isArray(s.experience) && s.experience.length > 0
-        ? s.experience.map((item, i) =>
-            migrateExperienceItem(
-              item,
-              base.experience[i] ??
-                base.experience[0] ??
-                defaultSiteContent.experience[0],
-            ),
-          )
-        : base.experience,
+    experience: Array.isArray(s.experience)
+      ? s.experience.map((item, i) =>
+          migrateExperienceItem(
+            item,
+            base.experience[i] ??
+              base.experience[0] ??
+              defaultSiteContent.experience[0],
+          ),
+        )
+      : base.experience,
     projectExperience:
       Array.isArray(s.projectExperience)
         ? s.projectExperience.map((item, i) =>
@@ -712,28 +716,26 @@ export function mergeInitialSite(bundle: PersistedSiteBundle | null): SiteConten
             ),
           )
         : base.projectExperience ?? defaultSiteContent.projectExperience,
-    education:
-      Array.isArray(s.education) && s.education.length > 0
-        ? s.education.map((item, i) =>
-            normalizeEducationItem(
-              item,
-              base.education[i] ??
-                base.education[0] ??
-                defaultSiteContent.education[0],
-            ),
-          )
-        : base.education,
-    projects:
-      Array.isArray(s.projects) && s.projects.length > 0
-        ? s.projects.map((item, i) =>
-            normalizePortfolioProject(
-              item,
-              base.projects[i] ??
-                base.projects[0] ??
-                defaultSiteContent.projects[0],
-            ),
-          )
-        : base.projects,
+    education: Array.isArray(s.education)
+      ? s.education.map((item, i) =>
+          normalizeEducationItem(
+            item,
+            base.education[i] ??
+              base.education[0] ??
+              defaultSiteContent.education[0],
+          ),
+        )
+      : base.education,
+    projects: Array.isArray(s.projects)
+      ? s.projects.map((item, i) =>
+          normalizePortfolioProject(
+            item,
+            base.projects[i] ??
+              base.projects[0] ??
+              defaultSiteContent.projects[0],
+          ),
+        )
+      : base.projects,
   };
   return normalizeSiteContentAssetUrls(merged);
   } catch (e) {

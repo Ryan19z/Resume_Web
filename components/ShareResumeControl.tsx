@@ -9,12 +9,14 @@ import {
   composeShareEmailText,
   defaultShareEmailMessage,
 } from "@/lib/share-email-compose";
+import { fetchPublishedSite } from "@/lib/publish-site-client";
 import {
   appendResumeScopeToPath,
   parseClientResumeScope,
 } from "@/lib/resume-scope";
 import {
   buildShareLink,
+  type ShareSiteLang,
 } from "@/lib/share-url";
 import {
   getPublicSiteOrigin,
@@ -65,6 +67,11 @@ export function ShareResumeControl() {
   );
   const [sendMsg, setSendMsg] = useState("");
   const [lockLangOnShare, setLockLangOnShare] = useState(false);
+  const [shareLang, setShareLang] = useState<ShareSiteLang>(mode);
+  const [publishedLangs, setPublishedLangs] = useState<{
+    zh: boolean;
+    en: boolean;
+  } | null>(null);
   const menuTitleId = useId();
   const emailTitleId = useId();
   const qrTitleId = useId();
@@ -115,13 +122,36 @@ export function ShareResumeControl() {
   );
 
   useEffect(() => {
-    if (!open) return;
-    const href = window.location.href;
-    setPageUrl(hasScopedResumeInUrl(href) ? toPublicPageUrl(href) : "");
+    if (!open) {
+      setPublishedLangs(null);
+      return;
+    }
+    setShareLang(mode);
     setSheet("menu");
     setSendState("idle");
     setSendMsg("");
-  }, [open]);
+    const href = window.location.href;
+    setPageUrl(hasScopedResumeInUrl(href) ? toPublicPageUrl(href) : "");
+  }, [open, mode]);
+
+  useEffect(() => {
+    if (!open || !editPermissionLoaded || !canEdit || previewMode) return;
+    const scope = parseClientResumeScope();
+    let cancelled = false;
+    void Promise.all([
+      fetchPublishedSite("zh", scope),
+      fetchPublishedSite("en", scope),
+    ]).then(([zh, en]) => {
+      if (cancelled) return;
+      setPublishedLangs({
+        zh: zh.status === "ok",
+        en: en.status === "ok",
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, editPermissionLoaded, canEdit, previewMode]);
 
   const missingScopedResume =
     open && typeof window !== "undefined" && !hasScopedResumeInUrl(window.location.href);
@@ -130,23 +160,38 @@ export function ShareResumeControl() {
     editPermissionLoaded && !canEdit && !previewMode;
   const hrShare = getHrShareCopy(mode);
 
+  const shareLangNotPublished =
+    publishedLangs != null && !publishedLangs[shareLang];
+  const alternatePublishedLang: ShareSiteLang | null =
+    publishedLangs != null && shareLangNotPublished
+      ? shareLang === "zh"
+        ? publishedLangs.en
+          ? "en"
+          : null
+        : publishedLangs.zh
+          ? "zh"
+          : null
+      : null;
+
   const shareUrl = useMemo(() => {
     if (!pageUrl) return "";
+    const linkLang = isHrVisitor ? mode : shareLang;
     if (isHrVisitor) {
       return buildShareLink(pageUrl, {
-        lang: mode,
+        lang: linkLang,
         lockLang: langSwitchLocked,
         stripEditSecrets: false,
       });
     }
     return buildShareLink(pageUrl, {
-      lang: mode,
+      lang: linkLang,
       lockLang: lockLangOnShare,
       stripEditSecrets: editPermissionLoaded && canEdit,
     });
   }, [
     pageUrl,
     mode,
+    shareLang,
     lockLangOnShare,
     langSwitchLocked,
     editPermissionLoaded,
@@ -333,18 +378,97 @@ export function ShareResumeControl() {
                     </p>
                   </div>
                 ) : null}
+                {!missingScopedResume && !isHrVisitor && shareLangNotPublished ? (
+                  <div className="mb-4 rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5 text-[11px] leading-relaxed text-amber-950/90">
+                    <p className="font-semibold">
+                      {mode === "zh"
+                        ? shareLang === "en"
+                          ? "英文版尚未发布到服务器"
+                          : "中文版尚未发布到服务器"
+                        : shareLang === "en"
+                          ? "English version not published yet"
+                          : "Chinese version not published yet"}
+                    </p>
+                    <p className="mt-1 text-amber-950/85">
+                      {mode === "zh"
+                        ? "访客打开此链接可能看到默认模板，而非你当前编辑的内容。请先在当前语言下保存并发布，或改用已发布的语言链接。"
+                        : "Visitors may see the default template instead of your edits. Publish in this language first, or share a link for the language already published."}
+                    </p>
+                    {alternatePublishedLang ? (
+                      <button
+                        type="button"
+                        onClick={() => setShareLang(alternatePublishedLang)}
+                        className="mt-2 rounded-full border border-amber-300/80 bg-white/80 px-3 py-1.5 text-[11px] font-semibold text-amber-950 hover:bg-white"
+                      >
+                        {mode === "zh"
+                          ? alternatePublishedLang === "zh"
+                            ? "改用中文版链接"
+                            : "改用英文版链接"
+                          : alternatePublishedLang === "zh"
+                            ? "Use Chinese link instead"
+                            : "Use English link instead"}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
                 {!isHrVisitor ? (
                   <>
                 <p className="text-[11px] font-medium text-ink-muted">
                   {mode === "zh" ? "页面链接" : "Page URL"}
                 </p>
                 <p className="mt-1 text-[10px] leading-relaxed text-ink-muted/90">
-                  {mode === "zh"
-                    ? `链接已固定为中文版（?lang=zh）${lockLangOnShare ? "，且访客无法切换语言" : "。"}`
-                    : `Link opens the English version (?lang=en)${
-                        lockLangOnShare ? "; language switch hidden for visitors." : "."
-                      }`}
+                  {shareLang === "zh"
+                    ? mode === "zh"
+                      ? `链接固定为中文版（?lang=zh）${lockLangOnShare ? "，且访客无法切换语言" : "。"}`
+                      : `Link opens Chinese (?lang=zh)${
+                          lockLangOnShare ? "; language switch hidden." : "."
+                        }`
+                    : mode === "zh"
+                      ? `链接固定为英文版（?lang=en）${lockLangOnShare ? "，且访客无法切换语言" : "。"}`
+                      : `Link opens English (?lang=en)${
+                          lockLangOnShare ? "; language switch hidden." : "."
+                        }`}
                 </p>
+                {!missingScopedResume && publishedLangs ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShareLang("zh")}
+                      className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
+                        shareLang === "zh"
+                          ? "bg-ink text-white"
+                          : "border border-line bg-paper text-ink-muted hover:text-ink"
+                      }`}
+                    >
+                      {mode === "zh" ? "中文版链接" : "Chinese link"}
+                      {publishedLangs.zh
+                        ? mode === "zh"
+                          ? " · 已发布"
+                          : " · published"
+                        : mode === "zh"
+                          ? " · 未发布"
+                          : " · not published"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShareLang("en")}
+                      className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
+                        shareLang === "en"
+                          ? "bg-ink text-white"
+                          : "border border-line bg-paper text-ink-muted hover:text-ink"
+                      }`}
+                    >
+                      {mode === "zh" ? "英文版链接" : "English link"}
+                      {publishedLangs.en
+                        ? mode === "zh"
+                          ? " · 已发布"
+                          : " · published"
+                        : mode === "zh"
+                          ? " · 未发布"
+                          : " · not published"}
+                    </button>
+                  </div>
+                ) : null}
                 <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-line/80 bg-paper/60 px-3 py-2.5">
                   <input
                     type="checkbox"

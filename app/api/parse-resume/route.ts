@@ -7,7 +7,6 @@ import {
   requireParseQuota,
 } from "@/lib/server/entitlements";
 import { resolveEditPermission } from "@/lib/server/resolve-edit-permission";
-import { incrementUsage } from "@/lib/server/subscription-store";
 import { sanitizeResumeId } from "@/lib/resume-scope";
 import { mapParsedResumeToSite } from "@/lib/resume-parse-mapper";
 import {
@@ -244,13 +243,6 @@ export async function POST(request: NextRequest) {
         },
         { status: 422 },
       );
-    }
-
-    if (resumeId) {
-      await incrementUsage(resumeId, "smartImport");
-      if (method === "llm") {
-        await incrementUsage(resumeId, "aiParse");
-      }
     }
 
     return NextResponse.json({

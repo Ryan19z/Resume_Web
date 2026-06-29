@@ -3,6 +3,7 @@ import {
   resolveExistingUploadFilePath,
   safeBaseName,
 } from "@/lib/server/upload-asset-store";
+import { authorizeUploadAssetDownload } from "@/lib/server/upload-asset-auth";
 import { createReadStream } from "fs";
 import fs from "fs/promises";
 import path from "path";
@@ -57,6 +58,9 @@ export async function HEAD(
   request: NextRequest,
   context: { params: Promise<{ name: string }> },
 ) {
+  const authBlock = await authorizeUploadAssetDownload(request);
+  if (authBlock) return authBlock;
+
   const { name } = await context.params;
   const safeName = safeBaseName(name);
   const ext = path.extname(safeName).toLowerCase();
@@ -83,6 +87,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ name: string }> },
 ) {
+  const authBlock = await authorizeUploadAssetDownload(request);
+  if (authBlock) return authBlock;
+
   const { name } = await context.params;
   const safeName = safeBaseName(name);
   const ext = path.extname(safeName).toLowerCase();

@@ -78,8 +78,9 @@ export function HomeShell() {
     (site.projectExperience?.length ?? 0) > 0 ||
     (site.education?.length ?? 0) > 0;
   const hasPortfolioContent = (site.projects?.length ?? 0) > 0;
-  const showResumeSection = !previewMode || hasResumeContent;
-  const showPortfolioSection = !previewMode || hasPortfolioContent;
+  const authorEditing = editPermissionLoaded && canEdit && !previewMode;
+  const showResumeSection = authorEditing || hasResumeContent;
+  const showPortfolioSection = authorEditing || hasPortfolioContent;
 
   return (
     <>

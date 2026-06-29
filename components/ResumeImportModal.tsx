@@ -14,6 +14,7 @@ import {
 } from "@/lib/service-commitment";
 import { privacyNotice } from "@/lib/privacy-notices";
 import Link from "next/link";
+import { recordImportUsageOnApply } from "@/lib/import-usage-client";
 import {
   fetchParseResumeCapabilities,
   parseResumeFile,
@@ -415,11 +416,6 @@ export function ResumeImportModal() {
       return;
     }
 
-    if (resumeScopeActive) {
-      bumpImportUsage(result.method === "llm");
-      void refreshEntitlements();
-    }
-
     setParseProgress(100);
     setParseStageIndex(3);
 
@@ -445,8 +441,15 @@ export function ResumeImportModal() {
     setStep("preview");
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!mappedRef.current) return;
+    if (resumeScopeActive) {
+      const recorded = await recordImportUsageOnApply(method === "llm");
+      if (recorded) {
+        bumpImportUsage(method === "llm");
+        void refreshEntitlements();
+      }
+    }
     applyImportedResume(mappedRef.current);
     setStep("done");
   };

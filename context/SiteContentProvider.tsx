@@ -21,6 +21,11 @@ import {
   shouldShowAssetHint,
 } from "@/lib/publish-payload-audit";
 import { parseClientResumeScope } from "@/lib/resume-scope";
+import { flushInlineEdits } from "@/lib/inline-edit-registry";
+import {
+  applyResumeScopeToSiteAssets,
+  stripResumeScopeFromSiteAssets,
+} from "@/lib/scoped-upload-url";
 import {
   applyMappedImportToSite,
   type MappedResumeImport,
@@ -220,6 +225,11 @@ const defaultProfile: PersistedProfile = {
   setupDismissed: false,
 };
 
+type PublishedMetaState =
+  | { status: "unknown" }
+  | { status: "empty" }
+  | { status: "ready"; updatedAt: number };
+
 function mergeHeroCopy(
   current: HeroCopy,
   patch?: Partial<HeroCopy>,
@@ -248,7 +258,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   const { mode } = useLanguageMode();
   const [contentReady, setContentReady] = useState(true);
   const [siteLoadWarning, setSiteLoadWarning] = useState<string | null>(null);
-  const publishedMetaRef = useRef<{ updatedAt: number } | null>(null);
+  const publishedMetaRef = useRef<PublishedMetaState>({ status: "unknown" });
   const [profile, setProfile] = useState<PersistedProfile>(defaultProfile);
   const [site, setSite] = useState<SiteContent>(() => ({
     ...defaultSiteContent,
@@ -340,6 +350,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   );
 
   const applyBundle = useCallback((bundle: PersistedSiteBundle) => {
+    flushInlineEdits();
     setProfile(bundle.profile);
     setSite(mergeInitialSite(bundle));
   }, []);
@@ -350,9 +361,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
   const commitAll = useCallback(
     (p: PersistedProfile, s: SiteContent) => {
+      const cleanedSite = stripResumeScopeFromSiteAssets(s);
       setProfile(p);
-      setSite(s);
-      const stamped = stampBundleForSave(buildBundleFromState(p, s));
+      setSite(cleanedSite);
+      const stamped = stampBundleForSave(buildBundleFromState(p, cleanedSite));
       const localOk = savePersistedBundle(stamped, mode, resumeScopeRef.current);
 
       if (!localOk) {
@@ -360,12 +372,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       }
 
       if (!canEditRef.current) {
-        if (localOk) dismissPersistError();
         return;
       }
 
       if (accessGateRequiredRef.current && !accessGatePassedRef.current) {
-        if (localOk) dismissPersistError();
         return;
       }
 
@@ -376,7 +386,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
           showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
           return;
         }
-        publishedMetaRef.current = { updatedAt: stamped.savedAt ?? Date.now() };
+        publishedMetaRef.current = {
+          status: "ready",
+          updatedAt: stamped.savedAt ?? Date.now(),
+        };
         if (localOk) dismissPersistError();
       });
     },
@@ -439,15 +452,19 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
 
         if (publishedResult.status === "error") {
           setSiteLoadWarning(publishedResult.message);
-          publishedMetaRef.current = null;
+          publishedMetaRef.current = { status: "unknown" };
           return;
         }
         if (publishedResult.status === "empty") {
-          publishedMetaRef.current = null;
+          publishedMetaRef.current = { status: "empty" };
           return;
         }
 
-        publishedMetaRef.current = { updatedAt: publishedResult.updatedAt };
+        publishedMetaRef.current = {
+          status: "ready",
+          updatedAt: publishedResult.updatedAt,
+        };
+        flushInlineEdits();
         const localDraft = loadPersistedBundle(mode, resumeScopeRef.current);
         const localAt = localDraft?.savedAt ?? 0;
         if (localDraft && localAt > publishedResult.updatedAt) {
@@ -463,6 +480,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         console.error("[SiteContentProvider] 后台同步发布数据失败", e);
         if (!cancelled) {
           setSiteLoadWarning("加载远端数据失败，已使用本机草稿。");
+          publishedMetaRef.current = { status: "unknown" };
         }
       }
     })();
@@ -477,14 +495,16 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!contentReady || !editPermissionLoaded || !canEdit) return;
 
+    flushInlineEdits();
     const local = loadPersistedBundle(mode, resumeScopeRef.current);
     if (!local) return;
 
     const localAt = local.savedAt ?? 0;
-    const pubAt = publishedMetaRef.current?.updatedAt ?? -1;
-    const serverHadPublish = publishedMetaRef.current !== null;
+    const meta = publishedMetaRef.current;
+    if (meta.status === "unknown") return;
 
-    if (serverHadPublish && localAt <= pubAt) return;
+    const pubAt = meta.status === "ready" ? meta.updatedAt : -1;
+    if (meta.status === "ready" && localAt <= pubAt) return;
 
     applyBundle(local);
     const stamped = stampBundleForSave(
@@ -499,7 +519,10 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
         showPersistError(res.message ?? SERVER_PUBLISH_FAILED_MESSAGE);
         return;
       }
-      publishedMetaRef.current = { updatedAt: stamped.savedAt ?? Date.now() };
+      publishedMetaRef.current = {
+        status: "ready",
+        updatedAt: stamped.savedAt ?? Date.now(),
+      };
     });
   }, [
     contentReady,
@@ -1007,9 +1030,15 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
     [commitAll],
   );
 
+  const clientScope = parseClientResumeScope();
+  const displaySite = useMemo(
+    () => applyResumeScopeToSiteAssets(site, clientScope),
+    [site, clientScope.resumeId, clientScope.viewToken, clientScope.editToken],
+  );
+
   const value = useMemo(
     () => ({
-      site,
+      site: displaySite,
       profile,
       canEdit,
       editPermissionLoaded,
@@ -1069,7 +1098,7 @@ export function SiteContentProvider({ children }: { children: ReactNode }) {
       applyImportedResume,
     }),
     [
-      site,
+      displaySite,
       profile,
       canEdit,
       editPermissionLoaded,
