@@ -1,17 +1,19 @@
 # 侯钟棋 · 海外技术支持简历（改版）
 
-面向：**半导体设备 / 机器人** 方向的 **海外技术支持（复合岗）**，工作地深圳，后续再转海外销售。
+面向：**半导体设备 / 机器人** 方向的 **海外技术支持工程师**，工作地深圳，后续再转海外销售。
+
+**推荐使用 Word：** `docx/` 下四份 `.docx`，可直接下载后自己改。
 
 ## 文件清单
 
-| 版本 | HTML | PDF |
-|------|------|-----|
-| 中文一页 | `侯钟棋-海外技术支持-中文-一页版.html` | `pdf/侯钟棋-海外技术支持-中文-一页版.pdf` |
-| 中文两页 | `侯钟棋-海外技术支持-中文-两页版.html` | `pdf/侯钟棋-海外技术支持-中文-两页版.pdf` |
-| English 1-page | `Hou-Zhongqi-Overseas-Technical-Support-EN-1page.html` | `pdf/...-EN-1page.pdf` |
-| English 2-page | `Hou-Zhongqi-Overseas-Technical-Support-EN-2page.html` | `pdf/...-EN-2page.pdf` |
+| 版本 | Word（推荐） | HTML | PDF |
+|------|-------------|------|-----|
+| 中文一页 | `docx/侯钟棋-海外技术支持-中文-一页版.docx` | `...html` | `pdf/...pdf` |
+| 中文两页 | `docx/侯钟棋-海外技术支持-中文-两页版.docx` | `...html` | `pdf/...pdf` |
+| English 1-page | `docx/...EN-1page.docx` | `...html` | `pdf/...pdf` |
+| English 2-page | `docx/...EN-2page.docx` | `...html` | `pdf/...pdf` |
 
-Markdown 可编辑稿见同目录 `*.md`。
+文案已去掉「复合岗」、中英文分号，并改成更口语、少套话的写法。
 
 ## 改版策略（给投递用）
 
