@@ -137,51 +137,22 @@ def setup_doc(margins=(1.3, 1.3, 1.5, 1.5)):
 
 
 def add_header_with_photo(doc, lines, photo_label="照片", photo_w=2.2, photo_h=2.8):
-    """Header: left text block + right compact photo slot. No outer dashed boxes."""
-    table = doc.add_table(rows=1, cols=2)
-    table.alignment = WD_TABLE_ALIGNMENT.CENTER
-    table.autofit = False
-    clear_table_borders(table)
-
-    left, right = table.rows[0].cells
-    left.width = Cm(14.8)
-    right.width = Cm(photo_w + 0.2)
-
-    # clear default empty para and fill left
-    left.text = ""
+    """Header as normal centered paragraphs only — no table, no dashed boxes in WPS."""
+    del photo_label, photo_w, photo_h  # photo slot removed to avoid table gridlines
     for i, (text, size, bold) in enumerate(lines):
-        p = left.paragraphs[0] if i == 0 else left.add_paragraph()
-        set_para(p, before=0 if i else 0, after=2, align=WD_ALIGN_PARAGRAPH.CENTER, line=1.2)
+        p = doc.add_paragraph()
+        set_para(
+            p,
+            before=0 if i else 2,
+            after=3 if i == 0 else 2,
+            align=WD_ALIGN_PARAGRAPH.CENTER,
+            line=1.2,
+        )
         run = p.add_run(text)
         set_run_font(run, size=size, bold=bold)
-
-    # photo cell
-    right.text = ""
-    set_cell_margins(right, top=0, bottom=0, left=40, right=0)
-    set_cell_border(
-        right,
-        top=("single", 8, "999999"),
-        left=("single", 8, "999999"),
-        bottom=("single", 8, "999999"),
-        right=("single", 8, "999999"),
-    )
-    # fixed height via trHeight
-    tr = table.rows[0]._tr
-    trPr = tr.get_or_add_trPr()
-    trHeight = OxmlElement("w:trHeight")
-    trHeight.set(qn("w:val"), str(int(photo_h * 567)))  # cm to twips approx
-    trHeight.set(qn("w:hRule"), "exact")
-    trPr.append(trHeight)
-
-    p = right.paragraphs[0]
-    set_para(p, before=28, after=0, align=WD_ALIGN_PARAGRAPH.CENTER)
-    run = p.add_run(photo_label)
-    set_run_font(run, size=9, color=RGBColor(0x99, 0x99, 0x99))
-
-    # spacer after header
-    sp = doc.add_paragraph()
-    set_para(sp, before=0, after=2)
-    return table
+    spacer = doc.add_paragraph()
+    set_para(spacer, before=0, after=2)
+    return None
 
 
 def add_section(doc, title):
